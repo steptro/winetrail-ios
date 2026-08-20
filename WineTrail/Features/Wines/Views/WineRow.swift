@@ -9,9 +9,9 @@ struct WineRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if let color = wine.color {
-                WineColorIndicator(color: color, size: 10)
-            }
+            Image(systemName: "wineglass.fill")
+                .font(.title3)
+                .foregroundStyle(wine.color?.accentColor ?? .wineAccent)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(wine.name)
@@ -24,14 +24,6 @@ struct WineRow: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
-                    }
-                    if let vintage = wine.vintage {
-                        Text("·")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(String(vintage))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -57,7 +49,6 @@ struct WineRow: View {
     private var accessibilityDescription: String {
         var parts = [wine.name]
         if let producer = wine.producer { parts.append(producer) }
-        if let vintage = wine.vintage { parts.append("vintage \(vintage)") }
         if let color = wine.color { parts.append("\(color.displayName) wine") }
         parts.append("tasted \(wine.timesDrunk) times")
         parts.append("average rating \(Int(wine.averageRating.rounded())) out of 10")

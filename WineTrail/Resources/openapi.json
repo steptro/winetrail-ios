@@ -1,1 +1,1464 @@
-{"openapi":"3.1.0","info":{"title":"WineTrail API","description":"REST API for the WineTrail personal wine diary application","version":"1.0.0"},"servers":[{"url":"/","description":"Default server"}],"security":[{"firebase-jwt":[]}],"tags":[{"name":"Photos","description":"Photo management endpoints"},{"name":"Wines","description":"Wine search and management"},{"name":"Stats","description":"Personal wine statistics"},{"name":"Tastings","description":"Wine tasting management"},{"name":"Account","description":"User account management"},{"name":"Device Tokens","description":"FCM device token management for push notifications"},{"name":"Map","description":"Geographic map data for wine journey visualization"}],"paths":{"/api/v1/users/me":{"get":{"tags":["Account"],"summary":"Get the current user's profile","operationId":"getProfile","responses":{"200":{"description":"Profile retrieved successfully","content":{"application/json":{"schema":{"$ref":"#/components/schemas/UserProfile"}}}}}},"put":{"tags":["Account"],"summary":"Update the current user's profile","operationId":"updateProfile","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/UpdateProfileRequest"}}},"required":true},"responses":{"200":{"description":"Profile updated successfully","content":{"application/json":{"schema":{"$ref":"#/components/schemas/UserProfile"}}}},"400":{"description":"Invalid display name","content":{"application/json":{"schema":{"$ref":"#/components/schemas/UserProfile"}}}}}},"delete":{"tags":["Account"],"summary":"Delete the current user's account (GDPR)","operationId":"deleteAccount","responses":{"204":{"description":"Account deleted successfully"}}}},"/api/v1/tastings/{tastingId}":{"get":{"tags":["Tastings"],"summary":"Get a specific tasting by ID","operationId":"getTasting","parameters":[{"name":"tastingId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/TastingDto"}}}}}},"put":{"tags":["Tastings"],"summary":"Update an existing tasting","operationId":"updateTasting","parameters":[{"name":"tastingId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/UpdateTastingRequest"}}},"required":true},"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/TastingDto"}}}}}},"delete":{"tags":["Tastings"],"summary":"Delete a tasting and its photos","operationId":"deleteTasting","parameters":[{"name":"tastingId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}],"responses":{"204":{"description":"No Content"}}}},"/api/v1/wines":{"post":{"tags":["Wines"],"summary":"Create a user-defined wine","operationId":"createWine","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CreateWineRequest"}}},"required":true},"responses":{"201":{"description":"Created","content":{"application/json":{"schema":{"$ref":"#/components/schemas/WineDto"}}}}}}},"/api/v1/tastings":{"get":{"tags":["Tastings"],"summary":"Get the user's tasting timeline","operationId":"getTimeline","parameters":[{"name":"page","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":0}},{"name":"size","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":20}}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/PageTastingDto"}}}}}},"post":{"tags":["Tastings"],"summary":"Create a new tasting","operationId":"createTasting","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CreateTastingRequest"}}},"required":true},"responses":{"201":{"description":"Created","content":{"application/json":{"schema":{"$ref":"#/components/schemas/TastingDto"}}}}}}},"/api/v1/tastings/{tastingId}/photos":{"post":{"tags":["Photos"],"summary":"Upload a photo to a tasting","description":"Uploads an image (JPEG, PNG, or HEIC) to the specified tasting. Maximum file size is 10MB and maximum 5 photos per tasting.","operationId":"uploadPhoto","parameters":[{"name":"tastingId","in":"path","description":"Tasting ID","required":true,"schema":{"type":"string","format":"uuid"}}],"requestBody":{"content":{"multipart/form-data":{"schema":{"type":"object","properties":{"file":{"type":"string","format":"binary","description":"Photo file (JPEG, PNG, or HEIC, max 10MB)"}},"required":["file"]}}},"required":true},"responses":{"201":{"description":"Photo uploaded successfully","content":{"application/json":{"schema":{"$ref":"#/components/schemas/PhotoUploadDto"}}}},"400":{"description":"Invalid file type or size","content":{"application/json":{"schema":{"$ref":"#/components/schemas/PhotoUploadDto"}}}},"403":{"description":"Not the tasting owner","content":{"application/json":{"schema":{"$ref":"#/components/schemas/PhotoUploadDto"}}}},"404":{"description":"Tasting not found","content":{"application/json":{"schema":{"$ref":"#/components/schemas/PhotoUploadDto"}}}},"422":{"description":"Maximum photos reached","content":{"application/json":{"schema":{"$ref":"#/components/schemas/PhotoUploadDto"}}}}}}},"/api/v1/devices":{"post":{"tags":["Device Tokens"],"summary":"Register an FCM device token","description":"Registers a device token for push notifications. If the token already exists, updates its last_used_at timestamp.","operationId":"registerDeviceToken","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DeviceTokenRequest"}}},"required":true},"responses":{"201":{"description":"Device token registered successfully"}}}},"/api/v1/wines/search":{"get":{"tags":["Wines"],"summary":"Search wines across local DB and external providers","operationId":"searchWines","parameters":[{"name":"q","in":"query","required":true,"schema":{"type":"string"}},{"name":"locale","in":"query","required":false,"schema":{"type":"string","default":"en"}}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/WineSearchDto"}}}}}}}},"/api/v1/wines/me":{"get":{"tags":["Wines"],"summary":"Get the user's wines with tasting stats","operationId":"getUserWines","parameters":[{"name":"color","in":"query","required":false,"schema":{"$ref":"#/components/schemas/WineColor"}},{"name":"sort","in":"query","required":false,"schema":{"$ref":"#/components/schemas/WineSortOption"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":0}},{"name":"size","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":20}}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/PageWineWithStats"}}}}}}},"/api/v1/stats":{"get":{"tags":["Stats"],"summary":"Get personal wine statistics","operationId":"getUserStats","responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/UserStats"}}}}}}},"/api/v1/map":{"get":{"tags":["Map"],"summary":"Get map data with regions explored and drinking locations","operationId":"getMapData","responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/MapData"}}}}}}},"/api/v1/photos/{photoId}":{"delete":{"tags":["Photos"],"summary":"Delete a photo","description":"Deletes a photo from object storage and removes the database record. Only the tasting owner can delete.","operationId":"deletePhoto","parameters":[{"name":"photoId","in":"path","description":"Photo ID","required":true,"schema":{"type":"string","format":"uuid"}}],"responses":{"204":{"description":"Photo deleted successfully"},"403":{"description":"Not the photo owner"},"404":{"description":"Photo not found"}}}},"/api/v1/devices/{token}":{"delete":{"tags":["Device Tokens"],"summary":"Unregister an FCM device token","description":"Removes a device token. Idempotent: returns 204 even if the token does not exist.","operationId":"unregisterDeviceToken","parameters":[{"name":"token","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"204":{"description":"Device token unregistered successfully"}}}}},"components":{"schemas":{"UpdateProfileRequest":{"type":"object","description":"Request to update user profile","properties":{"displayName":{"type":"string","description":"New display name","example":"Stephan","maxLength":100,"minLength":1}},"required":["displayName"]},"UserProfile":{"type":"object","description":"User profile information","properties":{"displayName":{"type":"string","description":"User's display name","example":"Stephan"},"email":{"type":"string","description":"User's email address","example":"user@example.com"},"createdAt":{"type":"string","format":"date-time","description":"Account creation timestamp"},"updatedAt":{"type":"string","format":"date-time","description":"Last profile update timestamp"}},"required":["createdAt","displayName","email","updatedAt"]},"UpdateTastingRequest":{"type":"object","description":"Request to update an existing tasting. All fields are optional","properties":{"rating":{"type":"integer","format":"int32","description":"Rating from 1 to 10","example":8,"maximum":10,"minimum":1},"notes":{"type":"string","description":"Free-text tasting notes"},"foodPairing":{"type":"string","description":"Food paired with the wine","example":"Grilled lamb"},"occasion":{"type":"string","description":"Occasion of the tasting","example":"Birthday dinner"},"price":{"type":"string","description":"Price paid for the wine","example":"€25"},"latitude":{"type":"number","format":"double","description":"Latitude of the tasting location","example":48.8566},"longitude":{"type":"number","format":"double","description":"Longitude of the tasting location","example":2.3522},"locationName":{"type":"string","description":"Human-readable location name","example":"Le Comptoir du Panthéon, Paris"},"tastingDate":{"type":"string","format":"date","description":"Date of the tasting"},"vintage":{"type":"integer","format":"int32","description":"Vintage year of the wine tasted","example":2019}}},"LocationData":{"type":"object","description":"Geographic location of a tasting","properties":{"latitude":{"type":"number","format":"double","description":"Latitude","example":48.8566},"longitude":{"type":"number","format":"double","description":"Longitude","example":2.3522},"locationName":{"type":"string","description":"Human-readable location name","example":"Le Comptoir du Panthéon, Paris"}}},"PhotoDto":{"type":"object","description":"Photo metadata","properties":{"id":{"type":"string","format":"uuid","description":"Photo ID"},"url":{"type":"string","description":"Presigned URL to access the photo"},"displayOrder":{"type":"integer","format":"int32","description":"Display order within the tasting","example":1},"createdAt":{"type":"string","format":"date-time","description":"Timestamp when the photo was uploaded"}},"required":["createdAt","displayOrder","id","url"]},"TastingDto":{"type":"object","description":"A wine tasting entry with all details","properties":{"id":{"type":"string","format":"uuid","description":"Unique tasting ID"},"wine":{"$ref":"#/components/schemas/WineSummary"},"rating":{"type":"integer","format":"int32","description":"Rating from 1 to 10","example":8},"notes":{"type":"string","description":"Free-text tasting notes"},"foodPairing":{"type":"string","description":"Food paired with the wine","example":"Grilled lamb"},"occasion":{"type":"string","description":"Occasion of the tasting","example":"Birthday dinner"},"price":{"type":"string","description":"Price paid for the wine","example":"€25"},"location":{"$ref":"#/components/schemas/LocationData"},"tastingDate":{"type":"string","format":"date","description":"Date of the tasting"},"vintage":{"type":"integer","format":"int32","description":"Vintage year of the wine tasted","example":2019},"photos":{"type":"array","items":{"$ref":"#/components/schemas/PhotoDto"}},"createdAt":{"type":"string","format":"date-time","description":"Timestamp when the tasting was created"},"updatedAt":{"type":"string","format":"date-time","description":"Timestamp when the tasting was last updated"}},"required":["createdAt","id","photos","rating","tastingDate","updatedAt","wine"]},"WineColor":{"type":"string","enum":["RED","WHITE","ROSE","ORANGE","SPARKLING"]},"WineSummary":{"type":"object","description":"Compact wine summary","properties":{"id":{"type":"string","format":"uuid","description":"Wine ID"},"name":{"type":"string","description":"Wine name","example":"Barolo DOCG 2018"},"producer":{"type":"string","description":"Producer name","example":"Marchesi di Barolo"},"regionName":{"type":"string","description":"Wine region","example":"Barolo"},"country":{"type":"string","description":"Country code","example":"IT"},"color":{"$ref":"#/components/schemas/WineColor"},"vintage":{"type":"integer","format":"int32","description":"Vintage year","example":2018}},"required":["id","name"]},"CreateWineRequest":{"type":"object","description":"Request to create a user-defined wine","properties":{"name":{"type":"string","description":"Wine name","example":"Château Margaux 2015","minLength":1},"producer":{"type":"string","description":"Producer name","example":"Château Margaux"},"regionName":{"type":"string","description":"Wine region","example":"Margaux"},"country":{"type":"string","description":"Country code","example":"FR"},"color":{"$ref":"#/components/schemas/WineColor"},"vintage":{"type":"integer","format":"int32","description":"Vintage year","example":2015},"grapeVarieties":{"type":"string","description":"Grape varieties","example":"Cabernet Sauvignon, Merlot"}},"required":["name"]},"WineDto":{"type":"object","description":"Full wine details","properties":{"externalSource":{"type":"string","description":"External provider name","example":"grapeminds"},"externalId":{"type":"string","description":"External wine ID","example":"42"},"name":{"type":"string","description":"Wine name","example":"Barolo DOCG 2018"},"producer":{"type":"string","description":"Producer name","example":"Marchesi di Barolo"},"regionName":{"type":"string","description":"Wine region","example":"Barolo"},"country":{"type":"string","description":"Country code","example":"IT"},"color":{"$ref":"#/components/schemas/WineColor"},"vintage":{"type":"integer","format":"int32","description":"Vintage year","example":2018},"grapeVarieties":{"type":"string","description":"Grape varieties","example":"Nebbiolo"},"description":{"type":"string","description":"Wine description"}},"required":["name"]},"CreateTastingRequest":{"type":"object","description":"Request to create a new tasting. Provide either wineId or (externalSource + externalId)","properties":{"wineId":{"type":"string","format":"uuid","description":"ID of an existing wine in the local database"},"externalSource":{"type":"string","description":"External provider name","example":"grapeminds"},"externalId":{"type":"string","description":"External wine ID from the provider","example":"42"},"rating":{"type":"integer","format":"int32","description":"Rating from 1 to 10","example":8,"maximum":10,"minimum":1},"notes":{"type":"string","description":"Free-text tasting notes"},"foodPairing":{"type":"string","description":"Food paired with the wine","example":"Grilled lamb"},"occasion":{"type":"string","description":"Occasion of the tasting","example":"Birthday dinner"},"price":{"type":"string","description":"Price paid for the wine","example":"€25"},"latitude":{"type":"number","format":"double","description":"Latitude of the tasting location","example":48.8566},"longitude":{"type":"number","format":"double","description":"Longitude of the tasting location","example":2.3522},"locationName":{"type":"string","description":"Human-readable location name","example":"Le Comptoir du Panthéon, Paris"},"tastingDate":{"type":"string","format":"date","description":"Date of the tasting (defaults to today)"},"vintage":{"type":"integer","format":"int32","description":"Vintage year of the wine tasted","example":2019}},"required":["rating"]},"PhotoUploadDto":{"type":"object","description":"Photo upload response","properties":{"id":{"type":"string","format":"uuid","description":"Generated photo ID"},"url":{"type":"string","description":"Presigned URL for accessing the photo"},"displayOrder":{"type":"integer","format":"int32","description":"Display order assigned to this photo","example":1}},"required":["displayOrder","id","url"]},"DeviceTokenRequest":{"type":"object","description":"Request to register a device token for push notifications","properties":{"token":{"type":"string","description":"FCM device token","minLength":1},"platform":{"type":"string","description":"Platform identifier","example":"ios"}},"required":["token"]},"WineSearchDto":{"type":"object","description":"Wine search result","properties":{"externalSource":{"type":"string","description":"External provider name","example":"grapeminds"},"externalId":{"type":"string","description":"External wine ID","example":"42"},"name":{"type":"string","description":"Wine name","example":"Barolo DOCG 2018"},"producer":{"type":"string","description":"Producer name","example":"Marchesi di Barolo"},"region":{"type":"string","description":"Wine region","example":"Barolo"},"country":{"type":"string","description":"Country code","example":"IT"},"color":{"$ref":"#/components/schemas/WineColor"},"vintage":{"type":"integer","format":"int32","description":"Vintage year","example":2018}},"required":["name"]},"WineSortOption":{"type":"string","enum":["TIMES_DRUNK","AVERAGE_RATING","LAST_TASTED"]},"PageWineWithStats":{"type":"object","properties":{"totalPages":{"type":"integer","format":"int32"},"totalElements":{"type":"integer","format":"int64"},"size":{"type":"integer","format":"int32"},"content":{"type":"array","items":{"$ref":"#/components/schemas/WineWithStats"}},"number":{"type":"integer","format":"int32"},"sort":{"$ref":"#/components/schemas/SortObject"},"pageable":{"$ref":"#/components/schemas/PageableObject"},"numberOfElements":{"type":"integer","format":"int32"},"first":{"type":"boolean"},"last":{"type":"boolean"},"empty":{"type":"boolean"}}},"PageableObject":{"type":"object","properties":{"paged":{"type":"boolean"},"pageNumber":{"type":"integer","format":"int32"},"pageSize":{"type":"integer","format":"int32"},"sort":{"$ref":"#/components/schemas/SortObject"},"unpaged":{"type":"boolean"},"offset":{"type":"integer","format":"int64"}}},"SortObject":{"type":"object","properties":{"sorted":{"type":"boolean"},"unsorted":{"type":"boolean"},"empty":{"type":"boolean"}}},"WineWithStats":{"type":"object","description":"Wine with aggregated tasting statistics","properties":{"id":{"type":"string","format":"uuid","description":"Wine ID"},"name":{"type":"string","description":"Wine name","example":"Barolo DOCG 2018"},"producer":{"type":"string","description":"Producer name","example":"Marchesi di Barolo"},"regionName":{"type":"string","description":"Wine region","example":"Barolo"},"color":{"$ref":"#/components/schemas/WineColor"},"vintage":{"type":"integer","format":"int32","description":"Vintage year","example":2018},"timesDrunk":{"type":"integer","format":"int32","description":"Number of times this wine was tasted","example":5},"averageRating":{"type":"number","format":"double","description":"Average rating across tastings","example":7.8},"firstTasted":{"type":"string","format":"date","description":"Date of the first tasting"},"lastTasted":{"type":"string","format":"date","description":"Date of the most recent tasting"}},"required":["averageRating","id","name","timesDrunk"]},"PageTastingDto":{"type":"object","properties":{"totalPages":{"type":"integer","format":"int32"},"totalElements":{"type":"integer","format":"int64"},"size":{"type":"integer","format":"int32"},"content":{"type":"array","items":{"$ref":"#/components/schemas/TastingDto"}},"number":{"type":"integer","format":"int32"},"sort":{"$ref":"#/components/schemas/SortObject"},"pageable":{"$ref":"#/components/schemas/PageableObject"},"numberOfElements":{"type":"integer","format":"int32"},"first":{"type":"boolean"},"last":{"type":"boolean"},"empty":{"type":"boolean"}}},"ActivityPoint":{"type":"object","description":"Activity data point representing tastings in a calendar week","properties":{"weekStart":{"type":"string","format":"date","description":"Start date of the ISO 8601 week (Monday)","example":"2024-01-08"},"count":{"type":"integer","format":"int64","description":"Number of tastings during this week","example":3}}},"RegionCount":{"type":"object","description":"A wine region with its tasting count","properties":{"regionName":{"type":"string","description":"Name of the wine region","example":"Barossa Valley"},"count":{"type":"integer","format":"int64","description":"Number of tastings from this region","example":12}}},"UserStats":{"type":"object","description":"Personal wine statistics for the user's dashboard","properties":{"uniqueWines":{"type":"integer","format":"int32","description":"Number of unique wines tasted","example":42},"colorSplit":{"type":"object","additionalProperties":{"type":"integer","format":"int32"},"description":"Tasting count per wine color"},"topRegions":{"type":"array","description":"Top 10 regions ranked by tasting count","items":{"$ref":"#/components/schemas/RegionCount"}},"averageRating":{"type":"number","format":"double","description":"Average rating across all tastings, rounded to 1 decimal","example":7.3},"activityTimeline":{"type":"array","description":"Activity timeline with tastings per ISO 8601 week","items":{"$ref":"#/components/schemas/ActivityPoint"}}}},"LocationPin":{"type":"object","description":"Map pin for a tasting location","properties":{"latitude":{"type":"number","format":"double","description":"Latitude","example":48.8566},"longitude":{"type":"number","format":"double","description":"Longitude","example":2.3522},"locationName":{"type":"string","description":"Location name","example":"Le Comptoir du Panthéon, Paris"},"tastingCount":{"type":"integer","format":"int64","description":"Number of tastings at this location","example":3}},"required":["latitude","longitude","tastingCount"]},"MapData":{"type":"object","description":"Map data for the user's wine journey","properties":{"drinkingLocations":{"type":"array","description":"Pins for locations where the user had tastings","items":{"$ref":"#/components/schemas/LocationPin"}}},"required":["drinkingLocations"]}},"securitySchemes":{"firebase-jwt":{"type":"http","description":"Firebase ID token","scheme":"bearer","bearerFormat":"JWT"}}}}
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "WineTrail API",
+        "description": "REST API for the WineTrail personal wine diary application",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "/",
+            "description": "Default server"
+        }
+    ],
+    "security": [
+        {
+            "firebase-jwt": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "Photos",
+            "description": "Photo management endpoints"
+        },
+        {
+            "name": "Wines",
+            "description": "Wine search and management"
+        },
+        {
+            "name": "Stats",
+            "description": "Personal wine statistics"
+        },
+        {
+            "name": "Tastings",
+            "description": "Wine tasting management"
+        },
+        {
+            "name": "Account",
+            "description": "User account management"
+        },
+        {
+            "name": "Device Tokens",
+            "description": "FCM device token management for push notifications"
+        },
+        {
+            "name": "Map",
+            "description": "Geographic map data for wine journey visualization"
+        }
+    ],
+    "paths": {
+        "/api/v1/users/me": {
+            "get": {
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Get the current user's profile",
+                "operationId": "getProfile",
+                "responses": {
+                    "200": {
+                        "description": "Profile retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserProfile"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Update the current user's profile",
+                "operationId": "updateProfile",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProfileRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Profile updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserProfile"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid display name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserProfile"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Delete the current user's account (GDPR)",
+                "operationId": "deleteAccount",
+                "responses": {
+                    "204": {
+                        "description": "Account deleted successfully"
+                    }
+                }
+            }
+        },
+        "/api/v1/tastings/{tastingId}": {
+            "get": {
+                "tags": [
+                    "Tastings"
+                ],
+                "summary": "Get a specific tasting by ID",
+                "operationId": "getTasting",
+                "parameters": [
+                    {
+                        "name": "tastingId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TastingDto"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Tastings"
+                ],
+                "summary": "Update an existing tasting",
+                "operationId": "updateTasting",
+                "parameters": [
+                    {
+                        "name": "tastingId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateTastingRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TastingDto"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Tastings"
+                ],
+                "summary": "Delete a tasting and its photos",
+                "operationId": "deleteTasting",
+                "parameters": [
+                    {
+                        "name": "tastingId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/api/v1/wines": {
+            "post": {
+                "tags": [
+                    "Wines"
+                ],
+                "summary": "Create a user-defined wine",
+                "operationId": "createWine",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateWineRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WineDto"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tastings": {
+            "get": {
+                "tags": [
+                    "Tastings"
+                ],
+                "summary": "Get the user's tasting timeline",
+                "operationId": "getTimeline",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 0
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PagedModelTastingDto"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Tastings"
+                ],
+                "summary": "Create a new tasting",
+                "operationId": "createTasting",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateTastingRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TastingDto"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tastings/{tastingId}/photos": {
+            "post": {
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Upload a photo to a tasting",
+                "description": "Uploads an image (JPEG, PNG, or HEIC) to the specified tasting. Maximum file size is 10MB and maximum 5 photos per tasting.",
+                "operationId": "uploadPhoto",
+                "parameters": [
+                    {
+                        "name": "tastingId",
+                        "in": "path",
+                        "description": "Tasting ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "file": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "description": "Photo file (JPEG, PNG, or HEIC, max 10MB)"
+                                    }
+                                },
+                                "required": [
+                                    "file"
+                                ]
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Photo uploaded successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PhotoUploadDto"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid file type or size",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PhotoUploadDto"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not the tasting owner",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PhotoUploadDto"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Tasting not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PhotoUploadDto"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Maximum photos reached",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PhotoUploadDto"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/devices": {
+            "post": {
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Register an FCM device token",
+                "description": "Registers a device token for push notifications. If the token already exists, updates its last_used_at timestamp.",
+                "operationId": "registerDeviceToken",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeviceTokenRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Device token registered successfully"
+                    }
+                }
+            }
+        },
+        "/api/v1/wines/search": {
+            "get": {
+                "tags": [
+                    "Wines"
+                ],
+                "summary": "Search wines across user's wines, local DB, and external providers",
+                "operationId": "searchWines",
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "locale",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "en"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/WineSearchDto"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/wines/me": {
+            "get": {
+                "tags": [
+                    "Wines"
+                ],
+                "summary": "Get the user's wines with tasting stats",
+                "operationId": "getUserWines",
+                "parameters": [
+                    {
+                        "name": "color",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/WineColor"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/WineSortOption"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 0
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PagedModelWineWithStats"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/stats": {
+            "get": {
+                "tags": [
+                    "Stats"
+                ],
+                "summary": "Get personal wine statistics",
+                "operationId": "getUserStats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserStats"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/map": {
+            "get": {
+                "tags": [
+                    "Map"
+                ],
+                "summary": "Get map data with regions explored and drinking locations",
+                "operationId": "getMapData",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MapData"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/photos/{photoId}": {
+            "delete": {
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Delete a photo",
+                "description": "Deletes a photo from object storage and removes the database record. Only the tasting owner can delete.",
+                "operationId": "deletePhoto",
+                "parameters": [
+                    {
+                        "name": "photoId",
+                        "in": "path",
+                        "description": "Photo ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Photo deleted successfully"
+                    },
+                    "403": {
+                        "description": "Not the photo owner"
+                    },
+                    "404": {
+                        "description": "Photo not found"
+                    }
+                }
+            }
+        },
+        "/api/v1/devices/{token}": {
+            "delete": {
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Unregister an FCM device token",
+                "description": "Removes a device token. Idempotent: returns 204 even if the token does not exist.",
+                "operationId": "unregisterDeviceToken",
+                "parameters": [
+                    {
+                        "name": "token",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Device token unregistered successfully"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "UpdateProfileRequest": {
+                "type": "object",
+                "description": "Request to update user profile",
+                "properties": {
+                    "displayName": {
+                        "type": "string",
+                        "description": "New display name",
+                        "example": "Stephan",
+                        "maxLength": 100,
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "displayName"
+                ]
+            },
+            "UserProfile": {
+                "type": "object",
+                "description": "User profile information",
+                "properties": {
+                    "displayName": {
+                        "type": "string",
+                        "description": "User's display name",
+                        "example": "Stephan"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "User's email address",
+                        "example": "user@example.com"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Account creation timestamp"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Last profile update timestamp"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "displayName",
+                    "email",
+                    "updatedAt"
+                ]
+            },
+            "UpdateTastingRequest": {
+                "type": "object",
+                "description": "Request to update an existing tasting. All fields are optional",
+                "properties": {
+                    "rating": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Rating from 1 to 10",
+                        "example": 8,
+                        "maximum": 10,
+                        "minimum": 1
+                    },
+                    "notes": {
+                        "type": "string",
+                        "description": "Free-text tasting notes"
+                    },
+                    "foodPairing": {
+                        "type": "string",
+                        "description": "Food paired with the wine",
+                        "example": "Grilled lamb"
+                    },
+                    "occasion": {
+                        "type": "string",
+                        "description": "Occasion of the tasting",
+                        "example": "Birthday dinner"
+                    },
+                    "price": {
+                        "type": "string",
+                        "description": "Price paid for the wine",
+                        "example": "\u20ac25"
+                    },
+                    "currency": {
+                        "type": "string",
+                        "description": "Currency code (ISO 4217)",
+                        "example": "EUR"
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Latitude of the tasting location",
+                        "example": 48.8566
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Longitude of the tasting location",
+                        "example": 2.3522
+                    },
+                    "locationName": {
+                        "type": "string",
+                        "description": "Human-readable location name",
+                        "example": "Le Comptoir du Panth\u00e9on, Paris"
+                    },
+                    "tastingDate": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Date of the tasting"
+                    },
+                    "vintage": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Vintage year of the wine tasted",
+                        "example": 2019
+                    }
+                }
+            },
+            "LocationData": {
+                "type": "object",
+                "description": "Geographic location of a tasting",
+                "properties": {
+                    "latitude": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Latitude",
+                        "example": 48.8566
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Longitude",
+                        "example": 2.3522
+                    },
+                    "locationName": {
+                        "type": "string",
+                        "description": "Human-readable location name",
+                        "example": "Le Comptoir du Panth\u00e9on, Paris"
+                    }
+                }
+            },
+            "PhotoDto": {
+                "type": "object",
+                "description": "Photo metadata",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Photo ID"
+                    },
+                    "url": {
+                        "type": "string",
+                        "description": "Presigned URL to access the photo"
+                    },
+                    "displayOrder": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Display order within the tasting",
+                        "example": 1
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the photo was uploaded"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "displayOrder",
+                    "id",
+                    "url"
+                ]
+            },
+            "TastingDto": {
+                "type": "object",
+                "description": "A wine tasting entry with all details",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Unique tasting ID"
+                    },
+                    "wine": {
+                        "$ref": "#/components/schemas/WineSummary"
+                    },
+                    "rating": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Rating from 1 to 10",
+                        "example": 8
+                    },
+                    "notes": {
+                        "type": "string",
+                        "description": "Free-text tasting notes"
+                    },
+                    "foodPairing": {
+                        "type": "string",
+                        "description": "Food paired with the wine",
+                        "example": "Grilled lamb"
+                    },
+                    "occasion": {
+                        "type": "string",
+                        "description": "Occasion of the tasting",
+                        "example": "Birthday dinner"
+                    },
+                    "price": {
+                        "type": "string",
+                        "description": "Price paid for the wine",
+                        "example": "\u20ac25"
+                    },
+                    "currency": {
+                        "type": "string",
+                        "description": "Currency code (ISO 4217)",
+                        "example": "EUR"
+                    },
+                    "location": {
+                        "$ref": "#/components/schemas/LocationData"
+                    },
+                    "tastingDate": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Date of the tasting"
+                    },
+                    "vintage": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Vintage year of the wine tasted",
+                        "example": 2019
+                    },
+                    "photos": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PhotoDto"
+                        }
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the tasting was created"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the tasting was last updated"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "id",
+                    "photos",
+                    "rating",
+                    "tastingDate",
+                    "updatedAt",
+                    "wine"
+                ]
+            },
+            "WineColor": {
+                "type": "string",
+                "enum": [
+                    "RED",
+                    "WHITE",
+                    "ROSE",
+                    "ORANGE",
+                    "SPARKLING"
+                ]
+            },
+            "WineSummary": {
+                "type": "object",
+                "description": "Compact wine summary",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Wine ID"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Wine name",
+                        "example": "Marchesi di Barolo - Barolo DOCG"
+                    },
+                    "producer": {
+                        "type": "string",
+                        "description": "Producer name",
+                        "example": "Marchesi di Barolo"
+                    },
+                    "regionName": {
+                        "type": "string",
+                        "description": "Wine region",
+                        "example": "Barolo"
+                    },
+                    "country": {
+                        "type": "string",
+                        "description": "Country code",
+                        "example": "IT"
+                    },
+                    "color": {
+                        "$ref": "#/components/schemas/WineColor"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name"
+                ]
+            },
+            "CreateWineRequest": {
+                "type": "object",
+                "description": "Request to create a user-defined wine",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Wine name",
+                        "example": "Ch\u00e2teau Margaux",
+                        "minLength": 1
+                    },
+                    "producer": {
+                        "type": "string",
+                        "description": "Producer name",
+                        "example": "Ch\u00e2teau Margaux"
+                    },
+                    "regionName": {
+                        "type": "string",
+                        "description": "Wine region",
+                        "example": "Margaux"
+                    },
+                    "country": {
+                        "type": "string",
+                        "description": "Country code",
+                        "example": "FR"
+                    },
+                    "color": {
+                        "$ref": "#/components/schemas/WineColor"
+                    },
+                    "grapeVarieties": {
+                        "type": "string",
+                        "description": "Grape varieties",
+                        "example": "Cabernet Sauvignon, Merlot"
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            },
+            "WineDto": {
+                "type": "object",
+                "description": "Full wine details",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Wine ID"
+                    },
+                    "externalSource": {
+                        "type": "string",
+                        "description": "External provider name",
+                        "example": "grapeminds"
+                    },
+                    "externalId": {
+                        "type": "string",
+                        "description": "External wine ID",
+                        "example": "42"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Wine name",
+                        "example": "Marchesi di Barolo - Barolo DOCG"
+                    },
+                    "producer": {
+                        "type": "string",
+                        "description": "Producer name",
+                        "example": "Marchesi di Barolo"
+                    },
+                    "regionName": {
+                        "type": "string",
+                        "description": "Wine region",
+                        "example": "Barolo"
+                    },
+                    "country": {
+                        "type": "string",
+                        "description": "Country code",
+                        "example": "IT"
+                    },
+                    "color": {
+                        "$ref": "#/components/schemas/WineColor"
+                    },
+                    "grapeVarieties": {
+                        "type": "string",
+                        "description": "Grape varieties",
+                        "example": "Nebbiolo"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Wine description"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name"
+                ]
+            },
+            "CreateTastingRequest": {
+                "type": "object",
+                "description": "Request to create a new tasting. Provide either wineId or (externalSource + externalId)",
+                "properties": {
+                    "wineId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "ID of an existing wine in the local database"
+                    },
+                    "externalSource": {
+                        "type": "string",
+                        "description": "External provider name",
+                        "example": "grapeminds"
+                    },
+                    "externalId": {
+                        "type": "string",
+                        "description": "External wine ID from the provider",
+                        "example": "42"
+                    },
+                    "rating": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Rating from 1 to 10",
+                        "example": 8,
+                        "maximum": 10,
+                        "minimum": 1
+                    },
+                    "notes": {
+                        "type": "string",
+                        "description": "Free-text tasting notes"
+                    },
+                    "foodPairing": {
+                        "type": "string",
+                        "description": "Food paired with the wine",
+                        "example": "Grilled lamb"
+                    },
+                    "occasion": {
+                        "type": "string",
+                        "description": "Occasion of the tasting",
+                        "example": "Birthday dinner"
+                    },
+                    "price": {
+                        "type": "string",
+                        "description": "Price paid for the wine",
+                        "example": "\u20ac25"
+                    },
+                    "currency": {
+                        "type": "string",
+                        "description": "Currency code (ISO 4217)",
+                        "example": "EUR"
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Latitude of the tasting location",
+                        "example": 48.8566
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Longitude of the tasting location",
+                        "example": 2.3522
+                    },
+                    "locationName": {
+                        "type": "string",
+                        "description": "Human-readable location name",
+                        "example": "Le Comptoir du Panth\u00e9on, Paris"
+                    },
+                    "tastingDate": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Date of the tasting (defaults to today)"
+                    },
+                    "vintage": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Vintage year of the wine tasted",
+                        "example": 2019
+                    }
+                },
+                "required": [
+                    "rating"
+                ]
+            },
+            "PhotoUploadDto": {
+                "type": "object",
+                "description": "Photo upload response",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Generated photo ID"
+                    },
+                    "url": {
+                        "type": "string",
+                        "description": "Presigned URL for accessing the photo"
+                    },
+                    "displayOrder": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Display order assigned to this photo",
+                        "example": 1
+                    }
+                },
+                "required": [
+                    "displayOrder",
+                    "id",
+                    "url"
+                ]
+            },
+            "DeviceTokenRequest": {
+                "type": "object",
+                "description": "Request to register a device token for push notifications",
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "description": "FCM device token",
+                        "minLength": 1
+                    },
+                    "platform": {
+                        "type": "string",
+                        "description": "Platform identifier",
+                        "example": "ios"
+                    }
+                },
+                "required": [
+                    "token"
+                ]
+            },
+            "WineSearchDto": {
+                "type": "object",
+                "description": "Wine search result",
+                "properties": {
+                    "wineId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Local wine ID (null for wines not yet in the local database)"
+                    },
+                    "externalSource": {
+                        "type": "string",
+                        "description": "External provider name",
+                        "example": "grapeminds"
+                    },
+                    "externalId": {
+                        "type": "string",
+                        "description": "External wine ID",
+                        "example": "42"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Wine name",
+                        "example": "Marchesi di Barolo - Barolo DOCG"
+                    },
+                    "producer": {
+                        "type": "string",
+                        "description": "Producer name",
+                        "example": "Marchesi di Barolo"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Wine region",
+                        "example": "Barolo"
+                    },
+                    "country": {
+                        "type": "string",
+                        "description": "Country code",
+                        "example": "IT"
+                    },
+                    "color": {
+                        "$ref": "#/components/schemas/WineColor"
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            },
+            "WineSortOption": {
+                "type": "string",
+                "enum": [
+                    "TIMES_DRUNK",
+                    "AVERAGE_RATING",
+                    "LAST_TASTED"
+                ]
+            },
+            "PageMetadata": {
+                "type": "object",
+                "properties": {
+                    "size": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "number": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalElements": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "PagedModelWineWithStats": {
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WineWithStats"
+                        }
+                    },
+                    "page": {
+                        "$ref": "#/components/schemas/PageMetadata"
+                    }
+                }
+            },
+            "WineWithStats": {
+                "type": "object",
+                "description": "Wine with aggregated tasting statistics",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Wine ID"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Wine name",
+                        "example": "Marchesi di Barolo - Barolo DOCG"
+                    },
+                    "producer": {
+                        "type": "string",
+                        "description": "Producer name",
+                        "example": "Marchesi di Barolo"
+                    },
+                    "regionName": {
+                        "type": "string",
+                        "description": "Wine region",
+                        "example": "Barolo"
+                    },
+                    "color": {
+                        "$ref": "#/components/schemas/WineColor"
+                    },
+                    "timesDrunk": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Number of times this wine was tasted",
+                        "example": 5
+                    },
+                    "averageRating": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Average rating across tastings",
+                        "example": 7.8
+                    },
+                    "firstTasted": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Date of the first tasting"
+                    },
+                    "lastTasted": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Date of the most recent tasting"
+                    }
+                },
+                "required": [
+                    "averageRating",
+                    "id",
+                    "name",
+                    "timesDrunk"
+                ]
+            },
+            "PagedModelTastingDto": {
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TastingDto"
+                        }
+                    },
+                    "page": {
+                        "$ref": "#/components/schemas/PageMetadata"
+                    }
+                }
+            },
+            "ActivityPoint": {
+                "type": "object",
+                "description": "Activity data point representing tastings in a calendar week",
+                "properties": {
+                    "weekStart": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date of the ISO 8601 week (Monday)",
+                        "example": "2024-01-08"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Number of tastings during this week",
+                        "example": 3
+                    }
+                }
+            },
+            "RegionCount": {
+                "type": "object",
+                "description": "A wine region with its tasting count",
+                "properties": {
+                    "regionName": {
+                        "type": "string",
+                        "description": "Name of the wine region",
+                        "example": "Barossa Valley"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Number of tastings from this region",
+                        "example": 12
+                    }
+                }
+            },
+            "UserStats": {
+                "type": "object",
+                "description": "Personal wine statistics for the user's dashboard",
+                "properties": {
+                    "uniqueWines": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Number of unique wines tasted",
+                        "example": 42
+                    },
+                    "colorSplit": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer",
+                            "format": "int32"
+                        },
+                        "description": "Tasting count per wine color"
+                    },
+                    "topRegions": {
+                        "type": "array",
+                        "description": "Top 10 regions ranked by tasting count",
+                        "items": {
+                            "$ref": "#/components/schemas/RegionCount"
+                        }
+                    },
+                    "averageRating": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Average rating across all tastings, rounded to 1 decimal",
+                        "example": 7.3
+                    },
+                    "activityTimeline": {
+                        "type": "array",
+                        "description": "Activity timeline with tastings per ISO 8601 week",
+                        "items": {
+                            "$ref": "#/components/schemas/ActivityPoint"
+                        }
+                    }
+                }
+            },
+            "LocationPin": {
+                "type": "object",
+                "description": "Map pin for a tasting location",
+                "properties": {
+                    "latitude": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Latitude",
+                        "example": 48.8566
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Longitude",
+                        "example": 2.3522
+                    },
+                    "locationName": {
+                        "type": "string",
+                        "description": "Location name",
+                        "example": "Le Comptoir du Panth\u00e9on, Paris"
+                    },
+                    "tastingCount": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Number of tastings at this location",
+                        "example": 3
+                    }
+                },
+                "required": [
+                    "latitude",
+                    "longitude",
+                    "tastingCount"
+                ]
+            },
+            "MapData": {
+                "type": "object",
+                "description": "Map data for the user's wine journey",
+                "properties": {
+                    "drinkingLocations": {
+                        "type": "array",
+                        "description": "Pins for locations where the user had tastings",
+                        "items": {
+                            "$ref": "#/components/schemas/LocationPin"
+                        }
+                    }
+                },
+                "required": [
+                    "drinkingLocations"
+                ]
+            }
+        },
+        "securitySchemes": {
+            "firebase-jwt": {
+                "type": "http",
+                "description": "Firebase ID token",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    }
+}

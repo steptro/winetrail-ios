@@ -129,12 +129,6 @@ struct WineSearchView: View {
                         .foregroundStyle(.tertiary)
                 }
             }
-            Spacer()
-            if let vintage = wine.vintage {
-                Text(String(vintage))
-                    .font(Theme.captionFont)
-                    .foregroundStyle(.secondary)
-            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(wine.name), \(wine.color?.displayName ?? "wine")")

@@ -31,8 +31,8 @@ struct EmptyStateView: View {
     EmptyStateView(
         icon: "wineglass",
         title: "No Tastings Yet",
-        message: "Log your first wine tasting to get started.",
-        actionTitle: "Log Tasting",
+        message: "Log your first wine to start your diary.",
+        actionTitle: "New Wine",
         action: {}
     )
 }

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Main tab-based navigation container with Timeline, Wines, Map, and Stats tabs.
 /// Each tab wraps its content in a NavigationStack for drill-down navigation.
-/// A floating "+" button overlays the tab bar to trigger Log Tasting from any tab.
+/// A floating "+" button overlays the tab bar to trigger New Wine from any tab.
 struct MainTabView: View {
     @State private var selectedTab = 0
     @State private var showLogTasting = false
@@ -37,7 +37,7 @@ struct MainTabView: View {
                 }
             }
 
-            // Floating Action Button — Log Tasting
+            // Floating Action Button — New Wine
             Button {
                 showLogTasting = true
             } label: {
@@ -47,7 +47,7 @@ struct MainTabView: View {
             .padding(.trailing, 20)
             .padding(.bottom, 70) // Position above the tab bar
             .frame(maxWidth: .infinity, alignment: .trailing)
-            .accessibilityLabel("Log Tasting")
+            .accessibilityLabel("New Wine")
         }
         .sheet(isPresented: $showLogTasting, onDismiss: {
             NotificationCenter.default.post(name: .tastingDidChange, object: nil)

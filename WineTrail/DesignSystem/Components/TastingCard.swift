@@ -13,11 +13,11 @@ struct TastingCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.smallSpacing) {
-            // Top row: wine color, name, producer, and rating
+            // Top row: wine glass, name, producer, and rating
             HStack {
-                if let color = tasting.wine.color {
-                    WineColorIndicator(color: color)
-                }
+                Image(systemName: "wineglass.fill")
+                    .font(.title3)
+                    .foregroundStyle(tasting.wine.color?.accentColor ?? .wineAccent)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(tasting.wine.name)

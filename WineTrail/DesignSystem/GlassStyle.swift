@@ -1,5 +1,24 @@
 import SwiftUI
 
+// MARK: - Availability-Gated Glass Effect
+
+/// Applies `.glassEffect` on iOS 26+ and falls back to `.ultraThinMaterial` on older versions.
+private struct GlassEffectModifier: ViewModifier {
+    var interactive: Bool = false
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            if interactive {
+                content.glassEffect(.regular.interactive())
+            } else {
+                content.glassEffect(.regular)
+            }
+        } else {
+            content.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        }
+    }
+}
+
 // MARK: - Liquid Glass Styling
 
 /// A view modifier that applies Liquid Glass styling to floating action buttons.
@@ -13,7 +32,7 @@ struct GlassButtonStyle: ViewModifier {
             .frame(width: 56, height: 56)
             .background(.wineAccent)
             .clipShape(Circle())
-            .glassEffect(.regular.interactive())
+            .modifier(GlassEffectModifier(interactive: true))
             .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
     }
 }
@@ -26,7 +45,7 @@ struct GlassChipStyle: ViewModifier {
             .font(.subheadline.weight(.medium))
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .glassEffect(.regular)
+            .modifier(GlassEffectModifier(interactive: false))
     }
 }
 

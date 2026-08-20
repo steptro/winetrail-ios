@@ -24,8 +24,14 @@ final class LogTastingViewModel {
     /// The wine selected by the user from search results.
     var selectedWine: WineSearch?
 
+    /// The wine ID for user-created wines (used when externalSource/externalId are not available).
+    var selectedWineId: String?
+
     /// Whether a search request is in progress.
     var isSearching = false
+
+    /// Whether the user has performed at least one search.
+    var hasSearched = false
 
     private var searchTask: Task<Void, Never>?
 
@@ -46,8 +52,14 @@ final class LogTastingViewModel {
     /// Optional price paid.
     var price: String = ""
 
+    /// Currency code (ISO 4217). Defaults to EUR.
+    var currency: String = "EUR"
+
     /// Optional vintage year text (parsed to Int32 on save).
     var vintageText: String = ""
+
+    /// Optional vintage year selected from picker.
+    var vintageYear: Int?
 
     /// Optional location name (manual entry).
     var locationName: String = ""
@@ -117,6 +129,7 @@ final class LogTastingViewModel {
                 searchResults = []
             }
             isSearching = false
+            hasSearched = true
         }
     }
 
@@ -130,8 +143,10 @@ final class LogTastingViewModel {
     /// Clears the currently selected wine to allow re-searching.
     func clearSelection() {
         selectedWine = nil
+        selectedWineId = nil
         searchQuery = ""
         searchResults = []
+        hasSearched = false
     }
 
     // MARK: - Save Tasting
@@ -166,7 +181,7 @@ final class LogTastingViewModel {
 
             // Build the request body
             let request = CreateTastingBody(
-                wineId: nil,
+                wineId: wine.wineId ?? selectedWineId,
                 externalSource: wine.externalSource,
                 externalId: wine.externalId,
                 rating: Int32(rating),
@@ -174,11 +189,12 @@ final class LogTastingViewModel {
                 foodPairing: foodPairing.isEmpty ? nil : foodPairing,
                 occasion: occasion.isEmpty ? nil : occasion,
                 price: price.isEmpty ? nil : price,
+                currency: price.isEmpty ? nil : currency,
                 latitude: latitude,
                 longitude: longitude,
                 locationName: locationName.isEmpty ? nil : locationName,
                 tastingDate: dateFormatter.string(from: tastingDate),
-                vintage: Int32(vintageText)
+                vintage: vintageYear.map { Int32($0) }
             )
 
             // Create the tasting

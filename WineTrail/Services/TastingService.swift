@@ -25,10 +25,10 @@ final class TastingService {
         let dto = try response.ok.body.json
         return PagedResult(
             content: dto.content ?? [],
-            totalPages: Int(dto.totalPages ?? 0),
-            totalElements: Int(dto.totalElements ?? 0),
-            currentPage: Int(dto.number ?? 0),
-            isLast: dto.last ?? true
+            totalPages: Int(dto.page?.totalPages ?? 0),
+            totalElements: Int(dto.page?.totalElements ?? 0),
+            currentPage: Int(dto.page?.number ?? 0),
+            isLast: Int(dto.page?.number ?? 0) >= Int(dto.page?.totalPages ?? 1) - 1
         )
     }
 

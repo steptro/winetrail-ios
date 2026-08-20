@@ -37,7 +37,7 @@ struct WinesListView: View {
                 ProgressView()
             }
         }
-        .navigationTitle("Wines")
+        .navigationTitle("Your Wines")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 sortPicker

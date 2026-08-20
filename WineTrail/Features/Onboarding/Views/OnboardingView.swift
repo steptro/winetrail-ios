@@ -7,7 +7,7 @@ import SwiftUI
 /// AppState navigates to the main TabView.
 struct OnboardingView: View {
     @Environment(AppState.self) private var appState
-    @State private var showLogTasting = true
+    @State private var showLogTasting = false
 
     var body: some View {
         VStack(spacing: Theme.largeSpacing) {
@@ -22,18 +22,18 @@ struct OnboardingView: View {
                 .font(Theme.titleFont)
                 .multilineTextAlignment(.center)
 
-            Text("Let's log your first wine!")
+            Text("Let's add your first wine!")
                 .font(Theme.subheadlineFont)
                 .foregroundStyle(.secondary)
 
             Spacer()
 
-            Button("Log Your First Wine") {
+            Button("Add Your First Wine") {
                 showLogTasting = true
             }
             .buttonStyle(.borderedProminent)
             .tint(.wineAccent)
-            .accessibilityLabel("Log your first wine tasting")
+            .accessibilityLabel("Add your first wine")
 
             Spacer()
         }

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Inline form for creating a user-defined wine when no search results match.
 ///
-/// Name is required; producer, region, country, color, and vintage are optional.
+/// Name is required; producer, region, country, and color are optional.
 /// On save, calls `WineService.createWine()` and converts the result to a
 /// `WineSearch` for selection in the parent flow.
 struct CreateWineView: View {
@@ -12,16 +12,19 @@ struct CreateWineView: View {
     /// Binding to the selected wine — set on successful creation.
     @Binding var selectedWine: WineSearch?
 
+    /// Binding to the wine ID for user-created wines.
+    @Binding var selectedWineId: String?
+
     // MARK: - Form State
 
     @State private var name = ""
     @State private var producer = ""
     @State private var region = ""
-    @State private var country = ""
-    @State private var color: Components.Schemas.WineColor = .RED
-    @State private var vintageText = ""
+    @State private var country: String? = nil
+    @State private var color: Components.Schemas.WineColor? = nil
     @State private var isSaving = false
     @State private var error: String?
+    @State private var showCountryPicker = false
 
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty && !isSaving
@@ -37,21 +40,26 @@ struct CreateWineView: View {
 
                 TextField("Region", text: $region)
 
-                TextField("Country", text: $country)
+                Button {
+                    showCountryPicker = true
+                } label: {
+                    HStack {
+                        Text("Country")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if let country {
+                            Text(Locale.current.localizedString(forRegionCode: country) ?? country)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Select")
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
             }
 
             Section("Classification") {
-                Picker("Color", selection: $color) {
-                    Text("Red").tag(Components.Schemas.WineColor.RED)
-                    Text("White").tag(Components.Schemas.WineColor.WHITE)
-                    Text("Rosé").tag(Components.Schemas.WineColor.ROSE)
-                    Text("Orange").tag(Components.Schemas.WineColor.ORANGE)
-                    Text("Sparkling").tag(Components.Schemas.WineColor.SPARKLING)
-                }
-                .pickerStyle(.menu)
-
-                TextField("Vintage (year)", text: $vintageText)
-                    .keyboardType(.numberPad)
+                WineColorPills(selected: $color)
             }
 
             if let error {
@@ -71,6 +79,9 @@ struct CreateWineView: View {
                 .disabled(!canSave)
             }
         }
+        .sheet(isPresented: $showCountryPicker) {
+            CountryPickerView(selected: $country)
+        }
     }
 
     // MARK: - Save Logic
@@ -80,33 +91,33 @@ struct CreateWineView: View {
         isSaving = true
         error = nil
 
-        let vintage: Int32? = Int32(vintageText)
-
         let request = Components.Schemas.CreateWineRequest(
             name: name.trimmingCharacters(in: .whitespaces),
             producer: producer.isEmpty ? nil : producer,
             regionName: region.isEmpty ? nil : region,
-            country: country.isEmpty ? nil : country,
+            country: country,
             color: color,
-            vintage: vintage,
             grapeVarieties: nil
         )
 
         do {
             let wine = try await wineService.createWine(request)
 
-            // Convert the created WineDto to a WineSearch for compatibility with the LogTasting flow
+            // Convert the created WineDto to a WineSearch for compatibility with the LogTasting flow.
+            // Store the wine ID so it can be used as wineId when creating a tasting.
+            // For user-created wines, externalSource is nil; we store the wine UUID in wineId.
             let wineSearch = Components.Schemas.WineSearchDto(
+                wineId: wine.id,
                 externalSource: wine.externalSource,
                 externalId: wine.externalId,
                 name: wine.name,
                 producer: wine.producer,
                 region: wine.regionName,
                 country: wine.country,
-                color: wine.color,
-                vintage: wine.vintage
+                color: wine.color
             )
             selectedWine = wineSearch
+            selectedWineId = wine.id
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -118,7 +129,7 @@ struct CreateWineView: View {
 
 #Preview {
     NavigationStack {
-        CreateWineView(selectedWine: .constant(nil))
+        CreateWineView(selectedWine: .constant(nil), selectedWineId: .constant(nil))
             .environment(WineService(apiClient: APIClient(
                 serverURL: URL(string: "https://api.winetrail.app")!,
                 authService: AuthService()

@@ -24,10 +24,14 @@ final class APIClient {
     ///   - authService: The auth service used by the middleware to obtain Firebase ID tokens.
     init(serverURL: URL, authService: AuthService) {
         let middleware = AuthMiddleware(authService: authService)
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 15
+        configuration.timeoutIntervalForResource = 15
+        let session = URLSession(configuration: configuration)
         self.client = Client(
             serverURL: serverURL,
             configuration: .init(dateTranscoder: ISO8601DateTranscoderWithFractionalSeconds()),
-            transport: URLSessionTransport(),
+            transport: URLSessionTransport(configuration: .init(session: session)),
             middlewares: [middleware]
         )
     }

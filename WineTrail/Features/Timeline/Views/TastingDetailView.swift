@@ -98,7 +98,7 @@ struct TastingDetailView: View {
                     }
                 }
 
-                if let vintage = tasting.wine.vintage {
+                if let vintage = tasting.vintage {
                     Text("Vintage \(String(vintage))")
                         .font(Theme.captionFont)
                         .foregroundStyle(.secondary)

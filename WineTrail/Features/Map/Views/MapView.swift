@@ -45,7 +45,7 @@ struct MapView: View {
                 ProgressView()
             }
         }
-        .navigationTitle("Map")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
