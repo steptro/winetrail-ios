@@ -29,7 +29,8 @@ struct TimelineView: View {
                                     date: group.date,
                                     tastings: group.tastings,
                                     isFirst: groupIndex == 0,
-                                    isLast: groupIndex == groups.count - 1 && !viewModel.hasMorePages
+                                    isLast: groupIndex == groups.count - 1 && !viewModel.hasMorePages,
+                                    viewModel: viewModel
                                 )
                                 .task {
                                     if let last = group.tastings.last {
@@ -38,14 +39,17 @@ struct TimelineView: View {
                                 }
                             }
                             if viewModel.isLoading {
-                                ProgressView()
+                                WineGlassLoadingView()
                                     .frame(maxWidth: .infinity)
                                     .padding()
                             }
                         }
                         .padding(.horizontal)
                     }
-                    .refreshable { await viewModel.loadInitial() }
+                    .refreshable {
+                        await viewModel.loadInitial()
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
                     .navigationDestination(for: Tasting.self) { tasting in
                         TastingDetailView(tasting: tasting, viewModel: viewModel)
                     }
@@ -102,6 +106,10 @@ private struct TimelineDateGroup: View {
     let tastings: [Tasting]
     let isFirst: Bool
     let isLast: Bool
+    let viewModel: TimelineViewModel
+
+    @State private var editingTasting: Tasting?
+    @State private var tastingToDelete: Tasting?
 
     private static let lineWidth: CGFloat = 2
     private static let nodeSize: CGFloat = 12
@@ -155,9 +163,40 @@ private struct TimelineDateGroup: View {
                         TastingCard(tasting: tasting)
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        Button {
+                            editingTasting = tasting
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+
+                        Button(role: .destructive) {
+                            tastingToDelete = tasting
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
                 }
             }
             .padding(.vertical, 8)
+        }
+        .sheet(item: $editingTasting) { tasting in
+            NavigationStack {
+                EditTastingView(tasting: tasting)
+            }
+        }
+        .alert("Delete Tasting", isPresented: Binding(
+            get: { tastingToDelete != nil },
+            set: { if !$0 { tastingToDelete = nil } }
+        )) {
+            Button("Cancel", role: .cancel) { tastingToDelete = nil }
+            Button("Delete", role: .destructive) {
+                if let tasting = tastingToDelete {
+                    Task { await viewModel.deleteTasting(id: tasting.id) }
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this tasting? This cannot be undone.")
         }
     }
 }

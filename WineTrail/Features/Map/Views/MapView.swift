@@ -69,7 +69,7 @@ struct MapView: View {
 
     @ViewBuilder
     private func mapContent(viewModel: MapViewModel) -> some View {
-        Map {
+        Map(initialPosition: mapCameraPosition(for: viewModel.visibleLocationPins)) {
             // Location pins — accent-colored drinking location markers
             ForEach(viewModel.visibleLocationPins) { pin in
                 Annotation(
@@ -83,22 +83,74 @@ struct MapView: View {
         .mapStyle(.standard)
     }
 
+    /// Computes a camera position that fits all pins with some padding.
+    private func mapCameraPosition(for pins: [LocationPin]) -> MapCameraPosition {
+        guard !pins.isEmpty else {
+            return .automatic
+        }
+
+        let lats = pins.map(\.latitude)
+        let lons = pins.map(\.longitude)
+
+        let center = CLLocationCoordinate2D(
+            latitude: (lats.min()! + lats.max()!) / 2,
+            longitude: (lons.min()! + lons.max()!) / 2
+        )
+
+        let latDelta = max((lats.max()! - lats.min()!) * 1.4, 0.05)
+        let lonDelta = max((lons.max()! - lons.min()!) * 1.4, 0.05)
+
+        return .region(MKCoordinateRegion(
+            center: center,
+            span: MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
+        ))
+    }
+
     // MARK: - Pin Views
 
     @ViewBuilder
     private func locationPinView(pin: LocationPin) -> some View {
-        VStack(spacing: 2) {
-            Image(systemName: "wineglass.fill")
-                .font(.title2)
-                .foregroundStyle(.wineAccent)
-            Text("\(pin.tastingCount)")
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .foregroundStyle(.wineText)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 1)
-                .background(.ultraThinMaterial, in: Capsule())
+        VStack(spacing: 0) {
+            ZStack {
+                Circle()
+                    .fill(.wineAccent)
+                    .frame(width: 36, height: 36)
+                Image(systemName: "wineglass.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.white)
+            }
+            .shadow(color: .wineAccent.opacity(0.4), radius: 4, y: 2)
+
+            // Tasting count badge
+            if pin.tastingCount > 1 {
+                Text("\(pin.tastingCount)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(.wineAccent.opacity(0.85), in: Capsule())
+                    .offset(y: -2)
+            }
+
+            // Pin tail
+            Triangle()
+                .fill(.wineAccent)
+                .frame(width: 12, height: 8)
+                .offset(y: -2)
         }
+    }
+}
+
+// MARK: - Triangle Shape
+
+private struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.closeSubpath()
+        return path
     }
 }
 

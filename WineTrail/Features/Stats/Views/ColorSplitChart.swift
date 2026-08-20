@@ -7,6 +7,7 @@ import Charts
 /// sectored chart using Swift Charts, with each sector colored to match the wine type.
 struct ColorSplitChart: View {
     let colorSplit: [String: Int]
+    @State private var animateChart = false
 
     private var chartData: [ColorEntry] {
         colorSplit
@@ -28,7 +29,7 @@ struct ColorSplitChart: View {
             } else {
                 Chart(chartData) { entry in
                     SectorMark(
-                        angle: .value("Count", entry.count),
+                        angle: .value("Count", animateChart ? entry.count : 0),
                         innerRadius: .ratio(0.5),
                         angularInset: 1.5
                     )
@@ -44,6 +45,11 @@ struct ColorSplitChart: View {
                         Text("Tastings")
                             .font(Theme.captionFont)
                             .foregroundStyle(.wineSecondaryText)
+                    }
+                }
+                .onAppear {
+                    withAnimation(.easeOut(duration: 0.8)) {
+                        animateChart = true
                     }
                 }
 

@@ -72,4 +72,14 @@ final class TastingService {
             path: .init(tastingId: id)
         )
     }
+
+    /// Fetches the user's tasting stats for a specific wine.
+    /// - Parameter wineId: The UUID string of the wine.
+    /// - Returns: Stats including times drunk, average rating, first/last tasted dates.
+    func getWineStats(wineId: String) async throws -> Components.Schemas.WineStatsDto {
+        let response = try await apiClient.client.getWineStats(
+            path: .init(wineId: wineId)
+        )
+        return try response.ok.body.json
+    }
 }

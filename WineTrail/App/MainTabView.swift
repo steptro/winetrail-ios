@@ -54,6 +54,7 @@ struct MainTabView: View {
         }) {
             LogTastingView()
         }
+        .tint(.wineAccent)
     }
 }
 

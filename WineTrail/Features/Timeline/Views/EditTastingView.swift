@@ -174,7 +174,8 @@ struct EditTastingView: View {
             _ = try await tastingService.updateTasting(id: tasting.id, request)
             dismiss()
         } catch {
-            self.error = error.localizedDescription
+            print("[EditTasting] Failed to update tasting: \(error)")
+            self.error = "Something went wrong. Please try again."
         }
 
         isSaving = false

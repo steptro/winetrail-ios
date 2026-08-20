@@ -31,7 +31,8 @@ final class AuthViewModel {
             try await authService.signInWithApple()
             await postSignIn()
         } catch {
-            self.error = error.localizedDescription
+            print("[Auth] Sign-in error: \(error)")
+            self.error = "Sign-in failed. Please try again."
         }
         isLoading = false
     }
@@ -44,7 +45,8 @@ final class AuthViewModel {
             try await authService.signInWithGoogle()
             await postSignIn()
         } catch {
-            self.error = error.localizedDescription
+            print("[Auth] Sign-in error: \(error)")
+            self.error = "Sign-in failed. Please try again."
         }
         isLoading = false
     }
@@ -57,7 +59,8 @@ final class AuthViewModel {
             try await authService.signInWithEmail(email: email, password: password)
             await postSignIn()
         } catch {
-            self.error = error.localizedDescription
+            print("[Auth] Sign-in error: \(error)")
+            self.error = "Sign-in failed. Please try again."
         }
         isLoading = false
     }
@@ -70,7 +73,8 @@ final class AuthViewModel {
             try await authService.createAccount(email: email, password: password)
             await postSignIn()
         } catch {
-            self.error = error.localizedDescription
+            print("[Auth] Sign-in error: \(error)")
+            self.error = "Sign-in failed. Please try again."
         }
         isLoading = false
     }

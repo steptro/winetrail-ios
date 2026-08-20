@@ -31,7 +31,10 @@ struct WinesListView: View {
                         }
                     }
                     .listStyle(.plain)
-                    .refreshable { await viewModel.loadInitial() }
+                    .refreshable {
+                        await viewModel.loadInitial()
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
                 }
             } else {
                 ProgressView()
@@ -51,6 +54,9 @@ struct WinesListView: View {
                 viewModel = WinesViewModel(wineService: wineService)
             }
             await viewModel?.loadInitial()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .tastingDidChange)) { _ in
+            Task { await viewModel?.loadInitial() }
         }
     }
 

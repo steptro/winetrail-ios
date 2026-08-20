@@ -27,6 +27,9 @@ final class LogTastingViewModel {
     /// The wine ID for user-created wines (used when externalSource/externalId are not available).
     var selectedWineId: String?
 
+    /// Stats for the selected wine (if the user has tasted it before).
+    var selectedWineStats: Components.Schemas.WineStatsDto?
+
     /// Whether a search request is in progress.
     var isSearching = false
 
@@ -136,14 +139,32 @@ final class LogTastingViewModel {
     /// Selects a wine from search results and clears the search state.
     func selectWine(_ wine: WineSearch) {
         selectedWine = wine
+        selectedWineStats = nil
         searchResults = []
         searchQuery = wine.name
+        // Look up stats for this wine if it has a wineId (user has tasted it before)
+        if let wineId = wine.wineId {
+            Task {
+                await loadWineStats(wineId: wineId)
+            }
+        }
+    }
+
+    /// Loads stats for a wine by its ID from the dedicated stats endpoint.
+    private func loadWineStats(wineId: String) async {
+        do {
+            let stats = try await tastingService.getWineStats(wineId: wineId)
+            selectedWineStats = stats
+        } catch {
+            // Stats are non-critical; silently ignore failures
+        }
     }
 
     /// Clears the currently selected wine to allow re-searching.
     func clearSelection() {
         selectedWine = nil
         selectedWineId = nil
+        selectedWineStats = nil
         searchQuery = ""
         searchResults = []
         hasSearched = false
@@ -210,7 +231,8 @@ final class LogTastingViewModel {
 
             savedTasting = tasting
         } catch {
-            self.error = error.localizedDescription
+            print("[LogTasting] Failed to save tasting: \(error)")
+            self.error = "Something went wrong. Please try again."
         }
 
         isSaving = false

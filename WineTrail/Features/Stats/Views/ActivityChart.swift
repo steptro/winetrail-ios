@@ -7,6 +7,7 @@ import Charts
 /// giving the user a visual sense of their engagement over time.
 struct ActivityChart: View {
     let timeline: [Components.Schemas.ActivityPoint]
+    @State private var animateChart = false
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -38,7 +39,7 @@ struct ActivityChart: View {
                 Chart(chartData) { entry in
                     BarMark(
                         x: .value("Week", entry.weekStart, unit: .weekOfYear),
-                        y: .value("Tastings", entry.count)
+                        y: .value("Tastings", animateChart ? entry.count : 0)
                     )
                     .foregroundStyle(.wineAccent.gradient)
                     .cornerRadius(4)
@@ -54,6 +55,11 @@ struct ActivityChart: View {
                     AxisMarks(position: .leading) { _ in
                         AxisGridLine()
                         AxisValueLabel()
+                    }
+                }
+                .onAppear {
+                    withAnimation(.easeOut(duration: 0.8)) {
+                        animateChart = true
                     }
                 }
             }

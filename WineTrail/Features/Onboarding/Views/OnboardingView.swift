@@ -1,47 +1,94 @@
 import SwiftUI
 
-/// Onboarding screen shown to new users who have no tastings yet.
+/// Onboarding carousel shown to new users who have no tastings yet.
 ///
-/// Displays a minimal welcome message and immediately presents LogTastingView
-/// in a sheet. Once the sheet is dismissed (tasting saved or cancelled),
-/// AppState navigates to the main TabView.
+/// Displays a 3-slide intro showing the app's value, then a CTA to log the first wine.
+/// Once the sheet is dismissed (tasting saved or cancelled), AppState navigates to the main TabView.
 struct OnboardingView: View {
     @Environment(AppState.self) private var appState
     @State private var showLogTasting = false
+    @State private var currentPage = 0
+
+    private let slides: [(icon: String, title: String, subtitle: String)] = [
+        ("wineglass.fill", "Track Your Wines", "Keep a personal diary of every wine you taste."),
+        ("chart.bar.fill", "Discover Patterns", "See your favourites, top regions, and how your palate evolves."),
+        ("heart.fill", "Remember Every Sip", "Notes, photos, and ratings — never forget a great bottle.")
+    ]
 
     var body: some View {
-        VStack(spacing: Theme.largeSpacing) {
-            Spacer()
+        VStack(spacing: 0) {
+            // Carousel
+            TabView(selection: $currentPage) {
+                ForEach(Array(slides.enumerated()), id: \.offset) { index, slide in
+                    VStack(spacing: Theme.largeSpacing) {
+                        Spacer()
 
-            Image(systemName: "wineglass.fill")
-                .font(.system(size: 80))
-                .foregroundStyle(.wineAccent)
-                .accessibilityHidden(true)
+                        Image(systemName: slide.icon)
+                            .font(.system(size: 70))
+                            .foregroundStyle(.wineAccent)
+                            .accessibilityHidden(true)
 
-            Text("Welcome to WineTrail")
-                .font(Theme.titleFont)
-                .multilineTextAlignment(.center)
+                        Text(slide.title)
+                            .font(.title.weight(.bold))
+                            .multilineTextAlignment(.center)
 
-            Text("Let's add your first wine!")
-                .font(Theme.subheadlineFont)
-                .foregroundStyle(.secondary)
+                        Text(slide.subtitle)
+                            .font(Theme.subheadlineFont)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
 
-            Spacer()
-
-            Button("Add Your First Wine") {
-                showLogTasting = true
+                        Spacer()
+                    }
+                    .tag(index)
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.wineAccent)
-            .accessibilityLabel("Add your first wine")
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .animation(.easeInOut, value: currentPage)
 
-            Spacer()
+            // Page dots
+            HStack(spacing: 8) {
+                ForEach(0..<slides.count, id: \.self) { index in
+                    Circle()
+                        .fill(index == currentPage ? Color.wineAccent : Color.wineAccent.opacity(0.3))
+                        .frame(width: 8, height: 8)
+                        .animation(.easeInOut(duration: 0.2), value: currentPage)
+                }
+            }
+            .padding(.bottom, 24)
+
+            // CTA Button
+            Button {
+                if currentPage < slides.count - 1 {
+                    withAnimation { currentPage += 1 }
+                } else {
+                    showLogTasting = true
+                }
+            } label: {
+                Text(currentPage < slides.count - 1 ? "Next" : "Add Your First Wine")
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .foregroundStyle(.white)
+                    .background(.wineAccent, in: Capsule())
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 12)
+
+            // Skip button (visible on first two slides)
+            if currentPage < slides.count - 1 {
+                Button("Skip") {
+                    showLogTasting = true
+                }
+                .font(Theme.captionFont)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 16)
+            } else {
+                Spacer().frame(height: 40)
+            }
         }
-        .padding(Theme.spacing)
         .sheet(isPresented: $showLogTasting, onDismiss: {
-            // After dismissing the log tasting sheet, navigate to main.
-            // Whether the user saved a tasting or cancelled, we move them
-            // to the main timeline — it will show the new entry or empty state.
+            NotificationCenter.default.post(name: .tastingDidChange, object: nil)
             appState.currentRoute = .main
         }) {
             LogTastingView()

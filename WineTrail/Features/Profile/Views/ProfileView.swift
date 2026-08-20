@@ -143,7 +143,8 @@ struct ProfileView: View {
             try await changeRequest?.commitChanges()
             isEditingName = false
         } catch {
-            self.error = error.localizedDescription
+            print("[Profile] Failed to update profile: \(error)")
+            self.error = "Something went wrong. Please try again."
         }
         isSaving = false
     }

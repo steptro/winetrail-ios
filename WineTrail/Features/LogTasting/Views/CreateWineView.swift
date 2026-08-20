@@ -120,7 +120,9 @@ struct CreateWineView: View {
             selectedWineId = wine.id
             dismiss()
         } catch {
-            self.error = error.localizedDescription
+            print("[CreateWineView] Failed to create wine: \(error)")
+            self.error = "Something went wrong. Please try again."
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
         }
 
         isSaving = false
