@@ -1,13 +1,15 @@
 import SwiftUI
 
-/// Timeline screen showing a chronological diary of logged tastings.
+/// Feed screen showing tastings in an Instagram-style layout.
 ///
-/// Displays tasting cards grouped by date in a scrollable list with infinite scroll
-/// pagination, pull-to-refresh, a loading indicator for page fetches, and an empty state
-/// prompting the user to log their first wine.
+/// Each tasting is a full-width post with a header (wine glass + name + date),
+/// hero photo, and metadata row. Supports infinite scroll, pull-to-refresh,
+/// context menu actions, and an empty state.
 struct TimelineView: View {
     @Environment(TastingService.self) private var tastingService
     @State private var viewModel: TimelineViewModel?
+    @State private var editingTasting: Tasting?
+    @State private var tastingToDelete: Tasting?
 
     var body: some View {
         Group {
@@ -21,22 +23,25 @@ struct TimelineView: View {
                     )
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 0) {
-                            let groups = groupedByDate(viewModel.tastings)
-                            ForEach(groups) { group in
-                                let groupIndex = groups.firstIndex(where: { $0.id == group.id }) ?? 0
-                                TimelineDateGroup(
-                                    date: group.date,
-                                    tastings: group.tastings,
-                                    isFirst: groupIndex == 0,
-                                    isLast: groupIndex == groups.count - 1 && !viewModel.hasMorePages,
-                                    viewModel: viewModel
-                                )
-                                .task {
-                                    if let last = group.tastings.last {
-                                        await viewModel.onTastingAppear(last)
+                        LazyVStack(spacing: 24) {
+                            ForEach(viewModel.tastings, id: \.id) { tasting in
+                                NavigationLink(value: tasting) {
+                                    FeedPostView(tasting: tasting)
+                                }
+                                .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button {
+                                        editingTasting = tasting
+                                    } label: {
+                                        Label("Edit", systemImage: "pencil")
+                                    }
+                                    Button(role: .destructive) {
+                                        tastingToDelete = tasting
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
                                     }
                                 }
+                                .task { await viewModel.onTastingAppear(tasting) }
                             }
                             if viewModel.isLoading {
                                 WineGlassLoadingView()
@@ -44,7 +49,7 @@ struct TimelineView: View {
                                     .padding()
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, 0)
                     }
                     .refreshable {
                         await viewModel.loadInitial()
@@ -59,6 +64,8 @@ struct TimelineView: View {
             }
         }
         .navigationTitle("Timeline")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
         .task {
             if viewModel == nil {
                 viewModel = TimelineViewModel(tastingService: tastingService)
@@ -67,118 +74,6 @@ struct TimelineView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .tastingDidChange)) { _ in
             Task { await viewModel?.loadInitial() }
-        }
-    }
-
-    // MARK: - Grouping
-
-    private struct DateGroup: Identifiable {
-        let date: String
-        let tastings: [Tasting]
-        var id: String { date }
-    }
-
-    private func groupedByDate(_ tastings: [Tasting]) -> [DateGroup] {
-        var order: [String] = []
-        var map: [String: [Tasting]] = [:]
-
-        for tasting in tastings {
-            let date = tasting.tastingDate
-            if map[date] == nil {
-                order.append(date)
-                map[date] = []
-            }
-            map[date]?.append(tasting)
-        }
-
-        return order.compactMap { date in
-            guard let tastings = map[date] else { return nil }
-            return DateGroup(date: date, tastings: tastings)
-        }
-    }
-}
-
-// MARK: - Timeline Date Group
-
-/// A group of tastings on the same date, showing one date node and multiple cards.
-private struct TimelineDateGroup: View {
-    let date: String
-    let tastings: [Tasting]
-    let isFirst: Bool
-    let isLast: Bool
-    let viewModel: TimelineViewModel
-
-    @State private var editingTasting: Tasting?
-    @State private var tastingToDelete: Tasting?
-
-    private static let lineWidth: CGFloat = 2
-    private static let nodeSize: CGFloat = 12
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "dd MMM"
-        f.locale = Locale.current
-        return f
-    }()
-
-    private var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        if let parsed = formatter.date(from: date) {
-            return Self.dateFormatter.string(from: parsed)
-        }
-        return date
-    }
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Timeline spine
-            VStack(spacing: 0) {
-                // Line above the node
-                Rectangle()
-                    .fill(isFirst ? .clear : .wineAccent.opacity(0.3))
-                    .frame(width: Self.lineWidth, height: 20)
-
-                // Date node
-                Circle()
-                    .fill(.wineAccent)
-                    .frame(width: Self.nodeSize, height: Self.nodeSize)
-
-                // Line below the node
-                Rectangle()
-                    .fill(isLast ? .clear : .wineAccent.opacity(0.3))
-                    .frame(width: Self.lineWidth)
-            }
-            .frame(width: 24)
-
-            // Cards for this date
-            VStack(alignment: .leading, spacing: 8) {
-                Text(formattedDate)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.wineAccent)
-
-                ForEach(tastings, id: \.id) { tasting in
-                    NavigationLink(value: tasting) {
-                        TastingCard(tasting: tasting)
-                    }
-                    .buttonStyle(.plain)
-                    .contextMenu {
-                        Button {
-                            editingTasting = tasting
-                        } label: {
-                            Label("Edit", systemImage: "pencil")
-                        }
-
-                        Button(role: .destructive) {
-                            tastingToDelete = tasting
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                }
-            }
-            .padding(.vertical, 8)
         }
         .sheet(item: $editingTasting) { tasting in
             NavigationStack {
@@ -192,6 +87,7 @@ private struct TimelineDateGroup: View {
             Button("Cancel", role: .cancel) { tastingToDelete = nil }
             Button("Delete", role: .destructive) {
                 if let tasting = tastingToDelete {
+                    guard let viewModel else { return }
                     Task { await viewModel.deleteTasting(id: tasting.id) }
                 }
             }
@@ -201,7 +97,139 @@ private struct TimelineDateGroup: View {
     }
 }
 
-#Preview {
+// MARK: - Feed Post
+
+/// A single post in the feed, styled like an Instagram card.
+fileprivate struct FeedPostView: View {
+    let tasting: Tasting
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "dd MMM yyyy"
+        f.locale = Locale.current
+        return f
+    }()
+
+    private var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        if let date = formatter.date(from: tasting.tastingDate) {
+            return Self.dateFormatter.string(from: date)
+        }
+        return tasting.tastingDate
+    }
+
+    /// Converts an ISO 3166-1 alpha-2 code to its flag emoji.
+    private static func flag(for countryCode: String) -> String {
+        let base: UInt32 = 127397
+        return countryCode.uppercased().unicodeScalars
+            .compactMap { UnicodeScalar(base + $0.value) }
+            .map { String($0) }
+            .joined()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Photo carousel (slidable)
+            if !tasting.photos.isEmpty {
+                TabView {
+                    ForEach(tasting.photos, id: \.id) { photo in
+                        AsyncImage(url: URL(string: photo.url)) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Rectangle()
+                                .fill(.quaternary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: tasting.photos.count > 1 ? .automatic : .never))
+                .frame(height: 320)
+            } else {
+                // No photo — show a subtle placeholder with the wine color
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                (tasting.wine.color?.accentColor ?? .wineAccent).opacity(0.15),
+                                (tasting.wine.color?.accentColor ?? .wineAccent).opacity(0.05)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(height: 120)
+                    .overlay {
+                        Image(systemName: "wineglass")
+                            .font(.largeTitle)
+                            .foregroundStyle(tasting.wine.color?.accentColor.opacity(0.3) ?? .wineAccent.opacity(0.3))
+                    }
+            }
+
+            // Info below photo
+            VStack(alignment: .leading, spacing: 8) {
+                // Wine name + producer + date row
+                HStack(spacing: 10) {
+                    Image(systemName: "wineglass.fill")
+                        .font(.title2)
+                        .foregroundStyle(tasting.wine.color?.accentColor ?? .wineAccent)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(tasting.wine.name)
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                        HStack(spacing: 4) {
+                            if let country = tasting.wine.country, !country.isEmpty {
+                                Text(Self.flag(for: country))
+                            }
+                            if let producer = tasting.wine.producer, !producer.isEmpty {
+                                Text(producer)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+
+                    Spacer()
+
+                    Text(formattedDate)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Stars + location row
+                HStack {
+                    RatingView(rating: Double(tasting.rating), starSize: .callout)
+                    Spacer()
+                    if let location = tasting.location, let name = location.locationName {
+                        Label(name, systemImage: "mappin")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                // Notes preview
+                if let notes = tasting.notes, !notes.isEmpty {
+                    Text(notes)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            .padding(.horizontal, Theme.spacing)
+            .padding(.vertical, 12)
+        }
+        .background(Color(.systemGroupedBackground))
+    }
+}
+
+#Preview("Feed") {
     NavigationStack {
         TimelineView()
             .environment(TastingService(apiClient: APIClient(
@@ -209,4 +237,35 @@ private struct TimelineDateGroup: View {
                 authService: AuthService()
             )))
     }
+}
+
+#Preview("Feed Post") {
+    FeedPostView(tasting: Components.Schemas.TastingDto(
+        id: "preview-1",
+        wine: Components.Schemas.WineSummary(
+            id: "wine-1",
+            name: "Château Margaux 2015",
+            producer: "Château Margaux",
+            regionName: "Bordeaux",
+            country: "FR",
+            color: .RED
+        ),
+        rating: 4,
+        notes: "Incredibly complex, with layers of blackcurrant and cedar. Long finish.",
+        foodPairing: "Grilled lamb",
+        occasion: nil,
+        price: nil,
+        currency: nil,
+        location: Components.Schemas.LocationData(
+            latitude: 48.8566,
+            longitude: 2.3522,
+            locationName: "Le Comptoir, Paris"
+        ),
+        tastingDate: "2026-08-15",
+        vintage: 2015,
+        photos: [],
+        createdAt: Date(),
+        updatedAt: Date()
+    ))
+    .padding()
 }

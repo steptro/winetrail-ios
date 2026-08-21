@@ -45,7 +45,7 @@ struct TastingCard: View {
 
                     Spacer()
 
-                    RatingView(rating: Int(tasting.rating))
+                    RatingView(rating: Double(tasting.rating))
                 }
 
                 // Bottom row: date and location

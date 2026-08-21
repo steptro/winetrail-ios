@@ -10,7 +10,7 @@ struct MainTabView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             TabView(selection: $selectedTab) {
-                Tab("Timeline", systemImage: "list.bullet", value: 0) {
+                Tab("Timeline", systemImage: "square.grid.2x2", value: 0) {
                     NavigationStack {
                         TimelineView()
                     }

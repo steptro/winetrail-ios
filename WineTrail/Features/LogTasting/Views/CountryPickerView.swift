@@ -68,7 +68,7 @@ struct CountryPickerView: View {
             .searchable(text: $searchText, prompt: "Search countries")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
                 }
             }
         }

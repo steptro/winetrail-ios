@@ -116,7 +116,7 @@ struct TastingDetailView: View {
             Text("Rating")
                 .font(Theme.headlineFont)
             Spacer()
-            RatingView(rating: Int(tasting.rating))
+            RatingView(rating: Double(tasting.rating))
         }
     }
 

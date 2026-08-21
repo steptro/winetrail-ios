@@ -40,8 +40,8 @@ final class LogTastingViewModel {
 
     // MARK: - Form State
 
-    /// Rating from 1-10 (required). Defaults to 5.
-    var rating: Int = 5
+    /// Rating from 0.5 to 5.0 in half-star increments. Defaults to 3.0.
+    var rating: Double = 3.0
 
     /// Optional tasting notes.
     var notes: String = ""
@@ -205,7 +205,7 @@ final class LogTastingViewModel {
                 wineId: wine.wineId ?? selectedWineId,
                 externalSource: wine.externalSource,
                 externalId: wine.externalId,
-                rating: Int32(rating),
+                rating: Int32(rating.rounded()),
                 notes: notes.isEmpty ? nil : notes,
                 foodPairing: foodPairing.isEmpty ? nil : foodPairing,
                 occasion: occasion.isEmpty ? nil : occasion,

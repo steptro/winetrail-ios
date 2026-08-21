@@ -82,15 +82,17 @@ struct LogTastingView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if let viewModel {
                         if viewModel.isSaving {
                             ProgressView()
                         } else {
-                            Button("Save") {
+                            Button {
                                 Task { await viewModel.saveTasting() }
+                            } label: {
+                                Image(systemName: "checkmark")
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(.wineAccent)
@@ -232,19 +234,20 @@ struct LogTastingView: View {
                         .font(.body.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
+                        .foregroundStyle(.white)
+                        .background(.wineAccent, in: Capsule())
                 }
-                .modifier(FilledButtonModifier())
             } else {
                 Button {
                     Task { await viewModel.saveTasting() }
                 } label: {
-                    Text("Save")
+                    Image(systemName: "checkmark")
                         .font(.body.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
+                        .foregroundStyle(.white)
+                        .background(.wineAccent, in: Capsule())
                 }
-                .modifier(FilledButtonModifier())
-                .disabled(!viewModel.canSave)
             }
 
             // Back button (secondary, glass outline)
@@ -367,46 +370,23 @@ struct LogTastingView: View {
 
     @ViewBuilder
     private func ratingStep(viewModel: LogTastingViewModel) -> some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                glassCard {
-                    VStack(spacing: Theme.largeSpacing) {
-                        Text("\(viewModel.rating)")
-                            .font(.system(size: 72, weight: .bold, design: .rounded))
-                            .foregroundStyle(.wineAccent)
-                            .contentTransition(.numericText())
-                            .animation(.snappy, value: viewModel.rating)
+        @Bindable var vm = viewModel
+        VStack(spacing: Theme.spacing) {
+            // Interactive star display
+            RatingView(rating: viewModel.rating, ratingBinding: $vm.rating, starSize: .title)
+                .padding(.top, 12)
 
-                        Text("out of 10")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+            // Wine bottle vertical slider
+            WineBottleSlider(rating: $vm.rating)
+                .frame(width: 120, height: 260)
+                .padding(.vertical, 8)
 
-                        Slider(
-                            value: Binding(
-                                get: { Double(viewModel.rating) },
-                                set: { newValue in
-                                    let newRating = Int(newValue)
-                                    if newRating != viewModel.rating {
-                                        UISelectionFeedbackGenerator().selectionChanged()
-                                    }
-                                    viewModel.rating = newRating
-                                }
-                            ),
-                            in: 1...10,
-                            step: 1
-                        )
-                        .tint(.wineAccent)
-                    }
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Rating: \(viewModel.rating) out of 10")
-                    .accessibilityValue("\(viewModel.rating)")
-                }
-            }
-            .padding(.horizontal)
-            .padding(.top, 12)
+            Text("Drag to rate")
+                .font(Theme.captionFont)
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .contain)
     }
 
     // MARK: - Step 3: Photo

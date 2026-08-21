@@ -31,7 +31,7 @@ struct WineRow: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                RatingView(rating: Int(wine.averageRating.rounded()))
+                RatingView(rating: wine.averageRating)
 
                 HStack(spacing: 2) {
                     Image(systemName: "wineglass")

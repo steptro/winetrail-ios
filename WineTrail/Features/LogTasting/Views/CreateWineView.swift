@@ -73,8 +73,10 @@ struct CreateWineView: View {
         .navigationTitle("Create Wine")
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") {
+                Button {
                     Task { await createWine() }
+                } label: {
+                    Image(systemName: "checkmark")
                 }
                 .disabled(!canSave)
             }

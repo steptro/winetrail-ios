@@ -1,68 +1,84 @@
 import SwiftUI
 
-/// A compact rating badge for displaying a 1–10 wine tasting score.
+/// A star rating view showing 1–5 stars with half-star support.
 ///
-/// Shows a star icon alongside the numeric rating, tinted by quality tier:
-/// - 1–3: red (poor)
-/// - 4–5: orange (below average)
-/// - 6–7: yellow (good)
-/// - 8–10: green (excellent)
-///
-/// Designed to fit comfortably in list rows and card layouts.
+/// Displays filled, half-filled, and empty stars based on the rating value.
+/// Rating is stored as a Double (e.g., 3.5 = three and a half stars).
+/// When a `Binding` is provided via the interactive initializer, tapping a star sets the rating.
 struct RatingView: View {
-    let rating: Int
+    /// Rating value from 0.5 to 5.0 (half-star increments).
+    let rating: Double
+
+    /// Optional binding for interactive mode (tapping stars changes rating).
+    var ratingBinding: Binding<Double>?
+
+    /// Size of each star.
+    var starSize: Font = .body
+
+    /// Whether to show the numeric value next to the stars.
+    var showValue: Bool = false
 
     var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: "star.fill")
-                .font(.caption2)
-                .foregroundStyle(ratingColor)
-
-            Text("\(clampedRating)")
-                .font(.subheadline.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(ratingColor)
+        HStack(spacing: 2) {
+            ForEach(1...5, id: \.self) { index in
+                starImage(for: index)
+                    .font(starSize)
+                    .foregroundStyle(.wineAccent)
+                    .onTapGesture {
+                        if let binding = ratingBinding {
+                            let newRating = Double(index)
+                            if newRating != binding.wrappedValue {
+                                UISelectionFeedbackGenerator().selectionChanged()
+                            }
+                            binding.wrappedValue = newRating
+                        }
+                    }
+            }
+            if showValue {
+                Text(String(format: "%.1f", clampedRating))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 4)
+            }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(
-            Capsule()
-                .fill(ratingColor.opacity(0.12))
-        )
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Rating: \(clampedRating) out of 10")
+        .accessibilityLabel("Rating: \(String(format: "%.1f", clampedRating)) out of 5 stars")
     }
 
-    // MARK: - Private
-
-    private var clampedRating: Int {
-        min(max(rating, 1), 10)
+    private var clampedRating: Double {
+        min(max(rating, 0), 5)
     }
 
-    private var ratingColor: Color {
-        switch clampedRating {
-        case 1...3: return .red
-        case 4...5: return .orange
-        case 6...7: return .yellow
-        case 8...10: return .green
-        default: return .gray
+    private func starImage(for index: Int) -> Image {
+        let threshold = Double(index)
+        if clampedRating >= threshold {
+            return Image(systemName: "star.fill")
+        } else if clampedRating >= threshold - 0.5 {
+            return Image(systemName: "star.leadinghalf.filled")
+        } else {
+            return Image(systemName: "star")
         }
     }
 }
 
 // MARK: - Previews
 
-#Preview("All Ratings") {
-    VStack(spacing: 8) {
-        ForEach(1...10, id: \.self) { score in
-            HStack {
-                Text("Score \(score)")
-                    .frame(width: 80, alignment: .leading)
-                RatingView(rating: score)
-            }
-        }
+#Preview("Half Stars") {
+    VStack(spacing: 12) {
+        RatingView(rating: 1.0)
+        RatingView(rating: 2.5)
+        RatingView(rating: 3.5)
+        RatingView(rating: 4.0)
+        RatingView(rating: 5.0)
+        RatingView(rating: 3.5, starSize: .title2, showValue: true)
     }
     .padding()
+}
+
+#Preview("Interactive") {
+    @Previewable @State var rating: Double = 3.0
+    RatingView(rating: rating, ratingBinding: $rating, starSize: .title)
+        .padding()
 }
 
 #Preview("In Context") {
@@ -76,7 +92,7 @@ struct RatingView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            RatingView(rating: 9)
+            RatingView(rating: 4.5)
         }
         HStack {
             VStack(alignment: .leading) {
@@ -87,7 +103,7 @@ struct RatingView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            RatingView(rating: 3)
+            RatingView(rating: 2.0)
         }
     }
 }
