@@ -3,7 +3,7 @@
     "info": {
         "title": "WineTrail API",
         "description": "REST API for the WineTrail personal wine diary application",
-        "version": "1.0.0"
+        "version": "0.3.0"
     },
     "servers": [
         {
@@ -728,9 +728,9 @@
                     "rating": {
                         "type": "integer",
                         "format": "int32",
-                        "description": "Rating from 1 to 10",
-                        "example": 8,
-                        "maximum": 10,
+                        "description": "Rating from 1 to 5",
+                        "example": 4,
+                        "maximum": 5,
                         "minimum": 1
                     },
                     "notes": {
@@ -748,9 +748,10 @@
                         "example": "Birthday dinner"
                     },
                     "price": {
-                        "type": "string",
+                        "type": "number",
                         "description": "Price paid for the wine",
-                        "example": "\u20ac25"
+                        "example": 25.0,
+                        "minimum": 0
                     },
                     "currency": {
                         "type": "string",
@@ -857,8 +858,8 @@
                     "rating": {
                         "type": "integer",
                         "format": "int32",
-                        "description": "Rating from 1 to 10",
-                        "example": 8
+                        "description": "Rating from 1 to 5",
+                        "example": 4
                     },
                     "notes": {
                         "type": "string",
@@ -875,9 +876,9 @@
                         "example": "Birthday dinner"
                     },
                     "price": {
-                        "type": "string",
+                        "type": "number",
                         "description": "Price paid for the wine",
-                        "example": "\u20ac25"
+                        "example": 25.0
                     },
                     "currency": {
                         "type": "string",
@@ -1090,9 +1091,9 @@
                     "rating": {
                         "type": "integer",
                         "format": "int32",
-                        "description": "Rating from 1 to 10",
-                        "example": 8,
-                        "maximum": 10,
+                        "description": "Rating from 1 to 5",
+                        "example": 4,
+                        "maximum": 5,
                         "minimum": 1
                     },
                     "notes": {
@@ -1110,9 +1111,10 @@
                         "example": "Birthday dinner"
                     },
                     "price": {
-                        "type": "string",
+                        "type": "number",
                         "description": "Price paid for the wine",
-                        "example": "\u20ac25"
+                        "example": 25.0,
+                        "minimum": 0
                     },
                     "currency": {
                         "type": "string",
@@ -1414,6 +1416,44 @@
                     }
                 }
             },
+            "CountryCount": {
+                "type": "object",
+                "description": "A country with its tasting count",
+                "properties": {
+                    "country": {
+                        "type": "string",
+                        "description": "ISO 3166-1 alpha-2 country code",
+                        "example": "FR"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Number of tastings from this country",
+                        "example": 18
+                    }
+                }
+            },
+            "PriceStats": {
+                "type": "object",
+                "description": "Price statistics across tastings that have a price recorded",
+                "properties": {
+                    "totalSpent": {
+                        "type": "number",
+                        "description": "Total amount spent across all tastings with a price",
+                        "example": 487.5
+                    },
+                    "averagePrice": {
+                        "type": "number",
+                        "description": "Average price per tasting",
+                        "example": 24.38
+                    },
+                    "highestPrice": {
+                        "type": "number",
+                        "description": "Highest single price paid",
+                        "example": 89.0
+                    }
+                }
+            },
             "RegionCount": {
                 "type": "object",
                 "description": "A wine region with its tasting count",
@@ -1456,6 +1496,13 @@
                             "$ref": "#/components/schemas/RegionCount"
                         }
                     },
+                    "topCountries": {
+                        "type": "array",
+                        "description": "Top 10 countries ranked by tasting count",
+                        "items": {
+                            "$ref": "#/components/schemas/CountryCount"
+                        }
+                    },
                     "averageRating": {
                         "type": "number",
                         "format": "double",
@@ -1468,6 +1515,10 @@
                         "items": {
                             "$ref": "#/components/schemas/ActivityPoint"
                         }
+                    },
+                    "priceStats": {
+                        "$ref": "#/components/schemas/PriceStats",
+                        "description": "Price statistics across tastings that have a price recorded"
                     }
                 }
             },

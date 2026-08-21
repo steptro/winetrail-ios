@@ -51,8 +51,18 @@ final class StatsViewModel {
         stats?.topRegions ?? []
     }
 
+    /// Top countries ranked by tasting count.
+    var topCountries: [Components.Schemas.CountryCount] {
+        stats?.topCountries ?? []
+    }
+
     /// Activity timeline data points.
     var activityTimeline: [Components.Schemas.ActivityPoint] {
         stats?.activityTimeline ?? []
+    }
+
+    /// Price statistics (total spent, average, highest).
+    var priceStats: Components.Schemas.PriceStats? {
+        stats?.priceStats
     }
 }

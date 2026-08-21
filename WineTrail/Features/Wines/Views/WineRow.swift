@@ -55,3 +55,42 @@ struct WineRow: View {
         return parts.joined(separator: ", ")
     }
 }
+
+
+#Preview {
+    List {
+        WineRow(wine: Components.Schemas.WineWithStats(
+            id: "wine-1",
+            name: "Barolo DOCG 2018",
+            producer: "Marchesi di Barolo",
+            regionName: "Barolo",
+            color: .RED,
+            timesDrunk: 5,
+            averageRating: 4.2,
+            firstTasted: "2025-03-15",
+            lastTasted: "2026-08-10"
+        ))
+        WineRow(wine: Components.Schemas.WineWithStats(
+            id: "wine-2",
+            name: "Sancerre 2022",
+            producer: "Domaine Vacheron",
+            regionName: "Loire",
+            color: .WHITE,
+            timesDrunk: 2,
+            averageRating: 3.5,
+            firstTasted: "2026-06-01",
+            lastTasted: "2026-07-20"
+        ))
+        WineRow(wine: Components.Schemas.WineWithStats(
+            id: "wine-3",
+            name: "Whispering Angel 2023",
+            producer: "Château d'Esclans",
+            regionName: "Provence",
+            color: .ROSE,
+            timesDrunk: 8,
+            averageRating: 3.0,
+            firstTasted: "2024-06-15",
+            lastTasted: "2026-08-18"
+        ))
+    }
+}

@@ -287,6 +287,28 @@ struct LogTastingView: View {
         withAnimation { currentStep = step }
     }
 
+    /// Sanitizes price input to allow only digits and at most one decimal separator with 2 fractional digits.
+    private func sanitizePrice(_ input: String) -> String {
+        let separators: [Character] = [".", ","]
+        var result = ""
+        var foundSeparator = false
+        var decimals = 0
+
+        for char in input {
+            if char.isNumber {
+                if foundSeparator {
+                    guard decimals < 2 else { continue }
+                    decimals += 1
+                }
+                result.append(char)
+            } else if separators.contains(char) && !foundSeparator {
+                foundSeparator = true
+                result.append(".")
+            }
+        }
+        return result
+    }
+
     // MARK: - Step 1: Wine
 
     @ViewBuilder
@@ -342,6 +364,7 @@ struct LogTastingView: View {
                             } label: {
                                 wineResultRow(wine: wine)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -419,8 +442,8 @@ struct LogTastingView: View {
     private func detailsStep(viewModel: LogTastingViewModel) -> some View {
         @Bindable var vm = viewModel
         Form {
-            Section("Tasting") {
-                TextField("Tasting notes", text: $vm.notes, axis: .vertical)
+            Section("Notes") {
+                TextField("Notes", text: $vm.notes, axis: .vertical)
                     .lineLimit(3...6)
             }
 
@@ -433,6 +456,9 @@ struct LogTastingView: View {
                 HStack {
                     TextField("Price", text: $vm.price)
                         .keyboardType(.decimalPad)
+                        .onChange(of: vm.price) { _, newValue in
+                            vm.price = sanitizePrice(newValue)
+                        }
                     Picker("", selection: $vm.currency) {
                         Text("EUR").tag("EUR")
                         Text("USD").tag("USD")

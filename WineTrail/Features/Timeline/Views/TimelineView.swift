@@ -17,7 +17,7 @@ struct TimelineView: View {
                 if viewModel.tastings.isEmpty && !viewModel.isLoading {
                     EmptyStateView(
                         icon: "wineglass",
-                        title: "No Tastings Yet",
+                        title: "No Wines Yet",
                         message: "Log your first wine to start your diary.",
                         actionTitle: "New Wine"
                     )
@@ -80,7 +80,7 @@ struct TimelineView: View {
                 EditTastingView(tasting: tasting)
             }
         }
-        .alert("Delete Tasting", isPresented: Binding(
+        .alert("Delete Wine", isPresented: Binding(
             get: { tastingToDelete != nil },
             set: { if !$0 { tastingToDelete = nil } }
         )) {
@@ -92,7 +92,7 @@ struct TimelineView: View {
                 }
             }
         } message: {
-            Text("Are you sure you want to delete this tasting? This cannot be undone.")
+            Text("Are you sure you want to delete this entry? This cannot be undone.")
         }
     }
 }

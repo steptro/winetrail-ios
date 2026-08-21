@@ -30,7 +30,7 @@ struct EmptyStateView: View {
 #Preview("With action") {
     EmptyStateView(
         icon: "wineglass",
-        title: "No Tastings Yet",
+        title: "No Wines Yet",
         message: "Log your first wine to start your diary.",
         actionTitle: "New Wine",
         action: {}
@@ -41,6 +41,6 @@ struct EmptyStateView: View {
     EmptyStateView(
         icon: "map",
         title: "No Map Data",
-        message: "Your tasting locations will appear here."
+        message: "Your wine locations will appear here."
     )
 }

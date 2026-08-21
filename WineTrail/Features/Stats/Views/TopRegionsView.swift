@@ -53,7 +53,7 @@ struct TopRegionsView: View {
                 .fontWeight(.medium)
                 .foregroundStyle(.wineSecondaryText)
 
-            Text((region.count ?? 0) == 1 ? "tasting" : "tastings")
+            Text((region.count ?? 0) == 1 ? "wine" : "wines")
                 .font(Theme.captionFont)
                 .foregroundStyle(.wineSecondaryText)
         }

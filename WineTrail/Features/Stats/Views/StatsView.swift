@@ -24,7 +24,11 @@ struct StatsView: View {
                     ScrollView {
                         VStack(spacing: Theme.largeSpacing) {
                             highlightCards(viewModel: viewModel)
+                            if let priceStats = viewModel.priceStats {
+                                priceStatsCard(stats: priceStats)
+                            }
                             ColorSplitChart(colorSplit: viewModel.colorSplit)
+                            TopCountriesView(countries: viewModel.topCountries)
                             TopRegionsView(regions: viewModel.topRegions)
                             ActivityChart(timeline: viewModel.activityTimeline)
                         }
@@ -60,6 +64,42 @@ struct StatsView: View {
                 icon: "star.fill"
             )
         }
+    }
+
+    /// Price statistics card showing total spent, average, and highest price.
+    @ViewBuilder
+    private func priceStatsCard(stats: Components.Schemas.PriceStats) -> some View {
+        VStack(alignment: .leading, spacing: Theme.smallSpacing) {
+            Text("Spending")
+                .font(Theme.headlineFont)
+                .foregroundStyle(.wineText)
+
+            HStack(spacing: Theme.spacing) {
+                StatCard(
+                    title: "Total Spent",
+                    value: formatPrice(stats.totalSpent ?? 0),
+                    icon: "creditcard"
+                )
+                StatCard(
+                    title: "Avg. Price",
+                    value: formatPrice(stats.averagePrice ?? 0),
+                    icon: "tag"
+                )
+                StatCard(
+                    title: "Highest",
+                    value: formatPrice(stats.highestPrice ?? 0),
+                    icon: "arrow.up"
+                )
+            }
+        }
+    }
+
+    private func formatPrice(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = Locale.current
+        formatter.maximumFractionDigits = 0
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.0f", value)
     }
 }
 

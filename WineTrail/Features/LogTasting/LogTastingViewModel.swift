@@ -209,7 +209,7 @@ final class LogTastingViewModel {
                 notes: notes.isEmpty ? nil : notes,
                 foodPairing: foodPairing.isEmpty ? nil : foodPairing,
                 occasion: occasion.isEmpty ? nil : occasion,
-                price: price.isEmpty ? nil : price,
+                price: Double(price).map { (($0 * 100).rounded() / 100) },
                 currency: price.isEmpty ? nil : currency,
                 latitude: latitude,
                 longitude: longitude,

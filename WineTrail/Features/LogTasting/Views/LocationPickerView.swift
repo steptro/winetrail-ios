@@ -22,7 +22,7 @@ struct LocationPickerView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.smallSpacing) {
             Toggle("Use current location", isOn: $useGPS)
-                .accessibilityHint("Enable to tag this tasting with your GPS coordinates")
+                .accessibilityHint("Enable to tag this wine with your GPS coordinates")
 
             if useGPS {
                 gpsLocationContent

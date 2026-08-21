@@ -65,7 +65,7 @@ struct EditTastingView: View {
         _notes = State(initialValue: tasting.notes ?? "")
         _foodPairing = State(initialValue: tasting.foodPairing ?? "")
         _occasion = State(initialValue: tasting.occasion ?? "")
-        _price = State(initialValue: tasting.price ?? "")
+        _price = State(initialValue: tasting.price.map { String(format: "%.2f", $0) } ?? "")
         _currency = State(initialValue: tasting.currency ?? "EUR")
         _locationName = State(initialValue: tasting.location?.locationName ?? "")
         _tastingDate = State(initialValue: Self.parseDate(tasting.tastingDate) ?? Date())
@@ -89,7 +89,7 @@ struct EditTastingView: View {
             // Bottom buttons
             bottomButtons
         }
-        .navigationTitle("Edit Tasting")
+        .navigationTitle("Edit Entry")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -281,8 +281,8 @@ struct EditTastingView: View {
     @ViewBuilder
     private var detailsStep: some View {
         Form {
-            Section("Tasting") {
-                TextField("Tasting notes", text: $notes, axis: .vertical)
+            Section("Notes") {
+                TextField("Notes", text: $notes, axis: .vertical)
                     .lineLimit(3...6)
             }
 
@@ -295,6 +295,9 @@ struct EditTastingView: View {
                 HStack {
                     TextField("Price", text: $price)
                         .keyboardType(.decimalPad)
+                        .onChange(of: price) { _, newValue in
+                            price = sanitizePrice(newValue)
+                        }
                     Picker("", selection: $currency) {
                         Text("EUR").tag("EUR")
                         Text("USD").tag("USD")
@@ -366,7 +369,7 @@ struct EditTastingView: View {
             notes: notes.isEmpty ? nil : notes,
             foodPairing: foodPairing.isEmpty ? nil : foodPairing,
             occasion: occasion.isEmpty ? nil : occasion,
-            price: price.isEmpty ? nil : price,
+            price: Double(price).map { (($0 * 100).rounded() / 100) },
             currency: price.isEmpty ? nil : currency,
             latitude: latitude,
             longitude: longitude,
@@ -378,6 +381,7 @@ struct EditTastingView: View {
         do {
             _ = try await tastingService.updateTasting(id: tasting.id, request)
             NotificationCenter.default.post(name: .tastingDidChange, object: nil)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             dismiss()
         } catch {
             print("[EditTasting] Failed to update tasting: \(error)")
@@ -393,6 +397,28 @@ struct EditTastingView: View {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
+    /// Sanitizes price input to allow only digits and at most one decimal separator with 2 fractional digits.
+    private func sanitizePrice(_ input: String) -> String {
+        let separators: [Character] = [".", ","]
+        var result = ""
+        var foundSeparator = false
+        var decimals = 0
+
+        for char in input {
+            if char.isNumber {
+                if foundSeparator {
+                    guard decimals < 2 else { continue }
+                    decimals += 1
+                }
+                result.append(char)
+            } else if separators.contains(char) && !foundSeparator {
+                foundSeparator = true
+                result.append(".")
+            }
+        }
+        return result
+    }
+
     private static func parseDate(_ dateString: String?) -> Date? {
         guard let dateString else { return nil }
         let formatter = DateFormatter()
@@ -400,4 +426,44 @@ struct EditTastingView: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter.date(from: dateString)
     }
+}
+
+
+#Preview {
+    NavigationStack {
+        EditTastingView(
+            tasting: Components.Schemas.TastingDto(
+                id: "preview-1",
+                wine: Components.Schemas.WineSummary(
+                    id: "wine-1",
+                    name: "Château Margaux 2015",
+                    producer: "Château Margaux",
+                    regionName: "Bordeaux",
+                    country: "FR",
+                    color: .RED
+                ),
+                rating: 4,
+                notes: "Complex and elegant",
+                foodPairing: "Grilled lamb",
+                occasion: "Birthday dinner",
+                price: 95.0,
+                currency: "EUR",
+                location: Components.Schemas.LocationData(
+                    latitude: 48.8566,
+                    longitude: 2.3522,
+                    locationName: "Le Comptoir, Paris"
+                ),
+                tastingDate: "2026-08-10",
+                vintage: 2015,
+                photos: [],
+                createdAt: Date(),
+                updatedAt: Date()
+            )
+        )
+    }
+    .environment(TastingService(apiClient: APIClient(
+        serverURL: URL(string: "https://api.winetrail.app")!,
+        authService: AuthService()
+    )))
+    .environment(LocationService())
 }

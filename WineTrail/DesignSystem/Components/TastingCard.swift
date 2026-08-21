@@ -21,7 +21,7 @@ struct TastingCard: View {
                 }
                 .frame(height: 180)
                 .clipped()
-                .accessibilityLabel("Tasting photo")
+                .accessibilityLabel("Wine photo")
             }
 
             VStack(alignment: .leading, spacing: Theme.smallSpacing) {
@@ -69,6 +69,47 @@ struct TastingCard: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
         .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Tasting of \(tasting.wine.name)")
+        .accessibilityLabel("Wine: \(tasting.wine.name)")
     }
+}
+
+
+#Preview {
+    VStack(spacing: 16) {
+        TastingCard(tasting: Components.Schemas.TastingDto(
+            id: "preview-1",
+            wine: Components.Schemas.WineSummary(
+                id: "wine-1",
+                name: "Château Margaux 2015",
+                producer: "Château Margaux",
+                regionName: "Bordeaux",
+                country: "FR",
+                color: .RED
+            ),
+            rating: 5,
+            notes: "Exceptional complexity",
+            tastingDate: "2026-08-15",
+            photos: [],
+            createdAt: Date(),
+            updatedAt: Date()
+        ))
+
+        TastingCard(tasting: Components.Schemas.TastingDto(
+            id: "preview-2",
+            wine: Components.Schemas.WineSummary(
+                id: "wine-2",
+                name: "Cloudy Bay Sauvignon Blanc",
+                producer: "Cloudy Bay",
+                regionName: "Marlborough",
+                country: "NZ",
+                color: .WHITE
+            ),
+            rating: 3,
+            tastingDate: "2026-08-10",
+            photos: [],
+            createdAt: Date(),
+            updatedAt: Date()
+        ))
+    }
+    .padding()
 }

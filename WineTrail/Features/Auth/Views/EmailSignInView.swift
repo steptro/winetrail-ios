@@ -96,3 +96,20 @@ struct EmailSignInView: View {
         }
     }
 }
+
+
+#Preview {
+    EmailSignInView()
+        .environment(AuthService())
+        .environment(DeviceService(apiClient: APIClient(
+            serverURL: URL(string: "https://api.winetrail.app")!,
+            authService: AuthService()
+        )))
+        .environment(AppState(
+            authService: AuthService(),
+            tastingService: TastingService(apiClient: APIClient(
+                serverURL: URL(string: "https://api.winetrail.app")!,
+                authService: AuthService()
+            ))
+        ))
+}

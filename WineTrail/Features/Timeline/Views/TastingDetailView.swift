@@ -9,12 +9,17 @@ struct TastingDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(TastingService.self) private var tastingService
 
-    let tasting: Tasting
+    @State private var tasting: Tasting
     let viewModel: TimelineViewModel
 
     @State private var showDeleteConfirmation = false
     @State private var showEditSheet = false
     @State private var isDeleting = false
+
+    init(tasting: Tasting, viewModel: TimelineViewModel) {
+        _tasting = State(initialValue: tasting)
+        self.viewModel = viewModel
+    }
 
     var body: some View {
         ScrollView {
@@ -27,7 +32,11 @@ struct TastingDetailView: View {
             }
             .padding(Theme.spacing)
         }
-        .navigationTitle("Tasting")
+        .refreshable {
+            await reloadTasting()
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
+        .navigationTitle("Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -48,16 +57,34 @@ struct TastingDetailView: View {
                 }
             }
         }
-        .alert("Delete Tasting", isPresented: $showDeleteConfirmation) {
+        .alert("Delete Wine", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
                 deleteTasting()
             }
         } message: {
-            Text("Are you sure you want to delete this tasting? This action cannot be undone.")
+            Text("Are you sure you want to delete this entry? This action cannot be undone.")
         }
         .sheet(isPresented: $showEditSheet) {
-            EditTastingView(tasting: tasting)
+            NavigationStack {
+                EditTastingView(tasting: tasting)
+            }
+        }
+        .onChange(of: showEditSheet) { _, isPresented in
+            if !isPresented {
+                Task { await reloadTasting() }
+            }
+        }
+    }
+
+    // MARK: - Reload
+
+    private func reloadTasting() async {
+        do {
+            tasting = try await tastingService.getTasting(id: tasting.id)
+        } catch {
+            // If reload fails, keep showing the old data
+            print("[TastingDetail] Failed to reload tasting: \(error)")
         }
     }
 
@@ -145,7 +172,7 @@ struct TastingDetailView: View {
                             }
                             .frame(width: 240, height: 180)
                             .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
-                            .accessibilityLabel("Tasting photo")
+                            .accessibilityLabel("Wine photo")
                         }
                     }
                 }
@@ -160,7 +187,7 @@ struct TastingDetailView: View {
         let hasDetails = (tasting.notes != nil && !tasting.notes!.isEmpty)
             || (tasting.foodPairing != nil && !tasting.foodPairing!.isEmpty)
             || (tasting.occasion != nil && !tasting.occasion!.isEmpty)
-            || (tasting.price != nil && !tasting.price!.isEmpty)
+            || (tasting.price != nil)
 
         if hasDetails {
             VStack(alignment: .leading, spacing: Theme.spacing) {
@@ -176,10 +203,26 @@ struct TastingDetailView: View {
                 if let occasion = tasting.occasion, !occasion.isEmpty {
                     detailRow(icon: "party.popper", title: "Occasion", value: occasion)
                 }
-                if let price = tasting.price, !price.isEmpty {
-                    detailRow(icon: "tag", title: "Price", value: price)
+                if let price = tasting.price {
+                    let symbol = Self.currencySymbol(for: tasting.currency ?? "EUR")
+                    detailRow(icon: "tag", title: "Price", value: "\(symbol)\(String(format: "%.2f", price))")
                 }
             }
+        }
+    }
+
+    private static func currencySymbol(for code: String) -> String {
+        let locale = NSLocale(localeIdentifier: code)
+        if let symbol = locale.displayName(forKey: .currencySymbol, value: code), symbol != code {
+            return symbol
+        }
+        // Fallback for common codes
+        switch code {
+        case "EUR": return "€"
+        case "USD": return "$"
+        case "GBP": return "£"
+        case "CHF": return "CHF "
+        default: return "\(code) "
         }
     }
 
@@ -223,4 +266,46 @@ struct TastingDetailView: View {
             dismiss()
         }
     }
+}
+
+
+#Preview {
+    let authService = AuthService()
+    let apiClient = APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: authService)
+    let tastingService = TastingService(apiClient: apiClient)
+
+    NavigationStack {
+        TastingDetailView(
+            tasting: Components.Schemas.TastingDto(
+                id: "preview-1",
+                wine: Components.Schemas.WineSummary(
+                    id: "wine-1",
+                    name: "Barolo DOCG 2018",
+                    producer: "Marchesi di Barolo",
+                    regionName: "Barolo",
+                    country: "IT",
+                    color: .RED
+                ),
+                rating: 4,
+                notes: "Deep garnet with aromas of tar and roses. Full-bodied with firm tannins.",
+                foodPairing: "Braised short ribs",
+                occasion: "Anniversary dinner",
+                price: 45.0,
+                currency: "EUR",
+                location: Components.Schemas.LocationData(
+                    latitude: 44.6094,
+                    longitude: 7.9414,
+                    locationName: "Enoteca Barolo"
+                ),
+                tastingDate: "2026-07-20",
+                vintage: 2018,
+                photos: [],
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            viewModel: TimelineViewModel(tastingService: tastingService)
+        )
+    }
+    .environment(tastingService)
+    .environment(LocationService())
 }
