@@ -12,6 +12,9 @@ struct LogTastingView: View {
     @Environment(PhotoService.self) private var photoService
     @Environment(LocationService.self) private var locationService
 
+    /// Optional pre-selected wine (e.g. from "Log Again" on wine detail page).
+    var preselectedWine: WineSearch?
+
     @State private var viewModel: LogTastingViewModel?
     @State private var currentStep: WizardStep = .wine
     @State private var shakeWineSection = false
@@ -104,12 +107,17 @@ struct LogTastingView: View {
         }
         .task {
             if viewModel == nil {
-                viewModel = LogTastingViewModel(
+                let vm = LogTastingViewModel(
                     wineService: wineService,
                     tastingService: tastingService,
                     photoService: photoService,
                     locationService: locationService
                 )
+                if let preselectedWine {
+                    vm.selectWine(preselectedWine)
+                    currentStep = .rating
+                }
+                viewModel = vm
             }
         }
         .onChange(of: viewModel?.savedTasting?.id) { _, tastingId in
@@ -131,7 +139,7 @@ struct LogTastingView: View {
         }
         .overlay {
             if showCheers {
-                CheersToastView()
+                CheersToastView(rating: viewModel?.rating ?? 3.0)
                     .transition(.scale.combined(with: .opacity))
             }
         }
@@ -401,7 +409,7 @@ struct LogTastingView: View {
 
             // Wine bottle vertical slider
             WineBottleSlider(rating: $vm.rating)
-                .frame(width: 120, height: 260)
+                .frame(width: 70, height: 260)
                 .padding(.vertical, 8)
 
             Text("Drag to rate")

@@ -43,6 +43,7 @@ final class AppState {
                 currentRoute = .main
             }
         } catch {
+            Log.error("Failed to determine initial route", error: error)
             // Fallback to main on error — timeline will show empty state
             currentRoute = .main
         }

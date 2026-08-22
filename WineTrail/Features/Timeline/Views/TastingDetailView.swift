@@ -1,10 +1,10 @@
 import SwiftUI
 import OpenAPIRuntime
 
-/// Full detail view for a single tasting entry.
+/// Full detail view for a single wine entry, designed as a journal page.
 ///
-/// Displays all tasting fields — wine info, rating, photo gallery, notes, food pairing,
-/// occasion, price, date, and location. Provides edit and delete actions via toolbar buttons.
+/// Hero photo at the top (edge-to-edge), wine identity block, prominent star rating,
+/// blockquote-style notes, metadata pills, and a floating edit button.
 struct TastingDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(TastingService.self) private var tastingService
@@ -23,20 +23,33 @@ struct TastingDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.largeSpacing) {
-                wineHeader
-                ratingSection
-                photoGallery
-                detailsSection
-                metadataSection
+            VStack(alignment: .leading, spacing: 0) {
+                // Hero photo carousel
+                heroPhoto
+
+                VStack(alignment: .leading, spacing: Theme.largeSpacing) {
+                    // Wine identity
+                    wineIdentity
+
+                    // Star rating
+                    starRating
+
+                    // Notes (blockquote style)
+                    notesSection
+
+                    // Metadata pills
+                    metadataPills
+                }
+                .padding(.horizontal, Theme.spacing)
+                .padding(.top, Theme.spacing)
+                .padding(.bottom, 40)
             }
-            .padding(Theme.spacing)
         }
+        .ignoresSafeArea(edges: .top)
         .refreshable {
             await reloadTasting()
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
-        .navigationTitle("Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -52,8 +65,7 @@ struct TastingDetailView: View {
                         Label("Delete", systemImage: "trash")
                     }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .accessibilityLabel("Actions")
+                    Label("Contextual", systemImage: "ellipsis")
                 }
             }
         }
@@ -83,178 +95,191 @@ struct TastingDetailView: View {
         do {
             tasting = try await tastingService.getTasting(id: tasting.id)
         } catch {
-            // If reload fails, keep showing the old data
-            print("[TastingDetail] Failed to reload tasting: \(error)")
+            Log.error("Failed to reload tasting", error: error)
         }
     }
 
-    // MARK: - Wine Header
+    // MARK: - Hero Photo
 
     @ViewBuilder
-    private var wineHeader: some View {
-        HStack(spacing: Theme.smallSpacing) {
-            if let color = tasting.wine.color {
-                WineColorIndicator(color: color, size: 16)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(tasting.wine.name)
-                    .font(Theme.titleFont)
-
-                if let producer = tasting.wine.producer, !producer.isEmpty {
-                    Text(producer)
-                        .font(Theme.subheadlineFont)
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack(spacing: Theme.smallSpacing) {
-                    if let region = tasting.wine.regionName, !region.isEmpty {
-                        Text(region)
-                            .font(Theme.captionFont)
-                            .foregroundStyle(.secondary)
-                    }
-                    if let country = tasting.wine.country, !country.isEmpty {
-                        if tasting.wine.regionName != nil {
-                            Text("·")
-                                .font(Theme.captionFont)
-                                .foregroundStyle(.tertiary)
-                        }
-                        Text(country)
-                            .font(Theme.captionFont)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                if let vintage = tasting.vintage {
-                    Text("Vintage \(String(vintage))")
-                        .font(Theme.captionFont)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    // MARK: - Rating
-
-    @ViewBuilder
-    private var ratingSection: some View {
-        HStack {
-            Text("Rating")
-                .font(Theme.headlineFont)
-            Spacer()
-            RatingView(rating: Double(tasting.rating))
-        }
-    }
-
-    // MARK: - Photo Gallery
-
-    @ViewBuilder
-    private var photoGallery: some View {
+    private var heroPhoto: some View {
         if !tasting.photos.isEmpty {
-            VStack(alignment: .leading, spacing: Theme.smallSpacing) {
-                Text("Photos")
-                    .font(Theme.headlineFont)
+            TabView {
+                ForEach(tasting.photos, id: \.id) { photo in
+                    AsyncImage(url: URL(string: photo.url)) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Rectangle()
+                            .fill(.quaternary)
+                            .overlay { ProgressView() }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: tasting.photos.count > 1 ? .automatic : .never))
+            .frame(height: 320)
+        } else {
+            WinePlaceholderView(color: tasting.wine.color)
+        }
+    }
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Theme.smallSpacing) {
-                        ForEach(tasting.photos) { photo in
-                            AsyncImage(url: URL(string: photo.url)) { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            } placeholder: {
-                                Rectangle()
-                                    .fill(.quaternary)
-                                    .overlay {
-                                        ProgressView()
-                                    }
-                            }
-                            .frame(width: 240, height: 180)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
-                            .accessibilityLabel("Wine photo")
+    // MARK: - Wine Identity
+
+    @ViewBuilder
+    private var wineIdentity: some View {
+        NavigationLink {
+            WineDetailView(wine: Components.Schemas.UserWineStats(
+                wine: tasting.wine,
+                timesDrunk: 0,
+                averageRating: Double(tasting.rating)
+            ))
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "wineglass.fill")
+                    .font(.title)
+                    .foregroundStyle(tasting.wine.color?.accentColor ?? .wineAccent)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tasting.wine.name + (tasting.vintage.map { " (\($0))" } ?? ""))
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.primary)
+
+                    HStack(spacing: 6) {
+                        if let country = tasting.wine.country, !country.isEmpty {
+                            Text(Self.flag(for: country))
+                        }
+                        if let producer = tasting.wine.producer, !producer.isEmpty {
+                            Text(producer)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let region = tasting.wine.regionName, !region.isEmpty {
+                            Text("·")
+                                .foregroundStyle(.tertiary)
+                            Text(region)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
         }
+        .buttonStyle(.plain)
     }
 
-    // MARK: - Details Section
+    // MARK: - Star Rating
 
     @ViewBuilder
-    private var detailsSection: some View {
-        let hasDetails = (tasting.notes != nil && !tasting.notes!.isEmpty)
-            || (tasting.foodPairing != nil && !tasting.foodPairing!.isEmpty)
-            || (tasting.occasion != nil && !tasting.occasion!.isEmpty)
-            || (tasting.price != nil)
-
-        if hasDetails {
-            VStack(alignment: .leading, spacing: Theme.spacing) {
-                Text("Details")
-                    .font(Theme.headlineFont)
-
-                if let notes = tasting.notes, !notes.isEmpty {
-                    detailRow(icon: "note.text", title: "Notes", value: notes)
-                }
-                if let food = tasting.foodPairing, !food.isEmpty {
-                    detailRow(icon: "fork.knife", title: "Food Pairing", value: food)
-                }
-                if let occasion = tasting.occasion, !occasion.isEmpty {
-                    detailRow(icon: "party.popper", title: "Occasion", value: occasion)
-                }
-                if let price = tasting.price {
-                    let symbol = Self.currencySymbol(for: tasting.currency ?? "EUR")
-                    detailRow(icon: "tag", title: "Price", value: "\(symbol)\(String(format: "%.2f", price))")
-                }
-            }
+    private var starRating: some View {
+        HStack {
+            RatingView(rating: Double(tasting.rating), starSize: .title2)
+            Spacer()
         }
     }
 
-    private static func currencySymbol(for code: String) -> String {
-        let locale = NSLocale(localeIdentifier: code)
-        if let symbol = locale.displayName(forKey: .currencySymbol, value: code), symbol != code {
-            return symbol
-        }
-        // Fallback for common codes
-        switch code {
-        case "EUR": return "€"
-        case "USD": return "$"
-        case "GBP": return "£"
-        case "CHF": return "CHF "
-        default: return "\(code) "
-        }
-    }
+    // MARK: - Notes (Blockquote)
 
     @ViewBuilder
-    private func detailRow(icon: String, title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label(title, systemImage: icon)
-                .font(Theme.captionFont)
+    private var notesSection: some View {
+        if let notes = tasting.notes, !notes.isEmpty {
+            Text(notes)
+                .font(.body)
                 .foregroundStyle(.secondary)
-            Text(value)
-                .font(Theme.bodyFont)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    // MARK: - Metadata Section
+    // MARK: - Metadata Pills
 
     @ViewBuilder
-    private var metadataSection: some View {
-        VStack(alignment: .leading, spacing: Theme.smallSpacing) {
-            Label(tasting.tastingDate, systemImage: "calendar")
-                .font(Theme.captionFont)
-                .foregroundStyle(.secondary)
+    private var metadataPills: some View {
+        let pills = buildPills()
 
-            if let location = tasting.location {
-                if let name = location.locationName, !name.isEmpty {
-                    Label(name, systemImage: "mappin")
-                        .font(Theme.captionFont)
-                        .foregroundStyle(.secondary)
+        if !pills.isEmpty {
+            let columns = [
+                GridItem(.flexible()),
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ]
+
+            LazyVGrid(columns: columns, spacing: Theme.smallSpacing) {
+                ForEach(pills, id: \.label) { pill in
+                    VStack(spacing: 4) {
+                        Image(systemName: pill.icon)
+                            .font(.title3)
+                            .foregroundStyle(.wineAccent)
+                            .frame(height: 24)
+                        Text(pill.label)
+                            .font(.caption)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .frame(height: 16)
+                        Text(pill.title)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(height: 14)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(Theme.smallSpacing)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.smallCornerRadius))
                 }
             }
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.top, Theme.smallSpacing)
+    }
+
+    private struct MetadataPill {
+        let icon: String
+        let title: String
+        let label: String
+    }
+
+    private func buildPills() -> [MetadataPill] {
+        var pills: [MetadataPill] = []
+
+        pills.append(MetadataPill(icon: "calendar", title: "Date", label: formattedDate))
+
+        if let location = tasting.location, let name = location.locationName, !name.isEmpty {
+            pills.append(MetadataPill(icon: "mappin", title: "Location", label: name))
+        }
+
+        if let food = tasting.foodPairing, !food.isEmpty {
+            pills.append(MetadataPill(icon: "fork.knife", title: "Pairing", label: food))
+        }
+
+        if let occasion = tasting.occasion, !occasion.isEmpty {
+            pills.append(MetadataPill(icon: "party.popper", title: "Occasion", label: occasion))
+        }
+
+        if let price = tasting.price {
+            let symbol = Self.currencySymbol(for: tasting.currency ?? "EUR")
+            pills.append(MetadataPill(icon: "tag", title: "Price", label: "\(symbol)\(String(format: "%.2f", price))"))
+        }
+
+        return pills
+    }
+
+    private var formattedDate: String {
+        let inputFormatter = DateFormatter()
+        inputFormatter.dateFormat = "yyyy-MM-dd"
+        inputFormatter.locale = Locale(identifier: "en_US_POSIX")
+        if let date = inputFormatter.date(from: tasting.tastingDate) {
+            let outputFormatter = DateFormatter()
+            outputFormatter.dateFormat = "dd MMM yyyy"
+            outputFormatter.locale = Locale.current
+            return outputFormatter.string(from: date)
+        }
+        return tasting.tastingDate
     }
 
     // MARK: - Actions
@@ -266,8 +291,31 @@ struct TastingDetailView: View {
             dismiss()
         }
     }
-}
 
+    // MARK: - Helpers
+
+    private static func flag(for countryCode: String) -> String {
+        let base: UInt32 = 127397
+        return countryCode.uppercased().unicodeScalars
+            .compactMap { UnicodeScalar(base + $0.value) }
+            .map { String($0) }
+            .joined()
+    }
+
+    private static func currencySymbol(for code: String) -> String {
+        let locale = NSLocale(localeIdentifier: code)
+        if let symbol = locale.displayName(forKey: .currencySymbol, value: code), symbol != code {
+            return symbol
+        }
+        switch code {
+        case "EUR": return "€"
+        case "USD": return "$"
+        case "GBP": return "£"
+        case "CHF": return "CHF "
+        default: return "\(code) "
+        }
+    }
+}
 
 #Preview {
     let authService = AuthService()
@@ -287,7 +335,7 @@ struct TastingDetailView: View {
                     color: .RED
                 ),
                 rating: 4,
-                notes: "Deep garnet with aromas of tar and roses. Full-bodied with firm tannins.",
+                notes: "Deep garnet with aromas of tar and roses. Full-bodied with firm tannins and a long, complex finish.",
                 foodPairing: "Braised short ribs",
                 occasion: "Anniversary dinner",
                 price: 45.0,

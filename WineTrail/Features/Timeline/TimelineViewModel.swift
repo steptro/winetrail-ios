@@ -46,6 +46,7 @@ final class TimelineViewModel {
             hasMorePages = !page.isLast
             currentPage += 1
         } catch {
+            Log.error("Failed to load timeline", error: error)
             self.error = error
         }
 
@@ -72,6 +73,7 @@ final class TimelineViewModel {
         do {
             try await tastingService.deleteTasting(id: id)
         } catch {
+            Log.error("Failed to delete tasting", error: error)
             await loadInitial()
         }
     }

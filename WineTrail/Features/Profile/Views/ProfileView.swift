@@ -8,6 +8,7 @@ import FirebaseAuth
 struct ProfileView: View {
     @Environment(AuthService.self) private var authService
     @Environment(ProfileService.self) private var profileService
+    @Environment(AppState.self) private var appState
 
     @State private var displayName: String = ""
     @State private var isEditingName = false
@@ -74,6 +75,7 @@ struct ProfileView: View {
             Section {
                 Button(role: .destructive) {
                     try? authService.signOut()
+                    appState.currentRoute = .auth
                 } label: {
                     Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                 }
@@ -143,7 +145,7 @@ struct ProfileView: View {
             try await changeRequest?.commitChanges()
             isEditingName = false
         } catch {
-            print("[Profile] Failed to update profile: \(error)")
+            Log.error("Failed to update profile", error: error)
             self.error = "Something went wrong. Please try again."
         }
         isSaving = false

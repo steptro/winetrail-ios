@@ -266,7 +266,7 @@ struct EditTastingView: View {
                 .padding(.top, 12)
 
             WineBottleSlider(rating: $rating)
-                .frame(width: 120, height: 260)
+                .frame(width: 70, height: 260)
                 .padding(.vertical, 8)
 
             Text("Drag to rate")
@@ -365,7 +365,7 @@ struct EditTastingView: View {
         }
 
         let request = Components.Schemas.UpdateTastingRequest(
-            rating: Int32(rating.rounded()),
+            rating: rating,
             notes: notes.isEmpty ? nil : notes,
             foodPairing: foodPairing.isEmpty ? nil : foodPairing,
             occasion: occasion.isEmpty ? nil : occasion,
@@ -384,7 +384,7 @@ struct EditTastingView: View {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             dismiss()
         } catch {
-            print("[EditTasting] Failed to update tasting: \(error)")
+            Log.error("Failed to update tasting", error: error)
             self.error = "Something went wrong. Please try again."
         }
 

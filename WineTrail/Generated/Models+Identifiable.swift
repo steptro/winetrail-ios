@@ -5,7 +5,9 @@ import OpenAPIRuntime
 
 extension Components.Schemas.TastingDto: Identifiable {}
 
-extension Components.Schemas.WineWithStats: Identifiable {}
+extension Components.Schemas.UserWineStats: Identifiable {
+    public var id: String { wine.id }
+}
 
 extension Components.Schemas.PhotoDto: Identifiable {}
 

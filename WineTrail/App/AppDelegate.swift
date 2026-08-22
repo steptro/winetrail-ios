@@ -1,6 +1,8 @@
 import UIKit
 import FirebaseCore
 import FirebaseMessaging
+import DatadogCore
+import DatadogLogs
 
 class AppDelegate: NSObject, UIApplicationDelegate {
 
@@ -15,6 +17,27 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         if FirebaseApp.app() == nil {
             FirebaseApp.configure()
         }
+
+        // Datadog Logging
+        let datadogToken = Bundle.main.object(forInfoDictionaryKey: "DATADOG_CLIENT_TOKEN") as? String ?? ""
+        
+        if !datadogToken.isEmpty {
+            // Attach app version to all logs
+            let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
+            
+            Datadog.initialize(
+                with: Datadog.Configuration(
+                    clientToken: datadogToken,
+                    env: "production"
+                    site: .eu1,
+                    service: "WineTrail",
+                    version: appVersion
+                ),
+                trackingConsent: .granted
+            )
+            Logs.enable()
+        }
+
         Messaging.messaging().delegate = self
         return true
     }

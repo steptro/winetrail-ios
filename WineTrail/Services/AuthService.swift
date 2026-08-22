@@ -3,6 +3,7 @@ import Observation
 import FirebaseAuth
 import FirebaseCore
 import AuthenticationServices
+import DatadogCore
 import CryptoKit
 import GoogleSignIn
 import UIKit
@@ -50,6 +51,17 @@ final class AuthService: @unchecked Sendable {
             self.currentUser = user
             self.isAuthenticated = user != nil
             self.isLoading = false
+
+            // Update Datadog user info
+            if let user {
+                Datadog.setUserInfo(
+                    id: user.uid,
+                    name: user.displayName,
+                    email: user.email
+                )
+            } else {
+                Datadog.setUserInfo(id: "", name: nil, email: nil)
+            }
         }
     }
 

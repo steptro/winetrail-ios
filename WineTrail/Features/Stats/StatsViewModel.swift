@@ -27,6 +27,7 @@ final class StatsViewModel {
         do {
             stats = try await statsService.getStats()
         } catch {
+            Log.error("Failed to load stats", error: error)
             self.error = error
         }
         isLoading = false

@@ -76,10 +76,31 @@ final class TastingService {
     /// Fetches the user's tasting stats for a specific wine.
     /// - Parameter wineId: The UUID string of the wine.
     /// - Returns: Stats including times drunk, average rating, first/last tasted dates.
-    func getWineStats(wineId: String) async throws -> Components.Schemas.WineStatsDto {
-        let response = try await apiClient.client.getWineStats(
+    func getWineStats(wineId: String) async throws -> Components.Schemas.UserWineStats {
+        let response = try await apiClient.client.getUserWineStats(
             path: .init(wineId: wineId)
         )
         return try response.ok.body.json
+    }
+
+    /// Fetches all tastings for a specific wine (paginated).
+    /// - Parameters:
+    ///   - wineId: The UUID string of the wine.
+    ///   - page: Zero-based page index.
+    ///   - size: Number of items per page.
+    /// - Returns: A paginated result containing tastings for the requested wine.
+    func getTastingsForWine(wineId: String, page: Int = 0, size: Int = 20) async throws -> PagedResult<Tasting> {
+        let response = try await apiClient.client.getTastingsForWine(
+            path: .init(wineId: wineId),
+            query: .init(page: Int32(page), size: Int32(size))
+        )
+        let dto = try response.ok.body.json
+        return PagedResult(
+            content: dto.content ?? [],
+            totalPages: Int(dto.page?.totalPages ?? 0),
+            totalElements: Int(dto.page?.totalElements ?? 0),
+            currentPage: Int(dto.page?.number ?? 0),
+            isLast: Int(dto.page?.number ?? 0) >= Int(dto.page?.totalPages ?? 1) - 1
+        )
     }
 }

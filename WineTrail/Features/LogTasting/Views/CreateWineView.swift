@@ -122,7 +122,7 @@ struct CreateWineView: View {
             selectedWineId = wine.id
             dismiss()
         } catch {
-            print("[CreateWineView] Failed to create wine: \(error)")
+            Log.error("Failed to create wine", error: error)
             self.error = "Something went wrong. Please try again."
             UINotificationFeedbackGenerator().notificationOccurred(.error)
         }

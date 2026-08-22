@@ -18,7 +18,7 @@ struct TimelineView: View {
                     EmptyStateView(
                         icon: "wineglass",
                         title: "No Wines Yet",
-                        message: "Log your first wine to start your diary.",
+                        message: "Add your first wine to start your journey.",
                         actionTitle: "New Wine"
                     )
                 } else {
@@ -28,7 +28,7 @@ struct TimelineView: View {
                                 NavigationLink(value: tasting) {
                                     FeedPostView(tasting: tasting)
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(PressScaleButtonStyle())
                                 .contextMenu {
                                     Button {
                                         editingTasting = tasting
@@ -114,10 +114,23 @@ fileprivate struct FeedPostView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        if let date = formatter.date(from: tasting.tastingDate) {
+        guard let date = formatter.date(from: tasting.tastingDate) else {
+            return tasting.tastingDate
+        }
+
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else if let daysAgo = calendar.dateComponents([.day], from: date, to: Date()).day, daysAgo < 7 {
+            let weekdayFormatter = DateFormatter()
+            weekdayFormatter.dateFormat = "EEEE"
+            weekdayFormatter.locale = Locale.current
+            return weekdayFormatter.string(from: date)
+        } else {
             return Self.dateFormatter.string(from: date)
         }
-        return tasting.tastingDate
     }
 
     /// Converts an ISO 3166-1 alpha-2 code to its flag emoji.
@@ -127,6 +140,45 @@ fileprivate struct FeedPostView: View {
             .compactMap { UnicodeScalar(base + $0.value) }
             .map { String($0) }
             .joined()
+    }
+
+    private struct MetadataPill {
+        let icon: String
+        let label: String
+    }
+
+    private func buildPills(for tasting: Tasting) -> [MetadataPill] {
+        var pills: [MetadataPill] = []
+
+        if let location = tasting.location, let name = location.locationName, !name.isEmpty {
+            pills.append(MetadataPill(icon: "mappin", label: name))
+        }
+        if let food = tasting.foodPairing, !food.isEmpty {
+            pills.append(MetadataPill(icon: "fork.knife", label: food))
+        }
+        if let occasion = tasting.occasion, !occasion.isEmpty {
+            pills.append(MetadataPill(icon: "party.popper", label: occasion))
+        }
+        if let price = tasting.price {
+            let symbol = Self.currencySymbol(for: tasting.currency ?? "EUR")
+            pills.append(MetadataPill(icon: "tag", label: "\(symbol)\(String(format: "%.2f", price))"))
+        }
+
+        return pills
+    }
+
+    private static func currencySymbol(for code: String) -> String {
+        let locale = NSLocale(localeIdentifier: code)
+        if let symbol = locale.displayName(forKey: .currencySymbol, value: code), symbol != code {
+            return symbol
+        }
+        switch code {
+        case "EUR": return "€"
+        case "USD": return "$"
+        case "GBP": return "£"
+        case "CHF": return "CHF "
+        default: return "\(code) "
+        }
     }
 
     var body: some View {
@@ -147,41 +199,40 @@ fileprivate struct FeedPostView: View {
                         .clipped()
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: tasting.photos.count > 1 ? .automatic : .never))
+                .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(height: 320)
-            } else {
-                // No photo — show a subtle placeholder with the wine color
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                (tasting.wine.color?.accentColor ?? .wineAccent).opacity(0.15),
-                                (tasting.wine.color?.accentColor ?? .wineAccent).opacity(0.05)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(height: 120)
-                    .overlay {
-                        Image(systemName: "wineglass")
-                            .font(.largeTitle)
-                            .foregroundStyle(tasting.wine.color?.accentColor.opacity(0.3) ?? .wineAccent.opacity(0.3))
+                .overlay(alignment: .bottom) {
+                    if tasting.photos.count > 1 {
+                        HStack(spacing: 6) {
+                            ForEach(0..<tasting.photos.count, id: \.self) { _ in
+                                Circle()
+                                    .fill(.white.opacity(0.8))
+                                    .frame(width: 6, height: 6)
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(.black.opacity(0.4), in: Capsule())
+                        .padding(.bottom, 10)
                     }
+                }
+            } else {
+                // No photo placeholder
+                WinePlaceholderView(color: tasting.wine.color, height: 160)
             }
 
             // Info below photo
-            VStack(alignment: .leading, spacing: 8) {
-                // Wine name + producer + date row
+            VStack(alignment: .leading, spacing: 10) {
+                // Wine identity
                 HStack(spacing: 10) {
-                    Image(systemName: "wineglass.fill")
-                        .font(.title2)
-                        .foregroundStyle(tasting.wine.color?.accentColor ?? .wineAccent)
+//                    Image(systemName: "wineglass.fill")
+//                        .font(.title2)
+//                        .foregroundStyle(tasting.wine.color?.accentColor ?? .wineAccent)
 
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(tasting.wine.name)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(tasting.wine.name + (tasting.vintage.map { " (\($0))" } ?? ""))
                             .font(.subheadline.weight(.semibold))
-                            .lineLimit(1)
+                            .lineLimit(2)
                         HStack(spacing: 4) {
                             if let country = tasting.wine.country, !country.isEmpty {
                                 Text(Self.flag(for: country))
@@ -192,40 +243,75 @@ fileprivate struct FeedPostView: View {
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
                             }
+                            if let region = tasting.wine.regionName, !region.isEmpty {
+                                Text("·")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                Text(region)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
                         }
                     }
+                }
 
+                // Rating + date row
+                HStack {
+                    RatingView(rating: Double(tasting.rating), starSize: .callout)
                     Spacer()
-
                     Text(formattedDate)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                // Stars + location row
-                HStack {
-                    RatingView(rating: Double(tasting.rating), starSize: .callout)
-                    Spacer()
-                    if let location = tasting.location, let name = location.locationName {
-                        Label(name, systemImage: "mappin")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-
-                // Notes preview
+                // Notes
                 if let notes = tasting.notes, !notes.isEmpty {
                     Text(notes)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
+
+                // Metadata pills
+                let pills = buildPills(for: tasting)
+                if !pills.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(pills, id: \.label) { pill in
+                                HStack(spacing: 3) {
+                                    Image(systemName: pill.icon)
+                                        .font(.caption2)
+                                        .foregroundStyle(.wineAccent)
+                                    Text(pill.label)
+                                        .font(.caption)
+                                        .foregroundStyle(.primary)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(.wineAccent.opacity(0.15), in: Capsule())
+                                .overlay(Capsule().strokeBorder(.wineAccent.opacity(0.3), lineWidth: 0.5))
+                            }
+                        }
+                    }
+                }
             }
             .padding(.horizontal, Theme.spacing)
             .padding(.vertical, 12)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color(.secondarySystemGroupedBackground))
+    }
+}
+
+// MARK: - Press Scale Button Style
+
+/// A button style that scales down slightly on press for tactile feedback.
+private struct PressScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -244,7 +330,7 @@ fileprivate struct FeedPostView: View {
         id: "preview-1",
         wine: Components.Schemas.WineSummary(
             id: "wine-1",
-            name: "Château Margaux 2015",
+            name: "Château Margaux",
             producer: "Château Margaux",
             regionName: "Bordeaux",
             country: "FR",
@@ -253,9 +339,9 @@ fileprivate struct FeedPostView: View {
         rating: 4,
         notes: "Incredibly complex, with layers of blackcurrant and cedar. Long finish.",
         foodPairing: "Grilled lamb",
-        occasion: nil,
-        price: nil,
-        currency: nil,
+        occasion: "Kerstdiner",
+        price: 10.00,
+        currency: "$",
         location: Components.Schemas.LocationData(
             latitude: 48.8566,
             longitude: 2.3522,

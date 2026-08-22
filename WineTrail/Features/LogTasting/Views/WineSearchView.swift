@@ -100,6 +100,7 @@ struct WineSearchView: View {
                 searchResults = results
             } catch {
                 guard !Task.isCancelled else { return }
+                Log.error("Wine search failed", error: error)
                 searchResults = []
             }
             isSearching = false

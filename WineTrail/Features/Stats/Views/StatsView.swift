@@ -18,7 +18,7 @@ struct StatsView: View {
                     EmptyStateView(
                         icon: "chart.bar",
                         title: "Not Enough Data",
-                        message: "Log more tastings to see meaningful stats about your wine journey."
+                        message: "Add more wines to see meaningful stats about your wine journey."
                     )
                 } else {
                     ScrollView {
@@ -34,7 +34,10 @@ struct StatsView: View {
                         }
                         .padding(Theme.spacing)
                     }
-                    .refreshable { await viewModel.loadStats() }
+                    .refreshable {
+                        await viewModel.loadStats()
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
                 }
             } else {
                 ProgressView()
@@ -64,6 +67,7 @@ struct StatsView: View {
                 icon: "star.fill"
             )
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     /// Price statistics card showing total spent, average, and highest price.
@@ -91,6 +95,7 @@ struct StatsView: View {
                     icon: "arrow.up"
                 )
             }
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -116,14 +121,20 @@ private struct StatCard: View {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundStyle(.wineAccent)
+                .frame(height: 28)
             Text(value)
                 .font(Theme.titleFont)
                 .foregroundStyle(.wineText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(height: 28)
             Text(title)
                 .font(Theme.captionFont)
                 .foregroundStyle(.wineSecondaryText)
+                .lineLimit(1)
+                .frame(height: 16)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(Theme.spacing)
         .background(.wineSecondaryBackground, in: .rect(cornerRadius: Theme.cornerRadius))
     }

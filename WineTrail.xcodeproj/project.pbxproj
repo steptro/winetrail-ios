@@ -13,6 +13,8 @@
 		A1000001000000000000F004 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = A1000002000000000000F004 /* FirebaseMessaging */; };
 		A1000001000000000000F005 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = A1000002000000000000F005 /* GoogleSignIn */; };
 		A1000001000000000000F006 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = A1000002000000000000F006 /* GoogleSignInSwift */; };
+		D4A359253039C1C2005F634A /* DatadogCore in Frameworks */ = {isa = PBXBuildFile; productRef = D4A359243039C1C2005F634A /* DatadogCore */; };
+		D4A359273039C1C2005F634A /* DatadogLogs in Frameworks */ = {isa = PBXBuildFile; productRef = D4A359263039C1C2005F634A /* DatadogLogs */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -44,9 +46,11 @@
 		000000000000000130000000 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				D4A359253039C1C2005F634A /* DatadogCore in Frameworks */,
 				A1000001000000000000F001 /* OpenAPIRuntime in Frameworks */,
 				A1000001000000000000F002 /* OpenAPIURLSession in Frameworks */,
 				A1000001000000000000F003 /* FirebaseAuth in Frameworks */,
+				D4A359273039C1C2005F634A /* DatadogLogs in Frameworks */,
 				A1000001000000000000F004 /* FirebaseMessaging in Frameworks */,
 				A1000001000000000000F005 /* GoogleSignIn in Frameworks */,
 				A1000001000000000000F006 /* GoogleSignInSwift in Frameworks */,
@@ -106,6 +110,8 @@
 				A1000002000000000000F004 /* FirebaseMessaging */,
 				A1000002000000000000F005 /* GoogleSignIn */,
 				A1000002000000000000F006 /* GoogleSignInSwift */,
+				D4A359243039C1C2005F634A /* DatadogCore */,
+				D4A359263039C1C2005F634A /* DatadogLogs */,
 			);
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* WineTrail.app */;
@@ -141,6 +147,7 @@
 				A1000003000000000000P004 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				A1000003000000000000P005 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				D4C60BE5302A460F000A2F6E /* XCRemoteSwiftPackageReference "swift-openapi-generator" */,
+				D4A359233039C1C2005F634A /* XCRemoteSwiftPackageReference "dd-sdk-ios" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 000000000000000000000020 /* Products */;
@@ -310,6 +317,8 @@
 		};
 		000000000000000111000000 /* Debug configuration for PBXNativeTarget "WineTrail" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 000000000000000000000010 /* WineTrail */;
+			baseConfigurationReferenceRelativePath = Resources/Secrets.xcconfig;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = WineTrail/Supporting/WineTrail.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -322,6 +331,7 @@
 				INFOPLIST_FILE = WineTrail/Supporting/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = WineTrail;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "WineTrail uses your location to tag where you tasted a wine.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -335,7 +345,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.stephantromer.winetrail;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -348,12 +358,14 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
 		000000000000000112000000 /* Release configuration for PBXNativeTarget "WineTrail" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 000000000000000000000010 /* WineTrail */;
+			baseConfigurationReferenceRelativePath = Resources/Secrets.xcconfig;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = WineTrail/Supporting/WineTrail.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -366,6 +378,7 @@
 				INFOPLIST_FILE = WineTrail/Supporting/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = WineTrail;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "WineTrail uses your location to tag where you tasted a wine.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -379,7 +392,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.stephantromer.winetrail;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -392,7 +405,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -450,6 +463,14 @@
 				minimumVersion = 8.0.0;
 			};
 		};
+		D4A359233039C1C2005F634A /* XCRemoteSwiftPackageReference "dd-sdk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Datadog/dd-sdk-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.16.0;
+			};
+		};
 		D4C60BE5302A460F000A2F6E /* XCRemoteSwiftPackageReference "swift-openapi-generator" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-openapi-generator";
@@ -490,6 +511,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1000003000000000000P005 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignInSwift;
+		};
+		D4A359243039C1C2005F634A /* DatadogCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D4A359233039C1C2005F634A /* XCRemoteSwiftPackageReference "dd-sdk-ios" */;
+			productName = DatadogCore;
+		};
+		D4A359263039C1C2005F634A /* DatadogLogs */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D4A359233039C1C2005F634A /* XCRemoteSwiftPackageReference "dd-sdk-ios" */;
+			productName = DatadogLogs;
 		};
 		D4C60EA5302A4A3B000A2F6E /* OpenAPIGenerator */ = {
 			isa = XCSwiftPackageProductDependency;

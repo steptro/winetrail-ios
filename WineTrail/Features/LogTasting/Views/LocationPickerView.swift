@@ -101,6 +101,7 @@ struct LocationPickerView: View {
             let coordinate = try await locationService.getCurrentLocation()
             resolvedCoordinate = coordinate
         } catch {
+            Log.error("Failed to get location", error: error)
             locationError = "Unable to get location. Please try again."
             useGPS = false
         }

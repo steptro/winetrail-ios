@@ -26,6 +26,14 @@ final class WinesViewModel {
         }
     }
 
+    /// Currently selected sort order. Changing this reloads the list.
+    var selectedOrder: Components.Schemas.SortOrder = .DESC {
+        didSet {
+            guard oldValue != selectedOrder else { return }
+            Task { await loadInitial() }
+        }
+    }
+
     /// Currently selected color filter. Nil means no filter (show all colors).
     /// Changing this reloads the list.
     var selectedColor: Components.Schemas.WineColor? = nil {
@@ -63,12 +71,14 @@ final class WinesViewModel {
                 page: currentPage,
                 size: pageSize,
                 sort: selectedSort.apiSortOption,
+                order: selectedOrder,
                 color: selectedColor
             )
             wines.append(contentsOf: page.content)
             hasMorePages = !page.isLast
             currentPage += 1
         } catch {
+            Log.error("Failed to load wines", error: error)
             self.error = error
         }
 

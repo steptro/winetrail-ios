@@ -16,28 +16,33 @@ struct WinesListView: View {
                     EmptyStateView(
                         icon: "wineglass",
                         title: "No Wines Yet",
-                        message: "Log your first tasting to start building your collection."
+                        message: "Add your first wine to start building your collection."
                     )
                 } else {
                     List {
                         ForEach(viewModel.wines) { wine in
-                            WineRow(wine: wine)
-                                .task { await viewModel.onWineAppear(wine) }
+                            NavigationLink(value: wine) {
+                                WineRow(wine: wine)
+                            }
+                            .task { await viewModel.onWineAppear(wine) }
                         }
                         if viewModel.isLoading {
-                            ProgressView()
+                            WineGlassLoadingView()
                                 .frame(maxWidth: .infinity)
                                 .listRowSeparator(.hidden)
                         }
                     }
                     .listStyle(.plain)
+                    .navigationDestination(for: WineStats.self) { wine in
+                        WineDetailView(wine: wine)
+                    }
                     .refreshable {
                         await viewModel.loadInitial()
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
                 }
             } else {
-                ProgressView()
+                WineGlassLoadingView()
             }
         }
         .navigationTitle("Your Wines")
@@ -70,6 +75,13 @@ struct WinesListView: View {
                     ForEach(WineSort.allCases) { sort in
                         Text(sort.displayName).tag(sort)
                     }
+                }
+
+                Divider()
+
+                Picker("Order", selection: $vm.selectedOrder) {
+                    Label("Ascending", systemImage: "arrow.up").tag(Components.Schemas.SortOrder.ASC)
+                    Label("Descending", systemImage: "arrow.down").tag(Components.Schemas.SortOrder.DESC)
                 }
             }
         } label: {

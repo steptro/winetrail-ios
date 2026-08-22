@@ -22,8 +22,6 @@ struct RatingView: View {
         HStack(spacing: 2) {
             ForEach(1...5, id: \.self) { index in
                 starImage(for: index)
-                    .font(starSize)
-                    .foregroundStyle(.wineAccent)
                     .onTapGesture {
                         if let binding = ratingBinding {
                             let newRating = Double(index)
@@ -49,15 +47,24 @@ struct RatingView: View {
         min(max(rating, 0), 5)
     }
 
-    private func starImage(for index: Int) -> Image {
+    private func starImage(for index: Int) -> some View {
         let threshold = Double(index)
-        if clampedRating >= threshold {
-            return Image(systemName: "star.fill")
-        } else if clampedRating >= threshold - 0.5 {
-            return Image(systemName: "star.leadinghalf.filled")
-        } else {
-            return Image(systemName: "star")
+        let fillAmount = min(max(clampedRating - (threshold - 1), 0), 1)
+
+        return ZStack {
+            Image(systemName: "star")
+                .foregroundStyle(.wineAccent.opacity(0.3))
+
+            Image(systemName: "star.fill")
+                .foregroundStyle(.wineAccent)
+                .mask(
+                    GeometryReader { geo in
+                        Rectangle()
+                            .frame(width: geo.size.width * fillAmount)
+                    }
+                )
         }
+        .font(starSize)
     }
 }
 

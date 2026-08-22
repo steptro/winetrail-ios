@@ -44,3 +44,7 @@ GoogleService-Info.plist
 # Misc
 *.log
 *.tmp
+
+
+# Secrets
+Secrets.xcconfig

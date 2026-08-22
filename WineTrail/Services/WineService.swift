@@ -46,10 +46,11 @@ final class WineService {
         page: Int,
         size: Int = 20,
         sort: Components.Schemas.WineSortOption? = nil,
+        order: Components.Schemas.SortOrder? = nil,
         color: Components.Schemas.WineColor? = nil
     ) async throws -> PagedResult<WineStats> {
         let response = try await apiClient.client.getUserWines(
-            query: .init(color: color, sort: sort, page: Int32(page), size: Int32(size))
+            query: .init(color: color, sort: sort, order: order, page: Int32(page), size: Int32(size))
         )
         let dto = try response.ok.body.json
         return PagedResult(

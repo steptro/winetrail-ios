@@ -6,7 +6,7 @@ import OpenAPIRuntime
 typealias Tasting = Components.Schemas.TastingDto
 typealias WineSummary = Components.Schemas.WineSummary
 typealias WineSearch = Components.Schemas.WineSearchDto
-typealias WineStats = Components.Schemas.WineWithStats
+typealias WineStats = Components.Schemas.UserWineStats
 typealias Stats = Components.Schemas.UserStats
 typealias MapResponse = Components.Schemas.MapData
 typealias LocationPin = Components.Schemas.LocationPin

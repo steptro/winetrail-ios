@@ -3,7 +3,7 @@
     "info": {
         "title": "WineTrail API",
         "description": "REST API for the WineTrail personal wine diary application",
-        "version": "0.3.0"
+        "version": "0.8.0"
     },
     "servers": [
         {
@@ -504,6 +504,14 @@
                         }
                     },
                     {
+                        "name": "order",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/SortOrder"
+                        }
+                    },
+                    {
                         "name": "page",
                         "in": "query",
                         "required": false,
@@ -530,7 +538,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/PagedModelWineWithStats"
+                                    "$ref": "#/components/schemas/PagedModelUserWineStats"
                                 }
                             }
                         }
@@ -538,13 +546,13 @@
                 }
             }
         },
-        "/api/v1/tastings/wines/{wineId}/stats": {
+        "/api/v1/wines/me/{wineId}/stats": {
             "get": {
                 "tags": [
-                    "Tastings"
+                    "Wines"
                 ],
                 "summary": "Get the current user's tasting stats for a specific wine",
-                "operationId": "getWineStats",
+                "operationId": "getUserWineStats",
                 "parameters": [
                     {
                         "name": "wineId",
@@ -562,7 +570,59 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/WineStatsDto"
+                                    "$ref": "#/components/schemas/UserWineStats"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tastings/wines/{wineId}": {
+            "get": {
+                "tags": [
+                    "Tastings"
+                ],
+                "summary": "List all tastings for a specific wine",
+                "operationId": "getTastingsForWine",
+                "parameters": [
+                    {
+                        "name": "wineId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 0
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PagedModelTastingDto"
                                 }
                             }
                         }
@@ -726,12 +786,11 @@
                 "description": "Request to update an existing tasting. All fields are optional",
                 "properties": {
                     "rating": {
-                        "type": "integer",
-                        "format": "int32",
-                        "description": "Rating from 1 to 5",
-                        "example": 4,
-                        "maximum": 5,
-                        "minimum": 1
+                        "type": "number",
+                        "description": "Rating from 1.0 to 5.0",
+                        "example": 4.5,
+                        "maximum": 5.0,
+                        "minimum": 1.0
                     },
                     "notes": {
                         "type": "string",
@@ -856,10 +915,9 @@
                         "$ref": "#/components/schemas/WineSummary"
                     },
                     "rating": {
-                        "type": "integer",
-                        "format": "int32",
-                        "description": "Rating from 1 to 5",
-                        "example": 4
+                        "type": "number",
+                        "description": "Rating from 1.0 to 5.0",
+                        "example": 4.5
                     },
                     "notes": {
                         "type": "string",
@@ -1089,12 +1147,11 @@
                         "example": "42"
                     },
                     "rating": {
-                        "type": "integer",
-                        "format": "int32",
-                        "description": "Rating from 1 to 5",
-                        "example": 4,
-                        "maximum": 5,
-                        "minimum": 1
+                        "type": "number",
+                        "description": "Rating from 1.0 to 5.0",
+                        "example": 4.5,
+                        "maximum": 5.0,
+                        "minimum": 1.0
                     },
                     "notes": {
                         "type": "string",
@@ -1254,6 +1311,13 @@
                     "LAST_TASTED"
                 ]
             },
+            "SortOrder": {
+                "type": "string",
+                "enum": [
+                    "ASC",
+                    "DESC"
+                ]
+            },
             "PageMetadata": {
                 "type": "object",
                 "properties": {
@@ -1275,13 +1339,13 @@
                     }
                 }
             },
-            "PagedModelWineWithStats": {
+            "PagedModelUserWineStats": {
                 "type": "object",
                 "properties": {
                     "content": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/WineWithStats"
+                            "$ref": "#/components/schemas/UserWineStats"
                         }
                     },
                     "page": {
@@ -1289,97 +1353,23 @@
                     }
                 }
             },
-            "WineWithStats": {
+            "UserWineStats": {
                 "type": "object",
-                "description": "Wine with aggregated tasting statistics",
+                "description": "User's tasting statistics for a wine, including wine details",
                 "properties": {
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Wine ID"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Wine name",
-                        "example": "Marchesi di Barolo - Barolo DOCG"
-                    },
-                    "producer": {
-                        "type": "string",
-                        "description": "Producer name",
-                        "example": "Marchesi di Barolo"
-                    },
-                    "regionName": {
-                        "type": "string",
-                        "description": "Wine region",
-                        "example": "Barolo"
-                    },
-                    "color": {
-                        "$ref": "#/components/schemas/WineColor"
-                    },
-                    "timesDrunk": {
-                        "type": "integer",
-                        "format": "int32",
-                        "description": "Number of times this wine was tasted",
-                        "example": 5
-                    },
-                    "averageRating": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Average rating across tastings",
-                        "example": 7.8
-                    },
-                    "firstTasted": {
-                        "type": "string",
-                        "format": "date",
-                        "description": "Date of the first tasting"
-                    },
-                    "lastTasted": {
-                        "type": "string",
-                        "format": "date",
-                        "description": "Date of the most recent tasting"
-                    }
-                },
-                "required": [
-                    "averageRating",
-                    "id",
-                    "name",
-                    "timesDrunk"
-                ]
-            },
-            "PagedModelTastingDto": {
-                "type": "object",
-                "properties": {
-                    "content": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/TastingDto"
-                        }
-                    },
-                    "page": {
-                        "$ref": "#/components/schemas/PageMetadata"
-                    }
-                }
-            },
-            "WineStatsDto": {
-                "type": "object",
-                "description": "User's tasting statistics for a specific wine",
-                "properties": {
-                    "wineId": {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Wine ID"
+                    "wine": {
+                        "$ref": "#/components/schemas/WineSummary"
                     },
                     "timesDrunk": {
                         "type": "integer",
                         "format": "int32",
                         "description": "Number of times the user has tasted this wine",
-                        "example": 3
+                        "example": 5
                     },
                     "averageRating": {
                         "type": "number",
-                        "format": "double",
-                        "description": "Average rating the user gave this wine",
-                        "example": 7.5
+                        "description": "Average rating across tastings",
+                        "example": 4.3
                     },
                     "firstTasted": {
                         "type": "string",
@@ -1395,8 +1385,22 @@
                 "required": [
                     "averageRating",
                     "timesDrunk",
-                    "wineId"
+                    "wine"
                 ]
+            },
+            "PagedModelTastingDto": {
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TastingDto"
+                        }
+                    },
+                    "page": {
+                        "$ref": "#/components/schemas/PageMetadata"
+                    }
+                }
             },
             "ActivityPoint": {
                 "type": "object",
@@ -1505,9 +1509,8 @@
                     },
                     "averageRating": {
                         "type": "number",
-                        "format": "double",
                         "description": "Average rating across all tastings, rounded to 1 decimal",
-                        "example": 7.3
+                        "example": 3.8
                     },
                     "activityTimeline": {
                         "type": "array",

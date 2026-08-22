@@ -59,7 +59,7 @@ final class DeviceService {
         do {
             try await registerToken()
         } catch {
-            // Token stored locally; will be registered on next sign-in
+            Log.error("Failed to register device token", error: error)
         }
     }
 

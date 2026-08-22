@@ -38,7 +38,7 @@ struct MapView: View {
                     EmptyStateView(
                         icon: "map",
                         title: "No Map Data",
-                        message: "Log more wines to see your map come alive."
+                        message: "Add more wines to see your map come alive."
                     )
                 }
             } else {
@@ -70,13 +70,12 @@ struct MapView: View {
     @ViewBuilder
     private func mapContent(viewModel: MapViewModel) -> some View {
         Map(initialPosition: mapCameraPosition(for: viewModel.visibleLocationPins)) {
-            // Location pins — accent-colored drinking location markers
             ForEach(viewModel.visibleLocationPins) { pin in
                 Annotation(
-                    pin.locationName ?? "Location",
+                    pin.locationName ?? "\(pin.tastingCount) wines",
                     coordinate: CLLocationCoordinate2D(latitude: pin.latitude, longitude: pin.longitude)
                 ) {
-                    locationPinView(pin: pin)
+                    singlePinView(tastingCount: Int(pin.tastingCount))
                 }
             }
         }
@@ -109,7 +108,7 @@ struct MapView: View {
     // MARK: - Pin Views
 
     @ViewBuilder
-    private func locationPinView(pin: LocationPin) -> some View {
+    private func singlePinView(tastingCount: Int) -> some View {
         VStack(spacing: 0) {
             ZStack {
                 Circle()
@@ -121,9 +120,8 @@ struct MapView: View {
             }
             .shadow(color: .wineAccent.opacity(0.4), radius: 4, y: 2)
 
-            // Tasting count badge
-            if pin.tastingCount > 1 {
-                Text("\(pin.tastingCount)")
+            if tastingCount > 1 {
+                Text("\(tastingCount)")
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 5)
@@ -132,7 +130,6 @@ struct MapView: View {
                     .offset(y: -2)
             }
 
-            // Pin tail
             Triangle()
                 .fill(.wineAccent)
                 .frame(width: 12, height: 8)

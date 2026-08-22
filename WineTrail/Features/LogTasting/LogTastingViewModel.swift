@@ -28,7 +28,7 @@ final class LogTastingViewModel {
     var selectedWineId: String?
 
     /// Stats for the selected wine (if the user has tasted it before).
-    var selectedWineStats: Components.Schemas.WineStatsDto?
+    var selectedWineStats: Components.Schemas.UserWineStats?
 
     /// Whether a search request is in progress.
     var isSearching = false
@@ -129,6 +129,7 @@ final class LogTastingViewModel {
                 searchResults = results
             } catch {
                 guard !Task.isCancelled else { return }
+                Log.error("Wine search failed", error: error)
                 searchResults = []
             }
             isSearching = false
@@ -156,7 +157,7 @@ final class LogTastingViewModel {
             let stats = try await tastingService.getWineStats(wineId: wineId)
             selectedWineStats = stats
         } catch {
-            // Stats are non-critical; silently ignore failures
+            Log.error("Failed to load wine stats", error: error)
         }
     }
 
@@ -205,7 +206,7 @@ final class LogTastingViewModel {
                 wineId: wine.wineId ?? selectedWineId,
                 externalSource: wine.externalSource,
                 externalId: wine.externalId,
-                rating: Int32(rating.rounded()),
+                rating: rating,
                 notes: notes.isEmpty ? nil : notes,
                 foodPairing: foodPairing.isEmpty ? nil : foodPairing,
                 occasion: occasion.isEmpty ? nil : occasion,
@@ -231,7 +232,7 @@ final class LogTastingViewModel {
 
             savedTasting = tasting
         } catch {
-            print("[LogTasting] Failed to save tasting: \(error)")
+            Log.error("Failed to save tasting", error: error)
             self.error = "Something went wrong. Please try again."
         }
 
