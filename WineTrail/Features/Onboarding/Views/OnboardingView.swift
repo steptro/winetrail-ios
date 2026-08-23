@@ -6,8 +6,16 @@ import SwiftUI
 /// Once the sheet is dismissed (tasting saved or cancelled), AppState navigates to the main TabView.
 struct OnboardingView: View {
     @Environment(AppState.self) private var appState
-    @State private var showLogTasting = false
+    @Environment(ProfileService.self) private var profileService
+    @Environment(SocialService.self) private var socialService
     @State private var currentPage = 0
+    @State private var showUsernameSetup = false
+    @State private var username = ""
+    @State private var isSaving = false
+    @State private var usernameError: String?
+    @State private var usernameAvailable: Bool?
+    @State private var isCheckingUsername = false
+    @State private var usernameCheckTask: Task<Void, Never>?
 
     private let slides: [(icon: String, title: String, subtitle: String)] = [
         ("wineglass.fill", "Track Your Wines", "Keep a personal diary of every wine you taste."),
@@ -16,6 +24,17 @@ struct OnboardingView: View {
     ]
 
     var body: some View {
+        if showUsernameSetup {
+            usernameSetupView
+        } else {
+            carouselView
+        }
+    }
+
+    // MARK: - Carousel
+
+    @ViewBuilder
+    private var carouselView: some View {
         VStack(spacing: 0) {
             // Carousel
             TabView(selection: $currentPage) {
@@ -62,10 +81,10 @@ struct OnboardingView: View {
                 if currentPage < slides.count - 1 {
                     withAnimation { currentPage += 1 }
                 } else {
-                    showLogTasting = true
+                    withAnimation { showUsernameSetup = true }
                 }
             } label: {
-                Text(currentPage < slides.count - 1 ? "Next" : "Add Your First Wine")
+                Text(currentPage < slides.count - 1 ? "Next" : "Get Started")
                     .font(.body.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
@@ -78,7 +97,7 @@ struct OnboardingView: View {
             // Skip button (visible on first two slides)
             if currentPage < slides.count - 1 {
                 Button("Skip") {
-                    showLogTasting = true
+                    withAnimation { showUsernameSetup = true }
                 }
                 .font(Theme.captionFont)
                 .foregroundStyle(.secondary)
@@ -87,12 +106,162 @@ struct OnboardingView: View {
                 Spacer().frame(height: 40)
             }
         }
-        .sheet(isPresented: $showLogTasting, onDismiss: {
-            NotificationCenter.default.post(name: .tastingDidChange, object: nil)
-            appState.currentRoute = .main
-        }) {
-            LogTastingView()
+    }
+
+    // MARK: - Username Setup
+
+    @ViewBuilder
+    private var usernameSetupView: some View {
+        VStack(spacing: Theme.largeSpacing) {
+            Spacer()
+
+            Image(systemName: "at")
+                .font(.system(size: 60))
+                .foregroundStyle(.wineAccent)
+
+            Text("Choose a Username")
+                .font(.title2.weight(.bold))
+
+            Text("This is how friends will find you.")
+                .font(Theme.subheadlineFont)
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 8) {
+                HStack {
+                    Text("@")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                    TextField("username", text: $username)
+                        .font(.title3)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .onChange(of: username) { _, newValue in
+                            checkUsernameAvailability(newValue)
+                        }
+
+                    if isCheckingUsername {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else if let available = usernameAvailable {
+                        Image(systemName: available ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundStyle(available ? .green : .red)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, 40)
+
+                if let usernameError {
+                    Text(usernameError)
+                        .font(Theme.captionFont)
+                        .foregroundStyle(.red)
+                } else if usernameAvailable == true {
+                    Text("Username is available!")
+                        .font(Theme.captionFont)
+                        .foregroundStyle(.green)
+                }
+            }
+
+            Spacer()
+
+            Button {
+                Task { await saveUsername() }
+            } label: {
+                if isSaving {
+                    ProgressView()
+                        .tint(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                } else {
+                    Text("Continue")
+                        .font(.body.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                }
+            }
+            .foregroundStyle(.white)
+            .background(.wineAccent, in: Capsule())
+            .padding(.horizontal, 24)
+            .disabled(username.trimmingCharacters(in: .whitespaces).count < 3 || isSaving)
+
+            Button("Skip for now") {
+                appState.currentRoute = .main
+            }
+            .font(Theme.captionFont)
+            .foregroundStyle(.secondary)
+            .padding(.bottom, 16)
         }
+    }
+
+    // MARK: - Username Validation
+
+    private func checkUsernameAvailability(_ value: String) {
+        usernameCheckTask?.cancel()
+        let trimmed = value.trimmingCharacters(in: .whitespaces).lowercased()
+
+        // Reset state for short usernames
+        if trimmed.count < 3 {
+            usernameAvailable = nil
+            usernameError = trimmed.isEmpty ? nil : "Username must be at least 3 characters."
+            isCheckingUsername = false
+            return
+        }
+
+        // Validate characters
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "._-"))
+        if trimmed.unicodeScalars.contains(where: { !allowed.contains($0) }) {
+            usernameAvailable = false
+            usernameError = "Only letters, numbers, dots, underscores, and dashes."
+            return
+        }
+
+        usernameError = nil
+        isCheckingUsername = true
+
+        usernameCheckTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+
+            do {
+                let results = try await socialService.searchUsers(query: trimmed)
+                guard !Task.isCancelled else { return }
+                let taken = results.contains { $0.username.lowercased() == trimmed }
+                usernameAvailable = !taken
+                if taken {
+                    usernameError = "Username is already taken."
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                usernameAvailable = nil
+            }
+            isCheckingUsername = false
+        }
+    }
+
+    // MARK: - Save Username
+
+    private func saveUsername() async {
+        let trimmed = username.trimmingCharacters(in: .whitespaces).lowercased()
+        guard trimmed.count >= 3 else {
+            usernameError = "Username must be at least 3 characters."
+            return
+        }
+        isSaving = true
+        usernameError = nil
+
+        do {
+            _ = try await profileService.updateProfile(
+                displayName: "WineTrail User",
+                username: trimmed
+            )
+            appState.currentRoute = .main
+        } catch {
+            Log.error("Failed to set username", error: error)
+            usernameError = "Username may be taken. Try another."
+        }
+
+        isSaving = false
     }
 }
 
@@ -103,17 +272,13 @@ struct OnboardingView: View {
             tastingService: TastingService(apiClient: APIClient(
                 serverURL: URL(string: "https://api.winetrail.app")!,
                 authService: AuthService()
+            )),
+            profileService: ProfileService(apiClient: APIClient(
+                serverURL: URL(string: "https://api.winetrail.app")!,
+                authService: AuthService()
             ))
         ))
-        .environment(WineService(apiClient: APIClient(
-            serverURL: URL(string: "https://api.winetrail.app")!,
-            authService: AuthService()
-        )))
-        .environment(TastingService(apiClient: APIClient(
-            serverURL: URL(string: "https://api.winetrail.app")!,
-            authService: AuthService()
-        )))
-        .environment(PhotoService(apiClient: APIClient(
+        .environment(ProfileService(apiClient: APIClient(
             serverURL: URL(string: "https://api.winetrail.app")!,
             authService: AuthService()
         )))

@@ -3,9 +3,9 @@ import PhotosUI
 
 /// Photo selection component for the Log Tasting flow.
 ///
-/// Wraps `PhotosUI.PhotosPicker` for selecting images, displays selected photos
-/// in a horizontal scroll view, enforces a maximum of 5 photos, and provides
-/// add/remove functionality. Photos are compressed before upload via PhotoService.
+/// Supports selecting from the photo library OR taking a new photo with the camera.
+/// Displays selected photos in a horizontal scroll view, enforces a maximum of 5 photos,
+/// and provides add/remove functionality.
 struct PhotoPickerView: View {
     /// Binding to the view model's selected images array.
     @Binding var selectedImages: [UIImage]
@@ -13,11 +13,19 @@ struct PhotoPickerView: View {
     /// Maximum number of photos allowed.
     let maxPhotos: Int = 5
 
+    /// Number of existing photos already saved on the tasting (used in edit flows).
+    var existingPhotoCount: Int = 0
+
     @State private var photoPickerItems: [PhotosPickerItem] = []
     @State private var isLoadingPhotos = false
+    @State private var showCamera = false
+
+    private var totalPhotoCount: Int {
+        existingPhotoCount + selectedImages.count
+    }
 
     private var canAddMore: Bool {
-        selectedImages.count < maxPhotos
+        totalPhotoCount < maxPhotos
     }
 
     var body: some View {
@@ -28,15 +36,23 @@ struct PhotoPickerView: View {
                 selectedPhotosScroll
             }
         }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraView { image in
+                if let image, totalPhotoCount < maxPhotos {
+                    selectedImages.append(image)
+                }
+            }
+            .ignoresSafeArea()
+        }
     }
 
-    // MARK: - Header with Add Button
+    // MARK: - Header with Add Buttons
 
     @ViewBuilder
     private var headerView: some View {
         HStack {
             Label(
-                "\(selectedImages.count)/\(maxPhotos) photos",
+                "\(totalPhotoCount)/\(maxPhotos) photos",
                 systemImage: "photo.on.rectangle"
             )
             .font(Theme.captionFont)
@@ -45,12 +61,20 @@ struct PhotoPickerView: View {
             Spacer()
 
             if canAddMore {
+                Button {
+                    showCamera = true
+                } label: {
+                    Label("Camera", systemImage: "camera")
+                        .font(Theme.captionFont)
+                        .foregroundStyle(.wineAccent)
+                }
+
                 PhotosPicker(
                     selection: $photoPickerItems,
-                    maxSelectionCount: maxPhotos - selectedImages.count,
+                    maxSelectionCount: maxPhotos - totalPhotoCount,
                     matching: .images
                 ) {
-                    Label("Add", systemImage: "plus")
+                    Label("Library", systemImage: "photo")
                         .font(Theme.captionFont)
                         .foregroundStyle(.wineAccent)
                 }
@@ -116,7 +140,7 @@ struct PhotoPickerView: View {
         isLoadingPhotos = true
 
         for item in items {
-            guard selectedImages.count < maxPhotos else { break }
+            guard totalPhotoCount < maxPhotos else { break }
 
             if let data = try? await item.loadTransferable(type: Data.self),
                let image = UIImage(data: data) {

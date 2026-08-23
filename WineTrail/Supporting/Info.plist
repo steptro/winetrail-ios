@@ -15,5 +15,9 @@
 	</array>
 	<key>DATADOG_CLIENT_TOKEN</key>
 	<string>$(DATADOG_CLIENT_TOKEN)</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

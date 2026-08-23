@@ -10,6 +10,21 @@ final class ProfileService {
         self.apiClient = apiClient
     }
 
+    /// Fetches the current user's profile from the backend.
+    func getProfile() async throws -> Components.Schemas.UserProfile {
+        let response = try await apiClient.client.getProfile()
+        return try response.ok.body.json
+    }
+
+    /// Updates the current user's profile (display name and/or username).
+    @discardableResult
+    func updateProfile(displayName: String, username: String? = nil) async throws -> Components.Schemas.UserProfile {
+        let response = try await apiClient.client.updateProfile(
+            body: .json(.init(displayName: displayName, username: username))
+        )
+        return try response.ok.body.json
+    }
+
     /// Updates the current user's display name on the backend.
     ///
     /// - Parameter displayName: The new display name (1–100 characters).

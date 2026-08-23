@@ -52,7 +52,9 @@ struct TimelineView: View {
                         .padding(.horizontal, 0)
                     }
                     .refreshable {
-                        await viewModel.loadInitial()
+                        await Task {
+                            await viewModel.loadInitial()
+                        }.value
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
                     .navigationDestination(for: Tasting.self) { tasting in
@@ -63,9 +65,22 @@ struct TimelineView: View {
                 ProgressView()
             }
         }
-        .navigationTitle("Timeline")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("Journal")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    ForEach(TimelineSort.allCases, id: \.self) { option in
+                        Button {
+                            Task { await viewModel?.changeSort(option) }
+                        } label: {
+                            Label(option.displayName, systemImage: viewModel?.sort == option ? "checkmark" : "")
+                        }
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                }
+            }
+        }
         .task {
             if viewModel == nil {
                 viewModel = TimelineViewModel(tastingService: tastingService)
@@ -102,35 +117,22 @@ struct TimelineView: View {
 /// A single post in the feed, styled like an Instagram card.
 fileprivate struct FeedPostView: View {
     let tasting: Tasting
+    @Environment(SocialService.self) private var socialService
+    @State private var showLikes = false
+    @State private var showComments = false
+    @State private var likedByMe: Bool
+    @State private var likeCount: Int
 
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "dd MMM yyyy"
-        f.locale = Locale.current
-        return f
-    }()
+    init(tasting: Tasting) {
+        self.tasting = tasting
+        _likedByMe = State(initialValue: tasting.likedByMe)
+        _likeCount = State(initialValue: Int(tasting.likeCount))
+    }
 
     private var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        guard let date = formatter.date(from: tasting.tastingDate) else {
-            return tasting.tastingDate
-        }
-
-        let calendar = Calendar.current
-        if calendar.isDateInToday(date) {
-            return "Today"
-        } else if calendar.isDateInYesterday(date) {
-            return "Yesterday"
-        } else if let daysAgo = calendar.dateComponents([.day], from: date, to: Date()).day, daysAgo < 7 {
-            let weekdayFormatter = DateFormatter()
-            weekdayFormatter.dateFormat = "EEEE"
-            weekdayFormatter.locale = Locale.current
-            return weekdayFormatter.string(from: date)
-        } else {
-            return Self.dateFormatter.string(from: date)
-        }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: tasting.createdAt, relativeTo: Date())
     }
 
     /// Converts an ISO 3166-1 alpha-2 code to its flag emoji.
@@ -140,6 +142,33 @@ fileprivate struct FeedPostView: View {
             .compactMap { UnicodeScalar(base + $0.value) }
             .map { String($0) }
             .joined()
+    }
+
+    private func toggleLike() async {
+        // Optimistic update
+        let wasLiked = likedByMe
+        let previousCount = likeCount
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+            likedByMe.toggle()
+            likeCount += likedByMe ? 1 : -1
+            likeCount = max(likeCount, 0)
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
+        do {
+            if wasLiked {
+                try await socialService.unlikeTasting(tastingId: tasting.id)
+            } else {
+                try await socialService.likeTasting(tastingId: tasting.id)
+            }
+        } catch {
+            // Rollback on failure
+            withAnimation {
+                likedByMe = wasLiked
+                likeCount = previousCount
+            }
+            Log.error("Failed to toggle like", error: error)
+        }
     }
 
     private struct MetadataPill {
@@ -295,6 +324,56 @@ fileprivate struct FeedPostView: View {
                         }
                     }
                 }
+
+                // Social interactions
+                HStack(spacing: 20) {
+                    // Heart — tap to toggle like
+                    HStack(spacing: 6) {
+                        Button {
+                            Task { await toggleLike() }
+                        } label: {
+                            Image(systemName: likedByMe ? "heart.fill" : "heart")
+                                .font(.body)
+                                .foregroundStyle(likedByMe ? .red : .secondary)
+                                .scaleEffect(likedByMe ? 1.0 : 0.85)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.5), value: likedByMe)
+                        }
+                        .buttonStyle(.plain)
+
+                        // Like count — tap to show who liked
+                        Button {
+                            if likeCount > 0 { showLikes = true }
+                        } label: {
+                            Text("\(likeCount)")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.primary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    // Comment count — tappable to open comments
+                    Button {
+                        showComments = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "bubble.right")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                            Text("\(tasting.commentCount)")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+                }
+                .sheet(isPresented: $showLikes) {
+                    LikesListView(tastingId: tasting.id)
+                }
+                .sheet(isPresented: $showComments) {
+                    CommentsView(tastingId: tasting.id)
+                }
             }
             .padding(.horizontal, Theme.spacing)
             .padding(.vertical, 12)
@@ -350,6 +429,9 @@ private struct PressScaleButtonStyle: ButtonStyle {
         tastingDate: "2026-08-15",
         vintage: 2015,
         photos: [],
+        likeCount: 3,
+        commentCount: 1,
+        likedByMe: false,
         createdAt: Date(),
         updatedAt: Date()
     ))

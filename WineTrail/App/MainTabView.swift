@@ -1,16 +1,21 @@
 import SwiftUI
 
-/// Main tab-based navigation container with Timeline, Wines, Map, and Stats tabs.
+/// Main tab-based navigation container with Journal, Wines, Social, Stats, and Profile tabs.
 /// Each tab wraps its content in a NavigationStack for drill-down navigation.
 /// A floating "+" button overlays the tab bar to trigger New Wine from any tab.
 struct MainTabView: View {
+    @Environment(AppState.self) private var appState
+    @Environment(TastingService.self) private var tastingService
+    @Environment(SocialState.self) private var socialState
+
     @State private var selectedTab = 0
     @State private var showLogTasting = false
+    @State private var deepLinkTasting: Tasting?
 
     var body: some View {
         ZStack(alignment: .bottom) {
             TabView(selection: $selectedTab) {
-                Tab("Timeline", systemImage: "square.grid.2x2", value: 0) {
+                Tab("Journal", systemImage: "book", value: 0) {
                     NavigationStack {
                         TimelineView()
                     }
@@ -20,11 +25,12 @@ struct MainTabView: View {
                         WinesListView()
                     }
                 }
-                Tab("Map", systemImage: "map", value: 2) {
+                Tab("Social", systemImage: "person.2", value: 2) {
                     NavigationStack {
-                        MapView()
+                        SocialFeedView()
                     }
                 }
+                .badge(socialState.pendingRequestCount)
                 Tab("Stats", systemImage: "chart.bar", value: 3) {
                     NavigationStack {
                         StatsView()
@@ -54,7 +60,55 @@ struct MainTabView: View {
         }) {
             LogTastingView()
         }
+        .sheet(item: $deepLinkTasting) { tasting in
+            NavigationStack {
+                TastingDetailView(
+                    tasting: tasting,
+                    viewModel: TimelineViewModel(tastingService: tastingService),
+                    showActions: false
+                )
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button { deepLinkTasting = nil } label: {
+                            Image(systemName: "xmark")
+                        }
+                    }
+                }
+            }
+        }
+        .onChange(of: appState.pendingDeepLink) { _, deepLink in
+            guard let deepLink else { return }
+            handleDeepLink(deepLink)
+            appState.pendingDeepLink = nil
+        }
         .tint(.wineAccent)
+        .task {
+            await socialState.refreshPendingCount()
+        }
+        .onChange(of: selectedTab) { _, _ in
+            Task { await socialState.refreshPendingCount() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .friendRequestsDidChange)) { _ in
+            Task { await socialState.refreshPendingCount() }
+        }
+    }
+
+    private func handleDeepLink(_ deepLink: DeepLink) {
+        switch deepLink {
+        case .tasting(let id):
+            Task {
+                do {
+                    let tasting = try await tastingService.getTasting(id: id)
+                    deepLinkTasting = tasting
+                } catch {
+                    Log.error("Failed to load tasting from deep link", error: error)
+                }
+            }
+        case .friends:
+            selectedTab = 2 // Social tab
+        }
     }
 }
 

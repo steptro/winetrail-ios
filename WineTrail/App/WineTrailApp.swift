@@ -17,6 +17,8 @@ struct WineTrailApp: App {
     private let mapService: MapService
     private let locationService: LocationService
     private let profileService: ProfileService
+    private let socialService: SocialService
+    private let socialState: SocialState
     private let appState: AppState
 
     init() {
@@ -37,7 +39,9 @@ struct WineTrailApp: App {
         let map = MapService(apiClient: api)
         let location = LocationService()
         let profile = ProfileService(apiClient: api)
-        let state = AppState(authService: auth, tastingService: tasting)
+        let social = SocialService(apiClient: api)
+        let socialSt = SocialState(socialService: social)
+        let state = AppState(authService: auth, tastingService: tasting, profileService: profile)
 
         self.authService = auth
         self.apiClient = api
@@ -49,6 +53,8 @@ struct WineTrailApp: App {
         self.mapService = map
         self.locationService = location
         self.profileService = profile
+        self.socialService = social
+        self.socialState = socialSt
         self.appState = state
     }
 
@@ -65,16 +71,24 @@ struct WineTrailApp: App {
                 .environment(mapService)
                 .environment(locationService)
                 .environment(profileService)
+                .environment(socialService)
+                .environment(socialState)
                 .environment(appState)
                 .task {
                     // Wire up AppDelegate → DeviceService for FCM token forwarding
                     delegate.deviceService = deviceService
+                    delegate.appState = appState
 
                     // Wait for Firebase auth state to be determined, then route accordingly
                     while authService.isLoading {
                         try? await Task.sleep(for: .milliseconds(50))
                     }
                     await appState.determineInitialRoute()
+
+                    // Register FCM token on every launch to keep it fresh
+                    if authService.isAuthenticated {
+                        await deviceService.registerTokenOnLaunch()
+                    }
                 }
         }
     }

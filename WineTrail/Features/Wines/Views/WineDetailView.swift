@@ -14,6 +14,7 @@ struct WineDetailView: View {
     @State private var stats: WineStats?
     @State private var isLoading = false
     @State private var showLogAgain = false
+    @State private var errorMessage: String?
 
     var body: some View {
         ScrollView {
@@ -46,7 +47,12 @@ struct WineDetailView: View {
                 .padding(.bottom, 40)
             }
         }
-        .ignoresSafeArea(edges: .top)
+        .refreshable {
+            await Task {
+                await loadTastings()
+            }.value
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
@@ -80,21 +86,45 @@ struct WineDetailView: View {
                 Task { await loadTastings() }
             }
         }
+        .alert("Error", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { errorMessage = nil }
+        } message: {
+            if let errorMessage {
+                Text(errorMessage)
+            }
+        }
     }
 
     // MARK: - Load Data
 
     private func loadTastings() async {
         isLoading = true
-        do {
-            async let tastingsResult = tastingService.getTastingsForWine(wineId: wine.wine.id, page: 0, size: 50)
-            async let statsResult = tastingService.getWineStats(wineId: wine.wine.id)
+        errorMessage = nil
 
-            tastings = try await tastingsResult.content
-            stats = try await statsResult
+        do {
+            let result = try await tastingService.getTastingsForWine(wineId: wine.wine.id, page: 0, size: 50)
+            tastings = result.content
         } catch {
-            Log.error("Failed to load wine data", error: error)
+            if !error.isCancellation {
+                Log.error("Failed to load wine tastings", error: error)
+                errorMessage = "Something went wrong. Pull to refresh to try again."
+            }
         }
+
+        do {
+            stats = try await tastingService.getWineStats(wineId: wine.wine.id)
+        } catch {
+            if !error.isCancellation {
+                Log.error("Failed to load wine stats", error: error)
+                if errorMessage == nil {
+                    errorMessage = "Something went wrong. Pull to refresh to try again."
+                }
+            }
+        }
+
         isLoading = false
     }
 

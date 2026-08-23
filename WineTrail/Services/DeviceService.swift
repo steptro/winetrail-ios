@@ -32,6 +32,25 @@ final class DeviceService {
         isRegistered = true
     }
 
+    /// Always sends the current FCM token to the backend, regardless of prior registration state.
+    /// Call on every app launch to keep the token's `last_used_at` fresh.
+    func registerTokenOnLaunch() async {
+        guard let token = currentFCMToken else { return }
+
+        let body = Components.Schemas.DeviceTokenRequest(
+            token: token,
+            platform: "IOS"
+        )
+        do {
+            _ = try await apiClient.client.registerDeviceToken(
+                .init(body: .json(body))
+            )
+            isRegistered = true
+        } catch {
+            Log.error("Failed to register device token on launch", error: error)
+        }
+    }
+
     /// Unregister the current FCM token from the backend.
     ///
     /// Called on: sign-out, account deletion.

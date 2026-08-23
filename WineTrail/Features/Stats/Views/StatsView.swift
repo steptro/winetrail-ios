@@ -13,7 +13,7 @@ struct StatsView: View {
         Group {
             if let viewModel {
                 if viewModel.isLoading && viewModel.stats == nil {
-                    ProgressView()
+                    WineGlassLoadingView()
                 } else if !viewModel.hasData {
                     EmptyStateView(
                         icon: "chart.bar",
@@ -35,15 +35,26 @@ struct StatsView: View {
                         .padding(Theme.spacing)
                     }
                     .refreshable {
-                        await viewModel.loadStats()
+                        await Task {
+                            await viewModel.loadStats()
+                        }.value
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
                 }
             } else {
-                ProgressView()
+                WineGlassLoadingView()
             }
         }
         .navigationTitle("Stats")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink {
+                    MapView()
+                } label: {
+                    Image(systemName: "map")
+                }
+            }
+        }
         .task {
             if viewModel == nil {
                 viewModel = StatsViewModel(statsService: statsService)

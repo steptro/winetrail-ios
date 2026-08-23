@@ -37,7 +37,9 @@ struct WinesListView: View {
                         WineDetailView(wine: wine)
                     }
                     .refreshable {
-                        await viewModel.loadInitial()
+                        await Task {
+                            await viewModel.loadInitial()
+                        }.value
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
                 }

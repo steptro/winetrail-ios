@@ -110,6 +110,10 @@ struct EmailSignInView: View {
             tastingService: TastingService(apiClient: APIClient(
                 serverURL: URL(string: "https://api.winetrail.app")!,
                 authService: AuthService()
+            )),
+            profileService: ProfileService(apiClient: APIClient(
+                serverURL: URL(string: "https://api.winetrail.app")!,
+                authService: AuthService()
             ))
         ))
 }

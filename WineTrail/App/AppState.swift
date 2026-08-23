@@ -15,13 +15,16 @@ final class AppState {
     }
 
     var currentRoute: Route = .loading
+    var pendingDeepLink: DeepLink?
 
     private let authService: AuthService
     private let tastingService: TastingService
+    private let profileService: ProfileService
 
-    init(authService: AuthService, tastingService: TastingService) {
+    init(authService: AuthService, tastingService: TastingService, profileService: ProfileService) {
         self.authService = authService
         self.tastingService = tastingService
+        self.profileService = profileService
     }
 
     /// Determines the initial route based on authentication state and user data.
@@ -36,15 +39,17 @@ final class AppState {
         }
 
         do {
+            let profile = try await profileService.getProfile()
+            // Show onboarding only for brand new accounts (auto-generated username from email)
+            // Once a user has gone through onboarding, they'll have a custom username
             let timeline = try await tastingService.getTimeline(page: 0, size: 1)
-            if timeline.totalElements == 0 {
+            if timeline.totalElements == 0 && profile.username == profile.email.components(separatedBy: "@").first {
                 currentRoute = .onboarding
             } else {
                 currentRoute = .main
             }
         } catch {
             Log.error("Failed to determine initial route", error: error)
-            // Fallback to main on error — timeline will show empty state
             currentRoute = .main
         }
     }

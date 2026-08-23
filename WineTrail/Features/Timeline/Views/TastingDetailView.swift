@@ -8,17 +8,25 @@ import OpenAPIRuntime
 struct TastingDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(TastingService.self) private var tastingService
+    @Environment(SocialService.self) private var socialService
 
     @State private var tasting: Tasting
     let viewModel: TimelineViewModel
+    let showActions: Bool
 
     @State private var showDeleteConfirmation = false
     @State private var showEditSheet = false
     @State private var isDeleting = false
+    @State private var likeCount: Int = 0
+    @State private var commentCount: Int = 0
+    @State private var likedByMe = false
+    @State private var showComments = false
+    @State private var showLikes = false
 
-    init(tasting: Tasting, viewModel: TimelineViewModel) {
+    init(tasting: Tasting, viewModel: TimelineViewModel, showActions: Bool = true) {
         _tasting = State(initialValue: tasting)
         self.viewModel = viewModel
+        self.showActions = showActions
     }
 
     var body: some View {
@@ -39,33 +47,37 @@ struct TastingDetailView: View {
 
                     // Metadata pills
                     metadataPills
+
+                    // Social interactions (likes + comments)
+                    socialSection
                 }
                 .padding(.horizontal, Theme.spacing)
                 .padding(.top, Theme.spacing)
                 .padding(.bottom, 40)
             }
         }
-        .ignoresSafeArea(edges: .top)
         .refreshable {
-            await reloadTasting()
+            await Task {
+                await reloadTasting()
+            }.value
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
+            if showActions {
+                ToolbarItemGroup(placement: .primaryAction) {
                     Button {
                         showEditSheet = true
                     } label: {
-                        Label("Edit", systemImage: "pencil")
+                        Image(systemName: "pencil")
                     }
+
                     Button(role: .destructive) {
                         showDeleteConfirmation = true
                     } label: {
-                        Label("Delete", systemImage: "trash")
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red)
                     }
-                } label: {
-                    Label("Contextual", systemImage: "ellipsis")
                 }
             }
         }
@@ -87,15 +99,61 @@ struct TastingDetailView: View {
                 Task { await reloadTasting() }
             }
         }
+        .task {
+            await loadSocialData()
+        }
+        .sheet(isPresented: $showComments) {
+            CommentsView(tastingId: tasting.id)
+        }
+        .onChange(of: showComments) { _, isPresented in
+            if !isPresented {
+                Task { await loadSocialData() }
+            }
+        }
     }
 
     // MARK: - Reload
 
     private func reloadTasting() async {
         do {
-            tasting = try await tastingService.getTasting(id: tasting.id)
+            let refreshed = try await tastingService.getTasting(id: tasting.id)
+            tasting = refreshed
+            likeCount = Int(tasting.likeCount)
+            commentCount = Int(tasting.commentCount)
+            likedByMe = tasting.likedByMe
+        } catch where error.isCancellation {
+            // Task cancelled, ignore
         } catch {
             Log.error("Failed to reload tasting", error: error)
+        }
+    }
+
+    private func loadSocialData() async {
+        do {
+            let refreshed = try await tastingService.getTasting(id: tasting.id)
+            tasting = refreshed
+        } catch {
+            // Non-critical
+        }
+        likeCount = Int(tasting.likeCount)
+        commentCount = Int(tasting.commentCount)
+        likedByMe = tasting.likedByMe
+    }
+
+    private func toggleLike() async {
+        do {
+            if likedByMe {
+                try await socialService.unlikeTasting(tastingId: tasting.id)
+                likedByMe = false
+                likeCount = max(likeCount - 1, 0)
+            } else {
+                try await socialService.likeTasting(tastingId: tasting.id)
+                likedByMe = true
+                likeCount += 1
+            }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } catch {
+            Log.error("Failed to toggle like", error: error)
         }
     }
 
@@ -187,6 +245,62 @@ struct TastingDetailView: View {
     }
 
     // MARK: - Notes (Blockquote)
+
+    // MARK: - Social Section
+
+    @ViewBuilder
+    private var socialSection: some View {
+        HStack(spacing: 20) {
+            // Like — heart + count
+            HStack(spacing: 6) {
+                Button {
+                    Task { await toggleLike() }
+                } label: {
+                    Image(systemName: likedByMe ? "heart.fill" : "heart")
+                        .font(.body)
+                        .foregroundStyle(likedByMe ? .red : .secondary)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    if likeCount > 0 { showLikes = true }
+                } label: {
+                    Text("\(likeCount)")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Comment — bubble + count
+            HStack(spacing: 6) {
+                Button {
+                    showComments = true
+                } label: {
+                    Image(systemName: "bubble.right")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    showComments = true
+                } label: {
+                    Text("\(commentCount)")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            Spacer()
+        }
+        .sheet(isPresented: $showLikes) {
+            LikesListView(tastingId: tasting.id)
+        }
+    }
+
+    // MARK: - Notes
 
     @ViewBuilder
     private var notesSection: some View {
@@ -348,6 +462,9 @@ struct TastingDetailView: View {
                 tastingDate: "2026-07-20",
                 vintage: 2018,
                 photos: [],
+                likeCount: 5,
+                commentCount: 2,
+                likedByMe: true,
                 createdAt: Date(),
                 updatedAt: Date()
             ),

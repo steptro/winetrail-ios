@@ -27,12 +27,14 @@ final class APIClient {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 15
         configuration.timeoutIntervalForResource = 15
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.urlCache = nil
         let session = URLSession(configuration: configuration)
         self.client = Client(
             serverURL: serverURL,
             configuration: .init(dateTranscoder: ISO8601DateTranscoderWithFractionalSeconds()),
             transport: URLSessionTransport(configuration: .init(session: session)),
-            middlewares: [middleware]
+            middlewares: [middleware, RetryMiddleware()]
         )
     }
 }

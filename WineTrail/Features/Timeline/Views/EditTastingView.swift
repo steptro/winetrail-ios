@@ -9,6 +9,7 @@ struct EditTastingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(TastingService.self) private var tastingService
     @Environment(LocationService.self) private var locationService
+    @Environment(PhotoService.self) private var photoService
 
     let tasting: Tasting
 
@@ -24,6 +25,8 @@ struct EditTastingView: View {
     @State private var tastingDate: Date
     @State private var vintageYear: Int?
     @State private var useGPS: Bool
+    @State private var selectedImages: [UIImage] = []
+    @State private var photosToDelete: Set<String> = []
 
     @State private var isSaving = false
     @State private var error: String?
@@ -32,13 +35,15 @@ struct EditTastingView: View {
     enum WizardStep: Int, CaseIterable {
         case wine = 0
         case rating = 1
-        case details = 2
-        case location = 3
+        case photo = 2
+        case details = 3
+        case location = 4
 
         var title: String {
             switch self {
             case .wine: "Wine"
             case .rating: "Rating"
+            case .photo: "Photo"
             case .details: "Details"
             case .location: "Location"
             }
@@ -48,6 +53,7 @@ struct EditTastingView: View {
             switch self {
             case .wine: "Your wine"
             case .rating: "How was it?"
+            case .photo: "Got a photo?"
             case .details: "What else stood out?"
             case .location: "Where were you?"
             }
@@ -166,6 +172,7 @@ struct EditTastingView: View {
         TabView(selection: $currentStep) {
             wineStep.tag(WizardStep.wine)
             ratingStep.tag(WizardStep.rating)
+            photoStep.tag(WizardStep.photo)
             detailsStep.tag(WizardStep.details)
             locationStep.tag(WizardStep.location)
         }
@@ -276,7 +283,82 @@ struct EditTastingView: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Step 3: Details
+    // MARK: - Step 3: Photo
+
+    @ViewBuilder
+    private var photoStep: some View {
+        let existingPhotos = tasting.photos.filter { !photosToDelete.contains($0.id) }
+
+        ScrollView {
+            VStack(spacing: 16) {
+                // Existing photos from this tasting
+                if !existingPhotos.isEmpty {
+                    VStack(alignment: .leading, spacing: Theme.smallSpacing) {
+                        Text("Current photos")
+                            .font(Theme.captionFont)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, Theme.spacing)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: Theme.smallSpacing) {
+                                ForEach(existingPhotos, id: \.id) { photo in
+                                    ZStack(alignment: .topTrailing) {
+                                        AsyncImage(url: URL(string: photo.url)) { image in
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                        } placeholder: {
+                                            Rectangle()
+                                                .fill(.quaternary)
+                                        }
+                                        .frame(width: 80, height: 80)
+                                        .clipShape(RoundedRectangle(cornerRadius: Theme.smallCornerRadius))
+
+                                        Button {
+                                            withAnimation {
+                                                photosToDelete.insert(photo.id)
+                                            }
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.system(size: 18))
+                                                .foregroundStyle(.white)
+                                                .background(Circle().fill(.black.opacity(0.5)))
+                                        }
+                                        .offset(x: 4, y: -4)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, Theme.spacing)
+                        }
+                    }
+                }
+
+                // Add new photos
+                VStack(alignment: .leading, spacing: Theme.smallSpacing) {
+                    if !existingPhotos.isEmpty {
+                        Text("Add new photos")
+                            .font(Theme.captionFont)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, Theme.spacing)
+                    }
+
+                    PhotoPickerView(selectedImages: $selectedImages, existingPhotoCount: existingPhotos.count)
+                        .padding(.horizontal, Theme.spacing)
+                }
+
+                if selectedImages.isEmpty && existingPhotos.isEmpty {
+                    Text("You can skip this step — photos are optional.")
+                        .font(Theme.captionFont)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 8)
+                }
+            }
+            .padding(.top, 12)
+        }
+    }
+
+    // MARK: - Step 4: Details
 
     @ViewBuilder
     private var detailsStep: some View {
@@ -380,6 +462,20 @@ struct EditTastingView: View {
 
         do {
             _ = try await tastingService.updateTasting(id: tasting.id, request)
+
+            // Delete photos marked for removal
+            for photoId in photosToDelete {
+                try await photoService.deletePhoto(id: photoId)
+            }
+
+            // Upload new photos if any were added
+            if !selectedImages.isEmpty {
+                _ = try await photoService.uploadPhotos(
+                    tastingId: tasting.id,
+                    images: selectedImages
+                )
+            }
+
             NotificationCenter.default.post(name: .tastingDidChange, object: nil)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             dismiss()
@@ -456,6 +552,9 @@ struct EditTastingView: View {
                 tastingDate: "2026-08-10",
                 vintage: 2015,
                 photos: [],
+                likeCount: 2,
+                commentCount: 1,
+                likedByMe: true,
                 createdAt: Date(),
                 updatedAt: Date()
             )

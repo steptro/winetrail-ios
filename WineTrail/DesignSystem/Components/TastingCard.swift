@@ -90,6 +90,9 @@ struct TastingCard: View {
             notes: "Exceptional complexity",
             tastingDate: "2026-08-15",
             photos: [],
+            likeCount: 3,
+            commentCount: 1,
+            likedByMe: false,
             createdAt: Date(),
             updatedAt: Date()
         ))
@@ -107,6 +110,9 @@ struct TastingCard: View {
             rating: 3,
             tastingDate: "2026-08-10",
             photos: [],
+            likeCount: 0,
+            commentCount: 0,
+            likedByMe: false,
             createdAt: Date(),
             updatedAt: Date()
         ))

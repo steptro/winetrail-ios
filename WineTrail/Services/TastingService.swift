@@ -18,9 +18,9 @@ final class TastingService {
     ///   - page: Zero-based page index.
     ///   - size: Number of items per page (defaults to 20).
     /// - Returns: A paginated result containing tastings for the requested page.
-    func getTimeline(page: Int, size: Int = 20) async throws -> PagedResult<Tasting> {
+    func getTimeline(page: Int, size: Int = 20, sort: String = "createdAt", direction: String = "desc") async throws -> PagedResult<Tasting> {
         let response = try await apiClient.client.getTimeline(
-            query: .init(page: Int32(page), size: Int32(size))
+            query: .init(page: Int32(page), size: Int32(size), sort: sort, direction: direction)
         )
         let dto = try response.ok.body.json
         return PagedResult(

@@ -1,6 +1,30 @@
 import Foundation
 import Observation
 
+/// Sort options for the journal timeline.
+enum TimelineSort: String, CaseIterable {
+    case createdAt = "createdAt"
+    case tastingDate = "tastingDate"
+    case rating = "rating"
+    case updatedAt = "updatedAt"
+
+    var displayName: String {
+        switch self {
+        case .createdAt: return "Date Added"
+        case .tastingDate: return "Tasting Date"
+        case .rating: return "Rating"
+        case .updatedAt: return "Last Updated"
+        }
+    }
+
+    var defaultDirection: String {
+        switch self {
+        case .rating: return "desc"
+        default: return "desc"
+        }
+    }
+}
+
 /// ViewModel for the Timeline (home) screen.
 ///
 /// Manages infinite-scroll pagination of tastings, prefetching the next page
@@ -14,6 +38,8 @@ final class TimelineViewModel {
     private(set) var isLoading = false
     private(set) var hasMorePages = true
     private(set) var error: Error?
+    var sort: TimelineSort = .createdAt
+    var sortDirection: String = "desc"
     private var currentPage = 0
     private let pageSize = 20
 
@@ -30,18 +56,26 @@ final class TimelineViewModel {
         await loadNextPage()
     }
 
+    /// Changes sort and reloads.
+    func changeSort(_ newSort: TimelineSort) async {
+        sort = newSort
+        sortDirection = newSort.defaultDirection
+        await loadInitial()
+    }
+
     /// Loads the next page of tastings if not already loading and more pages exist.
-    ///
-    /// - Preconditions: `isLoading == false`, `hasMorePages == true`
-    /// - Postconditions: `tastings` extended with new content, `currentPage` incremented,
-    ///   `isLoading` reset to false. On error, existing data is preserved.
     func loadNextPage() async {
         guard !isLoading, hasMorePages else { return }
         isLoading = true
         error = nil
 
         do {
-            let page = try await tastingService.getTimeline(page: currentPage, size: pageSize)
+            let page = try await tastingService.getTimeline(
+                page: currentPage,
+                size: pageSize,
+                sort: sort.rawValue,
+                direction: sortDirection
+            )
             tastings.append(contentsOf: page.content)
             hasMorePages = !page.isLast
             currentPage += 1
