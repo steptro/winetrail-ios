@@ -54,7 +54,6 @@ struct AddFriendView: View {
                 await loadExistingFriends()
             }
             .errorAlert($errorMessage)
-            }
         }
     }
 
