@@ -32,7 +32,7 @@ enum TimelineSort: String, CaseIterable {
 /// deletion with rollback on failure.
 @MainActor @Observable
 final class TimelineViewModel {
-    private let tastingService: TastingService
+    private let journalService: JournalService
 
     private(set) var tastings: [Tasting] = []
     private(set) var isLoading = false
@@ -40,11 +40,14 @@ final class TimelineViewModel {
     private(set) var error: Error?
     var sort: TimelineSort = .createdAt
     var sortDirection: String = "desc"
+    var colorFilter: Components.Schemas.WineColor? = nil
+    var searchQuery: String = ""
     private var currentPage = 0
     private let pageSize = 20
+    private var searchTask: Task<Void, Never>?
 
-    init(tastingService: TastingService) {
-        self.tastingService = tastingService
+    init(journalService: JournalService) {
+        self.journalService = journalService
     }
 
     /// Resets state and loads the first page of tastings.
@@ -63,18 +66,39 @@ final class TimelineViewModel {
         await loadInitial()
     }
 
+    /// Changes color filter and reloads.
+    func changeColor(_ newColor: Components.Schemas.WineColor?) async {
+        colorFilter = newColor
+        await loadInitial()
+    }
+
+    /// Debounced search — waits 300ms after typing stops, then reloads.
+    func search(_ query: String) {
+        searchQuery = query
+        searchTask?.cancel()
+        searchTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            await loadInitial()
+        }
+    }
+
     /// Loads the next page of tastings if not already loading and more pages exist.
     func loadNextPage() async {
         guard !isLoading, hasMorePages else { return }
         isLoading = true
         error = nil
 
+        let trimmedQuery = searchQuery.trimmingCharacters(in: .whitespaces)
+
         do {
-            let page = try await tastingService.getTimeline(
+            let page = try await journalService.getTimeline(
                 page: currentPage,
                 size: pageSize,
                 sort: sort.rawValue,
-                direction: sortDirection
+                direction: sortDirection,
+                color: colorFilter,
+                query: trimmedQuery.isEmpty ? nil : trimmedQuery
             )
             tastings.append(contentsOf: page.content)
             hasMorePages = !page.isLast
@@ -97,6 +121,15 @@ final class TimelineViewModel {
         if index >= thresholdIndex {
             await loadNextPage()
         }
+
+        // Prefetch photos for the next few tastings
+        let prefetchRange = (index + 1)..<min(index + 4, tastings.count)
+        let urls = tastings[prefetchRange]
+            .flatMap(\.photos)
+            .compactMap { URL(string: $0.url) }
+        if !urls.isEmpty {
+            await ImagePrefetcher.shared.prefetch(urls: urls)
+        }
     }
 
     /// Optimistically removes a tasting from the local list, then deletes on the backend.
@@ -105,7 +138,7 @@ final class TimelineViewModel {
     func deleteTasting(id: String) async {
         tastings.removeAll { $0.id == id }
         do {
-            try await tastingService.deleteTasting(id: id)
+            try await journalService.deleteTasting(id: id)
         } catch {
             Log.error("Failed to delete tasting", error: error)
             await loadInitial()

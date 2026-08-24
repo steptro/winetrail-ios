@@ -26,11 +26,10 @@ extension Components.Schemas.WineColor {
     }
 }
 
-// MARK: - TastingDto Display Helpers
+// MARK: - JournalEntryDto Display Helpers
 
-extension Components.Schemas.TastingDto {
+extension Components.Schemas.JournalEntryDto {
     var tastingDateFormatted: String {
-        // The date comes as ISO date string "yyyy-MM-dd"
         return tastingDate
     }
 }

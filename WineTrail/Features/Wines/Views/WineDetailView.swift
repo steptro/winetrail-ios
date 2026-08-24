@@ -6,7 +6,7 @@ import Charts
 /// Shows wine identity, colour badge, stats, rating trend chart, price history,
 /// tasting history list, and a "Log again" quick action.
 struct WineDetailView: View {
-    @Environment(TastingService.self) private var tastingService
+    @Environment(JournalService.self) private var journalService
 
     let wine: WineStats
 
@@ -86,16 +86,7 @@ struct WineDetailView: View {
                 Task { await loadTastings() }
             }
         }
-        .alert("Error", isPresented: Binding(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { errorMessage = nil }
-        } message: {
-            if let errorMessage {
-                Text(errorMessage)
-            }
-        }
+        .errorAlert($errorMessage)
     }
 
     // MARK: - Load Data
@@ -105,7 +96,7 @@ struct WineDetailView: View {
         errorMessage = nil
 
         do {
-            let result = try await tastingService.getTastingsForWine(wineId: wine.wine.id, page: 0, size: 50)
+            let result = try await journalService.getTastingsForWine(wineId: wine.wine.id, page: 0, size: 50)
             tastings = result.content
         } catch {
             if !error.isCancellation {
@@ -115,7 +106,7 @@ struct WineDetailView: View {
         }
 
         do {
-            stats = try await tastingService.getWineStats(wineId: wine.wine.id)
+            stats = try await journalService.getWineStats(wineId: wine.wine.id)
         } catch {
             if !error.isCancellation {
                 Log.error("Failed to load wine stats", error: error)
@@ -137,7 +128,7 @@ struct WineDetailView: View {
         if !allPhotos.isEmpty {
             TabView {
                 ForEach(allPhotos, id: \.id) { photo in
-                    AsyncImage(url: URL(string: photo.url)) { image in
+                    CachedAsyncImage(url: URL(string: photo.url)) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -337,7 +328,7 @@ struct WineDetailView: View {
         HStack(spacing: 10) {
             // Thumbnail
             if let photo = tasting.photos.first {
-                AsyncImage(url: URL(string: photo.url)) { image in
+                CachedAsyncImage(url: URL(string: photo.url)) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -439,7 +430,7 @@ private struct RatingEntry: Identifiable {
             firstTasted: "2025-03-15",
             lastTasted: "2026-08-10"
         ))
-        .environment(TastingService(apiClient: APIClient(
+        .environment(JournalService(apiClient: APIClient(
             serverURL: URL(string: "https://api.winetrail.app")!,
             authService: AuthService()
         )))

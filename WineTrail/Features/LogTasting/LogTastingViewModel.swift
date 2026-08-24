@@ -9,7 +9,7 @@ import Observation
 @MainActor @Observable
 final class LogTastingViewModel {
     private let wineService: WineService
-    private let tastingService: TastingService
+    private let journalService: JournalService
     private let photoService: PhotoService
     private let locationService: LocationService
 
@@ -96,12 +96,12 @@ final class LogTastingViewModel {
 
     init(
         wineService: WineService,
-        tastingService: TastingService,
+        journalService: JournalService,
         photoService: PhotoService,
         locationService: LocationService
     ) {
         self.wineService = wineService
-        self.tastingService = tastingService
+        self.journalService = journalService
         self.photoService = photoService
         self.locationService = locationService
     }
@@ -154,7 +154,7 @@ final class LogTastingViewModel {
     /// Loads stats for a wine by its ID from the dedicated stats endpoint.
     private func loadWineStats(wineId: String) async {
         do {
-            let stats = try await tastingService.getWineStats(wineId: wineId)
+            let stats = try await journalService.getWineStats(wineId: wineId)
             selectedWineStats = stats
         } catch {
             Log.error("Failed to load wine stats", error: error)
@@ -220,7 +220,7 @@ final class LogTastingViewModel {
             )
 
             // Create the tasting
-            let tasting = try await tastingService.createTasting(request)
+            let tasting = try await journalService.createTasting(request)
 
             // Upload photos if any were selected
             if !selectedImages.isEmpty {
@@ -228,8 +228,10 @@ final class LogTastingViewModel {
                     tastingId: tasting.id,
                     images: selectedImages
                 )
+                WineAnalytics.logPhotoUploaded(tastingId: tasting.id, count: selectedImages.count)
             }
 
+            WineAnalytics.logTastingCreated(wineId: tasting.wine.id, rating: Double(tasting.rating))
             savedTasting = tasting
         } catch {
             Log.error("Failed to save tasting", error: error)

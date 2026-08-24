@@ -7,7 +7,7 @@ import Observation
 final class SocialFeedViewModel {
     private let socialService: SocialService
 
-    private(set) var posts: [Components.Schemas.FeedTastingDto] = []
+    private(set) var posts: [Components.Schemas.FeedJournalEntryDto] = []
     private(set) var isLoading = false
     private(set) var hasMorePages = true
     private(set) var error: Error?
@@ -50,7 +50,7 @@ final class SocialFeedViewModel {
     }
 
     /// Triggers pagination near end of list.
-    func onPostAppear(_ post: Components.Schemas.FeedTastingDto) async {
+    func onPostAppear(_ post: Components.Schemas.FeedJournalEntryDto) async {
         guard let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
         let threshold = max(posts.count - 5, 0)
         if index >= threshold {
@@ -59,7 +59,7 @@ final class SocialFeedViewModel {
     }
 
     /// Toggles like on a post.
-    func toggleLike(on post: Components.Schemas.FeedTastingDto) async {
+    func toggleLike(on post: Components.Schemas.FeedJournalEntryDto) async {
         guard let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
 
         let wasLiked = post.likedByMe
@@ -75,6 +75,7 @@ final class SocialFeedViewModel {
                 try await socialService.unlikeTasting(tastingId: post.id)
             } else {
                 try await socialService.likeTasting(tastingId: post.id)
+                WineAnalytics.logLike(tastingId: post.id)
             }
         } catch {
             // Rollback

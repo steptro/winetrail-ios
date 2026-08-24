@@ -107,7 +107,7 @@ struct EmailSignInView: View {
         )))
         .environment(AppState(
             authService: AuthService(),
-            tastingService: TastingService(apiClient: APIClient(
+            journalService: JournalService(apiClient: APIClient(
                 serverURL: URL(string: "https://api.winetrail.app")!,
                 authService: AuthService()
             )),

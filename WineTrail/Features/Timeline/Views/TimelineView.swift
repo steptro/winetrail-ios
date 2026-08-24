@@ -6,21 +6,42 @@ import SwiftUI
 /// hero photo, and metadata row. Supports infinite scroll, pull-to-refresh,
 /// context menu actions, and an empty state.
 struct TimelineView: View {
-    @Environment(TastingService.self) private var tastingService
+    @Environment(JournalService.self) private var journalService
     @State private var viewModel: TimelineViewModel?
     @State private var editingTasting: Tasting?
     @State private var tastingToDelete: Tasting?
+    @State private var searchText: String = ""
 
     var body: some View {
         Group {
             if let viewModel {
                 if viewModel.tastings.isEmpty && !viewModel.isLoading {
-                    EmptyStateView(
-                        icon: "wineglass",
-                        title: "No Wines Yet",
-                        message: "Add your first wine to start your journey.",
-                        actionTitle: "New Wine"
-                    )
+                    ScrollView {
+                        if !searchText.isEmpty {
+                            EmptyStateView(
+                                icon: "magnifyingglass",
+                                title: "No Results",
+                                message: "No wines match \"\(searchText)\". Try a different search."
+                            )
+                        } else if viewModel.colorFilter != nil {
+                            EmptyStateView(
+                                icon: "wineglass",
+                                title: "No Wines",
+                                message: "No wines match the selected filter."
+                            )
+                        } else {
+                            EmptyStateView(
+                                icon: "wineglass",
+                                title: "No Wines Yet",
+                                message: "Add your first wine to start your journey.",
+                                actionTitle: "New Wine"
+                            )
+                        }
+                    }
+                    .refreshable {
+                        await Task { await viewModel.loadInitial() }.value
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 24) {
@@ -67,25 +88,62 @@ struct TimelineView: View {
         }
         .navigationTitle("Journal")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .topBarLeading) {
                 Menu {
-                    ForEach(TimelineSort.allCases, id: \.self) { option in
-                        Button {
-                            Task { await viewModel?.changeSort(option) }
-                        } label: {
-                            Label(option.displayName, systemImage: viewModel?.sort == option ? "checkmark" : "")
+                    if let viewModel {
+                        Picker("Sort by", selection: Binding(
+                            get: { viewModel.sort },
+                            set: { newSort in Task { await viewModel.changeSort(newSort) } }
+                        )) {
+                            ForEach(TimelineSort.allCases, id: \.self) { option in
+                                Text(option.displayName).tag(option)
+                            }
+                        }
+
+                        Divider()
+
+                        Picker("Order", selection: Binding(
+                            get: { viewModel.sortDirection },
+                            set: { newDirection in
+                                viewModel.sortDirection = newDirection
+                                Task { await viewModel.loadInitial() }
+                            }
+                        )) {
+                            Label("Ascending", systemImage: "arrow.up").tag("asc")
+                            Label("Descending", systemImage: "arrow.down").tag("desc")
                         }
                     }
                 } label: {
-                    Image(systemName: "arrow.up.arrow.down")
+                    Label("Sort", systemImage: "arrow.up.arrow.down")
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    if let viewModel {
+                        Picker("Color", selection: Binding(
+                            get: { viewModel.colorFilter },
+                            set: { newColor in Task { await viewModel.changeColor(newColor) } }
+                        )) {
+                            Text("All Colors").tag(nil as Components.Schemas.WineColor?)
+                            ForEach([Components.Schemas.WineColor.RED, .WHITE, .ROSE, .ORANGE, .SPARKLING], id: \.self) { color in
+                                Text(color.displayName).tag(color as Components.Schemas.WineColor?)
+                            }
+                        }
+                    }
+                } label: {
+                    Label("Filter", systemImage: "line.3.horizontal.decrease")
                 }
             }
         }
         .task {
             if viewModel == nil {
-                viewModel = TimelineViewModel(tastingService: tastingService)
+                viewModel = TimelineViewModel(journalService: journalService)
             }
             await viewModel?.loadInitial()
+        }
+        .searchable(text: $searchText, prompt: "Search wines, notes...")
+        .onChange(of: searchText) { _, newValue in
+            viewModel?.search(newValue)
         }
         .onReceive(NotificationCenter.default.publisher(for: .tastingDidChange)) { _ in
             Task { await viewModel?.loadInitial() }
@@ -160,6 +218,7 @@ fileprivate struct FeedPostView: View {
                 try await socialService.unlikeTasting(tastingId: tasting.id)
             } else {
                 try await socialService.likeTasting(tastingId: tasting.id)
+                WineAnalytics.logLike(tastingId: tasting.id)
             }
         } catch {
             // Rollback on failure
@@ -216,7 +275,7 @@ fileprivate struct FeedPostView: View {
             if !tasting.photos.isEmpty {
                 TabView {
                     ForEach(tasting.photos, id: \.id) { photo in
-                        AsyncImage(url: URL(string: photo.url)) { image in
+                        CachedAsyncImage(url: URL(string: photo.url)) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -397,7 +456,7 @@ private struct PressScaleButtonStyle: ButtonStyle {
 #Preview("Feed") {
     NavigationStack {
         TimelineView()
-            .environment(TastingService(apiClient: APIClient(
+            .environment(JournalService(apiClient: APIClient(
                 serverURL: URL(string: "https://api.winetrail.app")!,
                 authService: AuthService()
             )))
@@ -405,7 +464,7 @@ private struct PressScaleButtonStyle: ButtonStyle {
 }
 
 #Preview("Feed Post") {
-    FeedPostView(tasting: Components.Schemas.TastingDto(
+    FeedPostView(tasting: Components.Schemas.JournalEntryDto(
         id: "preview-1",
         wine: Components.Schemas.WineSummary(
             id: "wine-1",

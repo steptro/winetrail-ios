@@ -5,7 +5,7 @@ import SwiftUI
 /// A floating "+" button overlays the tab bar to trigger New Wine from any tab.
 struct MainTabView: View {
     @Environment(AppState.self) private var appState
-    @Environment(TastingService.self) private var tastingService
+    @Environment(JournalService.self) private var journalService
     @Environment(SocialState.self) private var socialState
 
     @State private var selectedTab = 0
@@ -64,7 +64,7 @@ struct MainTabView: View {
             NavigationStack {
                 TastingDetailView(
                     tasting: tasting,
-                    viewModel: TimelineViewModel(tastingService: tastingService),
+                    viewModel: TimelineViewModel(journalService: journalService),
                     showActions: false
                 )
                 .navigationBarTitleDisplayMode(.inline)
@@ -100,7 +100,7 @@ struct MainTabView: View {
         case .tasting(let id):
             Task {
                 do {
-                    let tasting = try await tastingService.getTasting(id: id)
+                    let tasting = try await journalService.getTasting(id: id)
                     deepLinkTasting = tasting
                 } catch {
                     Log.error("Failed to load tasting from deep link", error: error)

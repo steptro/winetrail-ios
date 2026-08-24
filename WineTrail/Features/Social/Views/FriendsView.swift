@@ -219,6 +219,7 @@ struct FriendsView: View {
     private func acceptRequest(friendshipId: String) async {
         do {
             try await socialService.acceptFriendRequest(friendshipId: friendshipId)
+            WineAnalytics.logFriendRequestAccepted()
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             await loadData()
             NotificationCenter.default.post(name: .friendRequestsDidChange, object: nil)

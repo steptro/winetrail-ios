@@ -13,7 +13,7 @@ final class SocialService {
     // MARK: - Social Feed
 
     /// Fetches the social feed (friends' tastings).
-    func getFeed(page: Int = 0, size: Int = 20) async throws -> PagedResult<Components.Schemas.FeedTastingDto> {
+    func getFeed(page: Int = 0, size: Int = 20) async throws -> PagedResult<Components.Schemas.FeedJournalEntryDto> {
         let response = try await apiClient.client.getSocialFeed(
             query: .init(page: Int32(page), size: Int32(size))
         )
@@ -87,34 +87,34 @@ final class SocialService {
 
     // MARK: - Likes
 
-    /// Gets who liked a tasting.
+    /// Gets who liked a journal entry.
     func getLikes(tastingId: String) async throws -> [Components.Schemas.FriendUserDto] {
         let response = try await apiClient.client.getLikes(
-            path: .init(tastingId: tastingId)
+            path: .init(entryId: tastingId)
         )
         return try response.ok.body.json
     }
 
-    /// Likes a tasting.
+    /// Likes a journal entry.
     func likeTasting(tastingId: String) async throws {
-        _ = try await apiClient.client.likeTasting(
-            path: .init(tastingId: tastingId)
+        _ = try await apiClient.client.likeEntry(
+            path: .init(entryId: tastingId)
         )
     }
 
-    /// Unlikes a tasting.
+    /// Unlikes a journal entry.
     func unlikeTasting(tastingId: String) async throws {
-        _ = try await apiClient.client.unlikeTasting(
-            path: .init(tastingId: tastingId)
+        _ = try await apiClient.client.unlikeEntry(
+            path: .init(entryId: tastingId)
         )
     }
 
     // MARK: - Comments
 
-    /// Gets comments for a tasting.
+    /// Gets comments for a journal entry.
     func getComments(tastingId: String, page: Int = 0, size: Int = 50) async throws -> PagedResult<Components.Schemas.CommentDto> {
         let response = try await apiClient.client.getComments(
-            path: .init(tastingId: tastingId),
+            path: .init(entryId: tastingId),
             query: .init(page: Int32(page), size: Int32(size))
         )
         let dto = try response.ok.body.json
@@ -127,10 +127,10 @@ final class SocialService {
         )
     }
 
-    /// Adds a comment to a tasting.
+    /// Adds a comment to a journal entry.
     func addComment(tastingId: String, body: String) async throws -> Components.Schemas.CommentDto {
         let response = try await apiClient.client.addComment(
-            path: .init(tastingId: tastingId),
+            path: .init(entryId: tastingId),
             body: .json(.init(body: body))
         )
         return try response.created.body.json

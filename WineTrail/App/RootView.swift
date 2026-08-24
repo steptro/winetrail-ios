@@ -27,7 +27,7 @@ struct RootView: View {
     RootView()
         .environment(AppState(
             authService: AuthService(),
-            tastingService: TastingService(apiClient: APIClient(
+            journalService: JournalService(apiClient: APIClient(
                 serverURL: URL(string: "https://api.winetrail.app")!,
                 authService: AuthService()
             )),
@@ -39,7 +39,7 @@ struct RootView: View {
         .environment(AuthService())
         .environment(APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService()))
         .environment(DeviceService(apiClient: APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService())))
-        .environment(TastingService(apiClient: APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService())))
+        .environment(JournalService(apiClient: APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService())))
         .environment(WineService(apiClient: APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService())))
         .environment(PhotoService(apiClient: APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService())))
         .environment(StatsService(apiClient: APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService())))

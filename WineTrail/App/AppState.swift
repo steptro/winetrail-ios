@@ -18,12 +18,12 @@ final class AppState {
     var pendingDeepLink: DeepLink?
 
     private let authService: AuthService
-    private let tastingService: TastingService
+    private let journalService: JournalService
     private let profileService: ProfileService
 
-    init(authService: AuthService, tastingService: TastingService, profileService: ProfileService) {
+    init(authService: AuthService, journalService: JournalService, profileService: ProfileService) {
         self.authService = authService
-        self.tastingService = tastingService
+        self.journalService = journalService
         self.profileService = profileService
     }
 
@@ -42,7 +42,7 @@ final class AppState {
             let profile = try await profileService.getProfile()
             // Show onboarding only for brand new accounts (auto-generated username from email)
             // Once a user has gone through onboarding, they'll have a custom username
-            let timeline = try await tastingService.getTimeline(page: 0, size: 1)
+            let timeline = try await journalService.getTimeline(page: 0, size: 1)
             if timeline.totalElements == 0 && profile.username == profile.email.components(separatedBy: "@").first {
                 currentRoute = .onboarding
             } else {

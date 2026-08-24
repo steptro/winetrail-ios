@@ -13,13 +13,19 @@ struct SocialFeedView: View {
         Group {
             if let viewModel {
                 if viewModel.posts.isEmpty && !viewModel.isLoading {
-                    EmptyStateView(
-                        icon: "person.2",
-                        title: "No Friends Yet",
-                        message: "Add friends to see their wine tastings here.",
-                        actionTitle: "Add Friends",
-                        action: { showAddFriend = true }
-                    )
+                    ScrollView {
+                        EmptyStateView(
+                            icon: "person.2",
+                            title: "No Friends Yet",
+                            message: "Add friends to see their wine tastings here.",
+                            actionTitle: "Add Friends",
+                            action: { showAddFriend = true }
+                        )
+                    }
+                    .refreshable {
+                        await Task { await viewModel.loadInitial() }.value
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 24) {
@@ -105,7 +111,7 @@ extension String: @retroactive Identifiable {
 // MARK: - Social Feed Post
 
 struct SocialFeedPostView: View {
-    let post: Components.Schemas.FeedTastingDto
+    let post: Components.Schemas.FeedJournalEntryDto
     let onLike: () async -> Void
     let onComment: () -> Void
     let onLikesCount: () -> Void
@@ -137,7 +143,7 @@ struct SocialFeedPostView: View {
             if !post.photos.isEmpty {
                 TabView {
                     ForEach(post.photos, id: \.id) { photo in
-                        AsyncImage(url: URL(string: photo.url)) { image in
+                        CachedAsyncImage(url: URL(string: photo.url)) { image in
                             image.resizable().aspectRatio(contentMode: .fill)
                         } placeholder: {
                             Rectangle().fill(.quaternary)

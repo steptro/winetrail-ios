@@ -5,13 +5,13 @@ import OpenAPIRuntime
 ///
 /// Photos bleed to the card edges as hero images. Wine info and metadata overlay below.
 struct TastingCard: View {
-    let tasting: Components.Schemas.TastingDto
+    let tasting: Components.Schemas.JournalEntryDto
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Hero photo (full-width bleed to card edges)
             if let firstPhoto = tasting.photos.first {
-                AsyncImage(url: URL(string: firstPhoto.url)) { image in
+                CachedAsyncImage(url: URL(string: firstPhoto.url)) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -76,7 +76,7 @@ struct TastingCard: View {
 
 #Preview {
     VStack(spacing: 16) {
-        TastingCard(tasting: Components.Schemas.TastingDto(
+        TastingCard(tasting: Components.Schemas.JournalEntryDto(
             id: "preview-1",
             wine: Components.Schemas.WineSummary(
                 id: "wine-1",
@@ -97,7 +97,7 @@ struct TastingCard: View {
             updatedAt: Date()
         ))
 
-        TastingCard(tasting: Components.Schemas.TastingDto(
+        TastingCard(tasting: Components.Schemas.JournalEntryDto(
             id: "preview-2",
             wine: Components.Schemas.WineSummary(
                 id: "wine-2",

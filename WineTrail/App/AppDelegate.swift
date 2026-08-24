@@ -1,7 +1,9 @@
 import UIKit
 import UserNotifications
+import BackgroundTasks
 import FirebaseCore
 import FirebaseMessaging
+import FirebaseAnalytics
 import DatadogCore
 import DatadogLogs
 
@@ -13,6 +15,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
     /// Set by the app to handle deep link routing from push notifications.
     var appState: AppState?
+
+    /// Set by the app to refresh social state in background.
+    var socialState: SocialState?
 
     func application(
         _ application: UIApplication,
@@ -44,7 +49,38 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
+
+        // Register background app refresh task
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: "dev.stephantromer.winetrail.refresh",
+            using: nil
+        ) { task in
+            self.handleBackgroundRefresh(task as! BGAppRefreshTask)
+        }
+
         return true
+    }
+
+    /// Schedules the next background refresh.
+    func scheduleBackgroundRefresh() {
+        let request = BGAppRefreshTaskRequest(identifier: "dev.stephantromer.winetrail.refresh")
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 30 * 60) // 30 minutes
+        try? BGTaskScheduler.shared.submit(request)
+    }
+
+    private func handleBackgroundRefresh(_ task: BGAppRefreshTask) {
+        scheduleBackgroundRefresh() // Schedule the next one
+
+        let refreshTask = Task { @MainActor in
+            await socialState?.refreshPendingCount()
+        }
+
+        task.expirationHandler = { refreshTask.cancel() }
+
+        Task {
+            _ = await refreshTask.value
+            task.setTaskCompleted(success: true)
+        }
     }
 
     func application(

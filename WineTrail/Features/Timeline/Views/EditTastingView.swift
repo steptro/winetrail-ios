@@ -7,7 +7,7 @@ import OpenAPIRuntime
 /// (can't change the wine). On save, sends an `UpdateTastingRequest`.
 struct EditTastingView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(TastingService.self) private var tastingService
+    @Environment(JournalService.self) private var journalService
     @Environment(LocationService.self) private var locationService
     @Environment(PhotoService.self) private var photoService
 
@@ -115,14 +115,7 @@ struct EditTastingView: View {
                 }
             }
         }
-        .alert("Error", isPresented: Binding(
-            get: { error != nil },
-            set: { if !$0 { error = nil } }
-        )) {
-            Button("OK", role: .cancel) { error = nil }
-        } message: {
-            if let error { Text(error) }
-        }
+        .errorAlert($error)
     }
 
     // MARK: - Step Progress Bar
@@ -303,7 +296,7 @@ struct EditTastingView: View {
                             HStack(spacing: Theme.smallSpacing) {
                                 ForEach(existingPhotos, id: \.id) { photo in
                                     ZStack(alignment: .topTrailing) {
-                                        AsyncImage(url: URL(string: photo.url)) { image in
+                                        CachedAsyncImage(url: URL(string: photo.url)) { image in
                                             image
                                                 .resizable()
                                                 .aspectRatio(contentMode: .fill)
@@ -315,7 +308,7 @@ struct EditTastingView: View {
                                         .clipShape(RoundedRectangle(cornerRadius: Theme.smallCornerRadius))
 
                                         Button {
-                                            withAnimation {
+                                            _ = withAnimation {
                                                 photosToDelete.insert(photo.id)
                                             }
                                         } label: {
@@ -446,7 +439,7 @@ struct EditTastingView: View {
             }
         }
 
-        let request = Components.Schemas.UpdateTastingRequest(
+        let request = Components.Schemas.UpdateJournalEntryRequest(
             rating: rating,
             notes: notes.isEmpty ? nil : notes,
             foodPairing: foodPairing.isEmpty ? nil : foodPairing,
@@ -461,7 +454,7 @@ struct EditTastingView: View {
         )
 
         do {
-            _ = try await tastingService.updateTasting(id: tasting.id, request)
+            _ = try await journalService.updateTasting(id: tasting.id, request)
 
             // Delete photos marked for removal
             for photoId in photosToDelete {
@@ -476,6 +469,7 @@ struct EditTastingView: View {
                 )
             }
 
+            WineAnalytics.logTastingEdited(tastingId: tasting.id)
             NotificationCenter.default.post(name: .tastingDidChange, object: nil)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             dismiss()
@@ -528,7 +522,7 @@ struct EditTastingView: View {
 #Preview {
     NavigationStack {
         EditTastingView(
-            tasting: Components.Schemas.TastingDto(
+            tasting: Components.Schemas.JournalEntryDto(
                 id: "preview-1",
                 wine: Components.Schemas.WineSummary(
                     id: "wine-1",
@@ -560,7 +554,7 @@ struct EditTastingView: View {
             )
         )
     }
-    .environment(TastingService(apiClient: APIClient(
+    .environment(JournalService(apiClient: APIClient(
         serverURL: URL(string: "https://api.winetrail.app")!,
         authService: AuthService()
     )))

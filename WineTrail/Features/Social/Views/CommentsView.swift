@@ -185,6 +185,7 @@ struct CommentsView: View {
             let comment = try await socialService.addComment(tastingId: tastingId, body: text)
             comments.append(comment)
             newComment = ""
+            WineAnalytics.logComment(tastingId: tastingId)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } catch {
             Log.error("Failed to add comment", error: error)

@@ -7,7 +7,7 @@ import OpenAPIRuntime
 /// blockquote-style notes, metadata pills, and a floating edit button.
 struct TastingDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(TastingService.self) private var tastingService
+    @Environment(JournalService.self) private var journalService
     @Environment(SocialService.self) private var socialService
 
     @State private var tasting: Tasting
@@ -116,7 +116,7 @@ struct TastingDetailView: View {
 
     private func reloadTasting() async {
         do {
-            let refreshed = try await tastingService.getTasting(id: tasting.id)
+            let refreshed = try await journalService.getTasting(id: tasting.id)
             tasting = refreshed
             likeCount = Int(tasting.likeCount)
             commentCount = Int(tasting.commentCount)
@@ -130,7 +130,7 @@ struct TastingDetailView: View {
 
     private func loadSocialData() async {
         do {
-            let refreshed = try await tastingService.getTasting(id: tasting.id)
+            let refreshed = try await journalService.getTasting(id: tasting.id)
             tasting = refreshed
         } catch {
             // Non-critical
@@ -164,7 +164,7 @@ struct TastingDetailView: View {
         if !tasting.photos.isEmpty {
             TabView {
                 ForEach(tasting.photos, id: \.id) { photo in
-                    AsyncImage(url: URL(string: photo.url)) { image in
+                    CachedAsyncImage(url: URL(string: photo.url)) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -434,11 +434,11 @@ struct TastingDetailView: View {
 #Preview {
     let authService = AuthService()
     let apiClient = APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: authService)
-    let tastingService = TastingService(apiClient: apiClient)
+    let journalService = JournalService(apiClient: apiClient)
 
     NavigationStack {
         TastingDetailView(
-            tasting: Components.Schemas.TastingDto(
+            tasting: Components.Schemas.JournalEntryDto(
                 id: "preview-1",
                 wine: Components.Schemas.WineSummary(
                     id: "wine-1",
@@ -468,9 +468,9 @@ struct TastingDetailView: View {
                 createdAt: Date(),
                 updatedAt: Date()
             ),
-            viewModel: TimelineViewModel(tastingService: tastingService)
+            viewModel: TimelineViewModel(journalService: journalService)
         )
     }
-    .environment(tastingService)
+    .environment(journalService)
     .environment(LocationService())
 }

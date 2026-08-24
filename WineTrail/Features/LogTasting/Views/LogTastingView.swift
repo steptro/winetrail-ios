@@ -8,7 +8,7 @@ import SwiftUI
 struct LogTastingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(WineService.self) private var wineService
-    @Environment(TastingService.self) private var tastingService
+    @Environment(JournalService.self) private var journalService
     @Environment(PhotoService.self) private var photoService
     @Environment(LocationService.self) private var locationService
 
@@ -109,7 +109,7 @@ struct LogTastingView: View {
             if viewModel == nil {
                 let vm = LogTastingViewModel(
                     wineService: wineService,
-                    tastingService: tastingService,
+                    journalService: journalService,
                     photoService: photoService,
                     locationService: locationService
                 )
@@ -672,7 +672,7 @@ struct LogTastingView: View {
             serverURL: URL(string: "https://api.winetrail.app")!,
             authService: AuthService()
         )))
-        .environment(TastingService(apiClient: APIClient(
+        .environment(JournalService(apiClient: APIClient(
             serverURL: URL(string: "https://api.winetrail.app")!,
             authService: AuthService()
         )))

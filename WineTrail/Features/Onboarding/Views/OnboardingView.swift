@@ -255,6 +255,7 @@ struct OnboardingView: View {
                 displayName: "WineTrail User",
                 username: trimmed
             )
+            WineAnalytics.logOnboardingCompleted(username: trimmed)
             appState.currentRoute = .main
         } catch {
             Log.error("Failed to set username", error: error)
@@ -269,7 +270,7 @@ struct OnboardingView: View {
     OnboardingView()
         .environment(AppState(
             authService: AuthService(),
-            tastingService: TastingService(apiClient: APIClient(
+            journalService: JournalService(apiClient: APIClient(
                 serverURL: URL(string: "https://api.winetrail.app")!,
                 authService: AuthService()
             )),

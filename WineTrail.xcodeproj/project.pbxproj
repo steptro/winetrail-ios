@@ -15,6 +15,9 @@
 		A1000001000000000000F006 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = A1000002000000000000F006 /* GoogleSignInSwift */; };
 		D4A359253039C1C2005F634A /* DatadogCore in Frameworks */ = {isa = PBXBuildFile; productRef = D4A359243039C1C2005F634A /* DatadogCore */; };
 		D4A359273039C1C2005F634A /* DatadogLogs in Frameworks */ = {isa = PBXBuildFile; productRef = D4A359263039C1C2005F634A /* DatadogLogs */; };
+		D4A35A0A303C2B3D005F634A /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = D4A35A09303C2B3D005F634A /* FirebaseAnalytics */; };
+		D4A35A0E303C2B49005F634A /* FirebaseAnalyticsCore in Frameworks */ = {isa = PBXBuildFile; productRef = D4A35A0D303C2B49005F634A /* FirebaseAnalyticsCore */; };
+		D4A35A22303C6363005F634A /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = D4A35A21303C6363005F634A /* Kingfisher */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,7 +56,10 @@
 				D4A359273039C1C2005F634A /* DatadogLogs in Frameworks */,
 				A1000001000000000000F004 /* FirebaseMessaging in Frameworks */,
 				A1000001000000000000F005 /* GoogleSignIn in Frameworks */,
+				D4A35A0E303C2B49005F634A /* FirebaseAnalyticsCore in Frameworks */,
+				D4A35A22303C6363005F634A /* Kingfisher in Frameworks */,
 				A1000001000000000000F006 /* GoogleSignInSwift in Frameworks */,
+				D4A35A0A303C2B3D005F634A /* FirebaseAnalytics in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -112,6 +118,9 @@
 				A1000002000000000000F006 /* GoogleSignInSwift */,
 				D4A359243039C1C2005F634A /* DatadogCore */,
 				D4A359263039C1C2005F634A /* DatadogLogs */,
+				D4A35A09303C2B3D005F634A /* FirebaseAnalytics */,
+				D4A35A0D303C2B49005F634A /* FirebaseAnalyticsCore */,
+				D4A35A21303C6363005F634A /* Kingfisher */,
 			);
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* WineTrail.app */;
@@ -148,6 +157,7 @@
 				A1000003000000000000P005 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				D4C60BE5302A460F000A2F6E /* XCRemoteSwiftPackageReference "swift-openapi-generator" */,
 				D4A359233039C1C2005F634A /* XCRemoteSwiftPackageReference "dd-sdk-ios" */,
+				D4A35A20303C6362005F634A /* XCRemoteSwiftPackageReference "Kingfisher" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 000000000000000000000020 /* Products */;
@@ -477,6 +487,14 @@
 				minimumVersion = 3.16.0;
 			};
 		};
+		D4A35A20303C6362005F634A /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.11.0;
+			};
+		};
 		D4C60BE5302A460F000A2F6E /* XCRemoteSwiftPackageReference "swift-openapi-generator" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-openapi-generator";
@@ -527,6 +545,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D4A359233039C1C2005F634A /* XCRemoteSwiftPackageReference "dd-sdk-ios" */;
 			productName = DatadogLogs;
+		};
+		D4A35A09303C2B3D005F634A /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1000003000000000000P004 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		D4A35A0D303C2B49005F634A /* FirebaseAnalyticsCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1000003000000000000P004 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalyticsCore;
+		};
+		D4A35A21303C6363005F634A /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D4A35A20303C6362005F634A /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
 		};
 		D4C60EA5302A4A3B000A2F6E /* OpenAPIGenerator */ = {
 			isa = XCSwiftPackageProductDependency;

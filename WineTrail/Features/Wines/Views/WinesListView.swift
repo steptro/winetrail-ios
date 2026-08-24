@@ -113,7 +113,7 @@ struct WinesListView: View {
     }
 
     private var filterIcon: String {
-        viewModel?.selectedColor != nil ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
+        viewModel?.selectedColor != nil ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease"
     }
 
     private var allWineColors: [Components.Schemas.WineColor] {

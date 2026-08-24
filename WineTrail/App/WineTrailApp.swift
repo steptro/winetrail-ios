@@ -10,7 +10,7 @@ struct WineTrailApp: App {
     private let authService: AuthService
     private let apiClient: APIClient
     private let deviceService: DeviceService
-    private let tastingService: TastingService
+    private let journalService: JournalService
     private let wineService: WineService
     private let photoService: PhotoService
     private let statsService: StatsService
@@ -32,7 +32,7 @@ struct WineTrailApp: App {
         let api = APIClient(serverURL: serverURL, authService: auth)
 
         let device = DeviceService(apiClient: api)
-        let tasting = TastingService(apiClient: api)
+        let journal = JournalService(apiClient: api)
         let wine = WineService(apiClient: api)
         let photo = PhotoService(apiClient: api)
         let stats = StatsService(apiClient: api)
@@ -41,12 +41,12 @@ struct WineTrailApp: App {
         let profile = ProfileService(apiClient: api)
         let social = SocialService(apiClient: api)
         let socialSt = SocialState(socialService: social)
-        let state = AppState(authService: auth, tastingService: tasting, profileService: profile)
+        let state = AppState(authService: auth, journalService: journal, profileService: profile)
 
         self.authService = auth
         self.apiClient = api
         self.deviceService = device
-        self.tastingService = tasting
+        self.journalService = journal
         self.wineService = wine
         self.photoService = photo
         self.statsService = stats
@@ -64,7 +64,7 @@ struct WineTrailApp: App {
                 .environment(authService)
                 .environment(apiClient)
                 .environment(deviceService)
-                .environment(tastingService)
+                .environment(journalService)
                 .environment(wineService)
                 .environment(photoService)
                 .environment(statsService)
@@ -78,6 +78,7 @@ struct WineTrailApp: App {
                     // Wire up AppDelegate → DeviceService for FCM token forwarding
                     delegate.deviceService = deviceService
                     delegate.appState = appState
+                    delegate.socialState = socialState
 
                     // Wait for Firebase auth state to be determined, then route accordingly
                     while authService.isLoading {
@@ -88,6 +89,7 @@ struct WineTrailApp: App {
                     // Register FCM token on every launch to keep it fresh
                     if authService.isAuthenticated {
                         await deviceService.registerTokenOnLaunch()
+                        delegate.scheduleBackgroundRefresh()
                     }
                 }
         }

@@ -29,6 +29,7 @@ final class AuthViewModel {
         error = nil
         do {
             try await authService.signInWithApple()
+            WineAnalytics.logLogin(method: "apple")
             await postSignIn()
         } catch {
             Log.error("Sign-in failed", error: error)
@@ -43,6 +44,7 @@ final class AuthViewModel {
         error = nil
         do {
             try await authService.signInWithGoogle()
+            WineAnalytics.logLogin(method: "google")
             await postSignIn()
         } catch {
             Log.error("Sign-in failed", error: error)
@@ -57,6 +59,7 @@ final class AuthViewModel {
         error = nil
         do {
             try await authService.signInWithEmail(email: email, password: password)
+            WineAnalytics.logLogin(method: "email")
             await postSignIn()
         } catch {
             Log.error("Sign-in failed", error: error)
@@ -71,6 +74,7 @@ final class AuthViewModel {
         error = nil
         do {
             try await authService.createAccount(email: email, password: password)
+            WineAnalytics.logSignUp(method: "email")
             await postSignIn()
         } catch {
             Log.error("Sign-in failed", error: error)

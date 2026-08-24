@@ -53,15 +53,7 @@ struct AddFriendView: View {
             .task {
                 await loadExistingFriends()
             }
-            .alert("Error", isPresented: Binding(
-                get: { errorMessage != nil },
-                set: { if !$0 { errorMessage = nil } }
-            )) {
-                Button("OK", role: .cancel) { errorMessage = nil }
-            } message: {
-                if let errorMessage {
-                    Text(errorMessage)
-                }
+            .errorAlert($errorMessage)
             }
         }
     }
@@ -146,6 +138,7 @@ struct AddFriendView: View {
         do {
             try await socialService.sendFriendRequest(receiverId: user.id)
             sentRequests.insert(user.id)
+            WineAnalytics.logFriendRequestSent(receiverId: user.id)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch {
             Log.error("Failed to send friend request", error: error)

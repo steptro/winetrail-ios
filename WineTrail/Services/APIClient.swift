@@ -11,7 +11,7 @@ import OpenAPIURLSession
 ///     serverURL: URL(string: "https://api.winetrail.app")!,
 ///     authService: authService
 /// )
-/// let response = try await apiClient.client.getTimeline(...)
+/// let response = try await apiClient.client.getJournal(...)
 /// ```
 @Observable
 final class APIClient {
