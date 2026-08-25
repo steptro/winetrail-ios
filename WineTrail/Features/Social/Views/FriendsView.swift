@@ -11,6 +11,7 @@ struct FriendsView: View {
     @State private var showAddFriend = false
     @State private var friendshipToRemove: Components.Schemas.FriendshipDto?
     @State private var selectedRequest: Components.Schemas.FriendRequestDto?
+    @State private var errorMessage: String?
 
     var body: some View {
         List {
@@ -110,6 +111,7 @@ struct FriendsView: View {
                 selectedRequest = nil
             }
         }
+        .errorAlert($errorMessage)
     }
 
     // MARK: - Data Loading
@@ -125,6 +127,7 @@ struct FriendsView: View {
             outgoingRequests = try await outgoingResult
         } catch {
             Log.error("Failed to load friends", error: error)
+            errorMessage = "Failed to load friends."
         }
         isLoading = false
     }
@@ -233,6 +236,7 @@ struct FriendsView: View {
             NotificationCenter.default.post(name: .friendRequestsDidChange, object: nil)
         } catch {
             Log.error("Failed to accept friend request", error: error)
+            errorMessage = "Failed to accept request. Please try again."
         }
     }
 
@@ -243,6 +247,7 @@ struct FriendsView: View {
             NotificationCenter.default.post(name: .friendRequestsDidChange, object: nil)
         } catch {
             Log.error("Failed to reject friend request", error: error)
+            errorMessage = "Failed to reject request."
         }
     }
 
@@ -253,6 +258,7 @@ struct FriendsView: View {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch {
             Log.error("Failed to remove friend", error: error)
+            errorMessage = "Failed to remove friend."
         }
     }
 
@@ -263,6 +269,7 @@ struct FriendsView: View {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch {
             Log.error("Failed to cancel friend request", error: error)
+            errorMessage = "Failed to cancel request."
         }
     }
 }

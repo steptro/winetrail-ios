@@ -19,6 +19,7 @@ struct WineSearchView: View {
     @State private var searchQuery = ""
     @State private var searchResults: [WineSearch] = []
     @State private var isSearching = false
+    @State private var errorMessage: String?
     @State private var searchTask: Task<Void, Never>?
 
     var body: some View {

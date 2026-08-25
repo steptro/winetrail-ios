@@ -11,6 +11,7 @@ struct LikesListView: View {
 
     @State private var likers: [Components.Schemas.FriendUserDto] = []
     @State private var isLoading = false
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -56,7 +57,8 @@ struct LikesListView: View {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                 }
             }
-            .task {
+            .errorAlert($errorMessage)
+        .task {
                 await loadLikes()
             }
         }
@@ -69,6 +71,7 @@ struct LikesListView: View {
             likers = try await socialService.getLikes(tastingId: tastingId)
         } catch {
             Log.error("Failed to load likes", error: error)
+            errorMessage = "Failed to load likes."
         }
         isLoading = false
     }

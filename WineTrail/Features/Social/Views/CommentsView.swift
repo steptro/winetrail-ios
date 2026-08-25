@@ -15,6 +15,7 @@ struct CommentsView: View {
     @State private var currentPage = 0
     @State private var newComment = ""
     @State private var isSending = false
+    @State private var errorMessage: String?
     private let pageSize = 20
 
     var body: some View {
@@ -94,6 +95,7 @@ struct CommentsView: View {
                 }
             }
         }
+        .errorAlert($errorMessage)
         .task {
             await loadComments()
         }
@@ -147,6 +149,7 @@ struct CommentsView: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } catch {
             Log.error("Failed to delete comment", error: error)
+            errorMessage = "Failed to delete comment."
         }
     }
 
@@ -163,6 +166,7 @@ struct CommentsView: View {
             currentPage = 1
         } catch {
             Log.error("Failed to load comments", error: error)
+            errorMessage = "Failed to load comments."
         }
         isLoading = false
     }
@@ -177,6 +181,7 @@ struct CommentsView: View {
             currentPage += 1
         } catch {
             Log.error("Failed to load more comments", error: error)
+            errorMessage = "Failed to load more comments."
         }
         isLoading = false
     }
@@ -194,6 +199,7 @@ struct CommentsView: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } catch {
             Log.error("Failed to add comment", error: error)
+            errorMessage = "Failed to send comment. Please try again."
         }
 
         isSending = false
