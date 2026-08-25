@@ -70,13 +70,18 @@ struct CommentsView: View {
                         .padding(.vertical, 8)
                         .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
 
-                    Button {
-                        Task { await sendComment() }
-                    } label: {
-                        Image(systemName: "paperplane.fill")
-                            .foregroundStyle(newComment.isEmpty ? Color.secondary : Color.wineAccent)
+                    if isSending {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Button {
+                            Task { await sendComment() }
+                        } label: {
+                            Image(systemName: "paperplane.fill")
+                                .foregroundStyle(newComment.isEmpty ? Color.secondary : Color.wineAccent)
+                        }
+                        .disabled(newComment.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
-                    .disabled(newComment.trimmingCharacters(in: .whitespaces).isEmpty || isSending)
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
