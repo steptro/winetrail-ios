@@ -133,20 +133,28 @@ struct FriendsView: View {
 
     @ViewBuilder
     private func friendRow(_ friendship: Components.Schemas.FriendshipDto) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "person.circle.fill")
-                .font(.title2)
-                .foregroundStyle(.wineAccent)
+        NavigationLink {
+            UserProfileView(
+                userId: friendship.friend.id,
+                username: friendship.friend.username,
+                displayName: friendship.friend.displayName
+            )
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "person.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.wineAccent)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(friendship.friend.displayName ?? friendship.friend.username)
-                    .font(.body.weight(.medium))
-                Text("@\(friendship.friend.username)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(friendship.friend.displayName ?? friendship.friend.username)
+                        .font(.body.weight(.medium))
+                    Text("@\(friendship.friend.username)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
             }
-
-            Spacer()
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {

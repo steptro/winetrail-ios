@@ -142,4 +142,30 @@ final class SocialService {
             path: .init(commentId: commentId)
         )
     }
+
+    // MARK: - User Profile
+
+    /// Fetches a user's public profile with stats and friendship status.
+    func getUserProfile(userId: String) async throws -> Components.Schemas.PublicUserProfileDto {
+        let response = try await apiClient.client.getUserProfile(
+            path: .init(userId: userId)
+        )
+        return try response.ok.body.json
+    }
+
+    /// Fetches a user's tastings (requires friendship).
+    func getUserTastings(userId: String, page: Int = 0, size: Int = 20) async throws -> PagedResult<Components.Schemas.FeedJournalEntryDto> {
+        let response = try await apiClient.client.getUserTastings(
+            path: .init(userId: userId),
+            query: .init(page: Int32(page), size: Int32(size))
+        )
+        let dto = try response.ok.body.json
+        return PagedResult(
+            content: dto.content ?? [],
+            totalPages: Int(dto.page?.totalPages ?? 0),
+            totalElements: Int(dto.page?.totalElements ?? 0),
+            currentPage: Int(dto.page?.number ?? 0),
+            isLast: Int(dto.page?.number ?? 0) >= Int(dto.page?.totalPages ?? 1) - 1
+        )
+    }
 }

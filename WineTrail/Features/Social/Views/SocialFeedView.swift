@@ -127,11 +127,23 @@ struct SocialFeedPostView: View {
         VStack(alignment: .leading, spacing: 0) {
             // User + date (above photo, Instagram-style)
             HStack {
-                Image(systemName: "person.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                Text(post.user.displayName ?? post.user.username)
-                    .font(.subheadline.weight(.medium))
+                NavigationLink {
+                    UserProfileView(
+                        userId: post.user.id,
+                        username: post.user.username,
+                        displayName: post.user.displayName
+                    )
+                } label: {
+                    HStack {
+                        Image(systemName: "person.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                        Text(post.user.displayName ?? post.user.username)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
+                    }
+                }
+                .buttonStyle(.plain)
                 Spacer()
                 Text(timeAgo)
                     .font(.caption)
