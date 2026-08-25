@@ -115,6 +115,7 @@ struct SocialFeedPostView: View {
     let onLike: () async -> Void
     let onComment: () -> Void
     let onLikesCount: () -> Void
+    @State private var showHeartOverlay = false
 
     private var timeAgo: String {
         let formatter = RelativeDateTimeFormatter()
@@ -154,6 +155,28 @@ struct SocialFeedPostView: View {
                 }
                 .tabViewStyle(.page(indexDisplayMode: post.photos.count > 1 ? .automatic : .never))
                 .frame(height: 300)
+                .overlay {
+                    if showHeartOverlay {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 80))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.3), radius: 10)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .onTapGesture(count: 2) {
+                    Task {
+                        if !post.likedByMe {
+                            await onLike()
+                        }
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                            showHeartOverlay = true
+                        }
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        try? await Task.sleep(for: .milliseconds(800))
+                        withAnimation { showHeartOverlay = false }
+                    }
+                }
             } else {
                 WinePlaceholderView(color: post.wine.color, height: 120)
             }

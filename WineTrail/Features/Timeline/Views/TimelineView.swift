@@ -180,6 +180,7 @@ fileprivate struct FeedPostView: View {
     @State private var showComments = false
     @State private var likedByMe: Bool
     @State private var likeCount: Int
+    @State private var showHeartOverlay = false
 
     init(tasting: Tasting) {
         self.tasting = tasting
@@ -228,6 +229,43 @@ fileprivate struct FeedPostView: View {
             }
             Log.error("Failed to toggle like", error: error)
         }
+    }
+
+    private func doubleTapLike() async {
+        // Only like — don't unlike on double-tap (Instagram behavior)
+        guard !likedByMe else {
+            // Already liked — just show the heart animation
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                showHeartOverlay = true
+            }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            try? await Task.sleep(for: .milliseconds(800))
+            withAnimation { showHeartOverlay = false }
+            return
+        }
+
+        // Optimistic like
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+            likedByMe = true
+            likeCount += 1
+            showHeartOverlay = true
+        }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+
+        do {
+            try await socialService.likeTasting(tastingId: tasting.id)
+            WineAnalytics.logLike(tastingId: tasting.id)
+        } catch {
+            // Rollback
+            withAnimation {
+                likedByMe = false
+                likeCount = max(likeCount - 1, 0)
+            }
+            Log.error("Failed to like on double-tap", error: error)
+        }
+
+        try? await Task.sleep(for: .milliseconds(800))
+        withAnimation { showHeartOverlay = false }
     }
 
     private struct MetadataPill {
@@ -303,6 +341,19 @@ fileprivate struct FeedPostView: View {
                         .background(.black.opacity(0.4), in: Capsule())
                         .padding(.bottom, 10)
                     }
+                }
+                .overlay {
+                    // Double-tap heart animation
+                    if showHeartOverlay {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 80))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.3), radius: 10)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .onTapGesture(count: 2) {
+                    Task { await doubleTapLike() }
                 }
             } else {
                 // No photo placeholder
