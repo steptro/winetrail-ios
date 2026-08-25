@@ -33,6 +33,13 @@ struct UserProfileView: View {
         }
         .navigationTitle(displayName ?? "@\(username)")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                if let viewModel {
+                    friendshipToolbarItem(viewModel: viewModel)
+                }
+            }
+        }
         .task {
             if viewModel == nil {
                 viewModel = UserProfileViewModel(userId: userId, socialService: socialService)
@@ -52,13 +59,14 @@ struct UserProfileView: View {
                     .padding(.horizontal, Theme.spacing)
                 statsGrid(profile)
                     .padding(.horizontal, Theme.spacing)
-                friendshipButton(viewModel: viewModel)
-                    .padding(.horizontal, Theme.spacing)
 
                 if viewModel.isFriend {
                     tastingsSection(viewModel: viewModel)
                 } else if profile.friendshipStatus == .NONE {
-                    notFriendsPlaceholder
+                    notFriendsPlaceholder(viewModel: viewModel)
+                        .padding(.horizontal, Theme.spacing)
+                } else if viewModel.isPendingReceived {
+                    pendingReceivedPlaceholder(viewModel: viewModel)
                         .padding(.horizontal, Theme.spacing)
                 } else if viewModel.isPendingSent {
                     pendingSentPlaceholder
@@ -113,6 +121,15 @@ struct UserProfileView: View {
                 .font(Theme.subheadlineFont)
                 .foregroundStyle(.wineSecondaryText)
 
+            if profile.friendshipStatus == .FRIENDS {
+                Label("Friends", systemImage: "person.fill.checkmark")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.green)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(.green.opacity(0.12), in: Capsule())
+            }
+
             Text("Member since \(profile.memberSince.formatted(.dateTime.month(.wide).year()))")
                 .font(Theme.captionFont)
                 .foregroundStyle(.secondary)
@@ -120,106 +137,99 @@ struct UserProfileView: View {
         .padding(.top, Theme.spacing)
     }
 
-    // MARK: - Stats Grid
+    // MARK: - Stats
 
     @ViewBuilder
     private func statsGrid(_ profile: Components.Schemas.PublicUserProfileDto) -> some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible()),
-            GridItem(.flexible()),
-            GridItem(.flexible()),
-            GridItem(.flexible())
-        ], spacing: Theme.spacing) {
-            statItem(value: "\(profile.totalTastings)", label: "Tastings")
-            statItem(value: "\(profile.uniqueWines)", label: "Wines")
-            statItem(
+        HStack(spacing: 0) {
+            statCell(value: "\(profile.totalTastings)", label: "Wines")
+            Divider().frame(height: 32)
+            statCell(value: "\(profile.uniqueWines)", label: "Unique")
+            Divider().frame(height: 32)
+            statCell(
                 value: profile.averageRating.map { String(format: "%.1f", $0) } ?? "—",
                 label: "Avg Rating"
             )
-            statItem(value: "\(profile.friendCount)", label: "Friends")
+            Divider().frame(height: 32)
+            statCell(value: "\(profile.friendCount)", label: "Friends")
         }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
     }
 
     @ViewBuilder
-    private func statItem(value: String, label: String) -> some View {
+    private func statCell(value: String, label: String) -> some View {
         VStack(spacing: 4) {
             Text(value)
                 .font(.title3.weight(.bold))
-                .foregroundStyle(.wineAccent)
+                .foregroundStyle(.wineText)
+                .contentTransition(.numericText())
+
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Friendship Button
+    // MARK: - Friendship Toolbar Item
 
     @ViewBuilder
-    private func friendshipButton(viewModel: UserProfileViewModel) -> some View {
-        Group {
-            switch viewModel.profile?.friendshipStatus {
-            case .NONE:
+    private func friendshipToolbarItem(viewModel: UserProfileViewModel) -> some View {
+        switch viewModel.profile?.friendshipStatus {
+        case .NONE:
+            if viewModel.isSendingRequest {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
                 Button {
                     Task { await viewModel.sendFriendRequest() }
                 } label: {
-                    Label("Add Friend", systemImage: "person.badge.plus")
-                        .frame(maxWidth: .infinity)
+                    Image(systemName: "person.badge.plus")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.wineAccent)
-                .disabled(viewModel.isSendingRequest)
+            }
 
-            case .PENDING_RECEIVED:
-                HStack(spacing: Theme.spacing) {
-                    Button {
-                        Task { await viewModel.acceptFriendRequest() }
-                    } label: {
-                        Label("Accept", systemImage: "checkmark")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.green)
-
-                    Button(role: .destructive) {
-                        Task { await viewModel.removeFriend() }
-                    } label: {
-                        Label("Decline", systemImage: "xmark")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                }
-                .disabled(viewModel.isSendingRequest)
-
-            case .PENDING_SENT:
+        case .PENDING_RECEIVED:
+            Menu {
                 Button {
+                    Task { await viewModel.acceptFriendRequest() }
+                } label: {
+                    Label("Accept Request", systemImage: "checkmark")
+                }
+                Button(role: .destructive) {
                     Task { await viewModel.removeFriend() }
                 } label: {
-                    Label("Request Sent", systemImage: "clock")
-                        .frame(maxWidth: .infinity)
+                    Label("Decline", systemImage: "xmark")
                 }
-                .buttonStyle(.bordered)
-                .tint(.orange)
-                .disabled(viewModel.isSendingRequest)
-
-            case .FRIENDS:
-                Menu {
-                    Button(role: .destructive) {
-                        showRemoveConfirmation = true
-                    } label: {
-                        Label("Remove Friend", systemImage: "person.badge.minus")
-                    }
-                } label: {
-                    Label("Friends", systemImage: "person.fill.checkmark")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.green)
-
-            case nil:
-                EmptyView()
+            } label: {
+                Image(systemName: "person.badge.clock")
+                    .symbolRenderingMode(.multicolor)
             }
+
+        case .PENDING_SENT:
+            Menu {
+                Button(role: .destructive) {
+                    Task { await viewModel.removeFriend() }
+                } label: {
+                    Label("Cancel Request", systemImage: "xmark")
+                }
+            } label: {
+                Image(systemName: "clock")
+                    .foregroundStyle(.orange)
+            }
+
+        case .FRIENDS:
+            Menu {
+                Button(role: .destructive) {
+                    showRemoveConfirmation = true
+                } label: {
+                    Label("Remove Friend", systemImage: "person.badge.minus")
+                }
+            } label: {
+                Image(systemName: "person.fill.checkmark")
+                    .foregroundStyle(.green)
+            }
+
+        case nil:
+            EmptyView()
         }
     }
 
@@ -266,14 +276,62 @@ struct UserProfileView: View {
 
     // MARK: - Placeholders
 
-    private var notFriendsPlaceholder: some View {
-        VStack(spacing: Theme.smallSpacing) {
+    private func notFriendsPlaceholder(viewModel: UserProfileViewModel) -> some View {
+        VStack(spacing: Theme.spacing) {
             Image(systemName: "lock.fill")
                 .font(.title)
                 .foregroundStyle(.secondary)
             Text("Add as a friend to see their tastings")
                 .font(Theme.captionFont)
                 .foregroundStyle(.secondary)
+
+            if viewModel.isSendingRequest {
+                ProgressView()
+                    .controlSize(.regular)
+            } else {
+                Button {
+                    Task { await viewModel.sendFriendRequest() }
+                } label: {
+                    Label("Add Friend", systemImage: "person.badge.plus")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.wineAccent)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, Theme.largeSpacing)
+    }
+
+    private func pendingReceivedPlaceholder(viewModel: UserProfileViewModel) -> some View {
+        VStack(spacing: Theme.spacing) {
+            Image(systemName: "person.badge.clock")
+                .font(.title)
+                .foregroundStyle(.secondary)
+            Text("Wants to be your friend")
+                .font(Theme.captionFont)
+                .foregroundStyle(.secondary)
+
+            if viewModel.isSendingRequest {
+                ProgressView()
+                    .controlSize(.regular)
+            } else {
+                HStack(spacing: Theme.smallSpacing) {
+                    Button {
+                        Task { await viewModel.acceptFriendRequest() }
+                    } label: {
+                        Label("Accept", systemImage: "checkmark")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.green)
+
+                    Button(role: .destructive) {
+                        Task { await viewModel.removeFriend() }
+                    } label: {
+                        Label("Decline", systemImage: "xmark")
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Theme.largeSpacing)

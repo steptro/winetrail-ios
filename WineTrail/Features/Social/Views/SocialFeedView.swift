@@ -18,7 +18,7 @@ struct SocialFeedView: View {
                             icon: "person.2",
                             title: "No Friends Yet",
                             message: "Add friends to see their wine tastings here.",
-                            actionTitle: "Add Friends",
+                            actionLabel: Label("Add Friends", systemImage: "plus"),
                             action: { showAddFriend = true }
                         )
                     }

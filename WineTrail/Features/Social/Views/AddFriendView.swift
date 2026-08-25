@@ -39,7 +39,7 @@ struct AddFriendView: View {
                 }
             }
             .listStyle(.plain)
-            .searchable(text: $query, prompt: "Search by username or name")
+            .searchable(text: $query, isPresented: .constant(true), prompt: "Search by username or name")
             .onChange(of: query) { _, newValue in
                 performSearch(query: newValue)
             }
@@ -52,6 +52,9 @@ struct AddFriendView: View {
             }
             .task {
                 await loadExistingFriends()
+            }
+            .onAppear {
+                Task { await loadExistingFriends() }
             }
             .errorAlert($errorMessage)
         }
@@ -91,41 +94,49 @@ struct AddFriendView: View {
 
     @ViewBuilder
     private func userRow(_ user: Components.Schemas.FriendUserDto) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "person.circle.fill")
-                .font(.title2)
-                .foregroundStyle(.secondary)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(user.displayName ?? user.username)
-                    .font(.body.weight(.medium))
-                Text("@\(user.username)")
-                    .font(.caption)
+        NavigationLink {
+            UserProfileView(
+                userId: user.id,
+                username: user.username,
+                displayName: user.displayName
+            )
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "person.circle.fill")
+                    .font(.title2)
                     .foregroundStyle(.secondary)
-            }
 
-            Spacer()
-
-            if existingFriendIds.contains(user.id) {
-                Label("Friends", systemImage: "person.fill.checkmark")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if sentRequests.contains(user.id) {
-                Label("Sent", systemImage: "checkmark")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-            } else if sendingRequests.contains(user.id) {
-                ProgressView()
-                    .controlSize(.small)
-            } else {
-                Button {
-                    Task { await sendRequest(to: user) }
-                } label: {
-                    Image(systemName: "person.badge.plus")
-                        .font(.title2)
-                        .foregroundStyle(.wineAccent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(user.displayName ?? user.username)
+                        .font(.body.weight(.medium))
+                    Text("@\(user.username)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
+
+                Spacer()
+
+                if existingFriendIds.contains(user.id) {
+                    Label("Friends", systemImage: "person.fill.checkmark")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if sentRequests.contains(user.id) {
+                    Label("Sent", systemImage: "checkmark")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                } else if sendingRequests.contains(user.id) {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Button {
+                        Task { await sendRequest(to: user) }
+                    } label: {
+                        Image(systemName: "person.badge.plus")
+                            .font(.title2)
+                            .foregroundStyle(.wineAccent)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }
@@ -148,8 +159,12 @@ struct AddFriendView: View {
 
     private func loadExistingFriends() async {
         do {
-            let friends = try await socialService.getFriends()
+            async let friendsResult = socialService.getFriends()
+            async let outgoingResult = socialService.getOutgoingRequests()
+            let friends = try await friendsResult
+            let outgoing = try await outgoingResult
             existingFriendIds = Set(friends.map { $0.friend.id })
+            sentRequests = Set(outgoing.map { $0.friend.id })
         } catch {
             Log.error("Failed to load friends list", error: error)
         }
