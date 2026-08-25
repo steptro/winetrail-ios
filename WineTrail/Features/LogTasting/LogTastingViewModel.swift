@@ -1,11 +1,13 @@
 import Foundation
 import UIKit
 import Observation
+import CoreLocation
+import Combine
 
 /// ViewModel for the Log Tasting feature.
 ///
 /// Manages debounced wine search (300ms), form state for all tasting fields,
-/// and the save flow (validate → create tasting → upload photos).
+/// recent wines, auto-location detection, and the save flow (validate → create tasting → upload photos).
 @MainActor @Observable
 final class LogTastingViewModel {
     private let wineService: WineService
@@ -37,6 +39,10 @@ final class LogTastingViewModel {
     var hasSearched = false
 
     private var searchTask: Task<Void, Never>?
+    // MARK: - Recent Wines
+
+    /// The last 5 unique wines the user logged, loaded on init.
+    var recentWines: [WineSearch] = []
 
     // MARK: - Form State
 
@@ -58,16 +64,13 @@ final class LogTastingViewModel {
     /// Currency code (ISO 4217). Defaults to EUR.
     var currency: String = "EUR"
 
-    /// Optional vintage year text (parsed to Int32 on save).
+    /// Vintage year as text input (parsed to Int32 on save).
     var vintageText: String = ""
-
-    /// Optional vintage year selected from picker.
-    var vintageYear: Int?
 
     /// Optional location name (manual entry).
     var locationName: String = ""
 
-    /// Whether to capture GPS coordinates on save.
+    /// Whether to capture GPS coordinates on save. Defaults to true if auto-detected.
     var useGPS = false
 
     /// Date of the tasting (defaults to today).
@@ -75,6 +78,13 @@ final class LogTastingViewModel {
 
     /// Photos selected by the user for upload.
     var selectedImages: [UIImage] = []
+
+    // MARK: - Location State
+
+    /// Auto-detected GPS coordinate from background location fetch.
+    var autoDetectedCoordinate: CLLocationCoordinate2D?
+
+    private var locationTask: Task<Void, Never>?
 
     // MARK: - UI State
 
@@ -92,6 +102,13 @@ final class LogTastingViewModel {
         selectedWine != nil && !isSaving
     }
 
+    /// Clears the auto-detected location and disables GPS.
+    func clearAutoDetectedLocation() {
+        autoDetectedCoordinate = nil
+        useGPS = false
+        locationTask?.cancel()
+    }
+
     // MARK: - Initialization
 
     init(
@@ -104,6 +121,63 @@ final class LogTastingViewModel {
         self.journalService = journalService
         self.photoService = photoService
         self.locationService = locationService
+
+        // Load recent wines on init
+        Task {
+            await loadRecentWines()
+        }
+
+        // Start auto-location detection if permission is granted
+        startAutoLocationDetection()
+    }
+
+    // MARK: - Recent Wines
+
+    /// Fetches the last 5 unique wines from the journal timeline.
+    func loadRecentWines() async {
+        do {
+            let timeline = try await journalService.getTimeline(page: 0, size: 10)
+            var seen = Set<String>()
+            var unique: [WineSearch] = []
+            for tasting in timeline.content {
+                let key = tasting.wine.id
+                guard !seen.contains(key) else { continue }
+                seen.insert(key)
+                unique.append(WineSearch(
+                    wineId: tasting.wine.id,
+                    name: tasting.wine.name,
+                    producer: tasting.wine.producer,
+                    region: tasting.wine.regionName,
+                    country: tasting.wine.country,
+                    color: tasting.wine.color
+                ))
+                if unique.count >= 5 { break }
+            }
+            recentWines = unique
+        } catch {
+            Log.error("Failed to load recent wines", error: error)
+        }
+    }
+
+    // MARK: - Auto Location Detection
+
+    /// Starts background GPS fetch if location permission is already granted.
+    private func startAutoLocationDetection() {
+        let status = locationService.authorizationStatus
+        guard status == .authorizedWhenInUse || status == .authorizedAlways else { return }
+
+        // Default to using location when permission is available
+        useGPS = true
+
+        locationTask = Task {
+            do {
+                let coord = try await locationService.getCurrentLocation()
+                guard !Task.isCancelled else { return }
+                autoDetectedCoordinate = coord
+            } catch {
+                Log.error("Auto location detection failed", error: error)
+            }
+        }
     }
 
     // MARK: - Wine Search
@@ -187,14 +261,26 @@ final class LogTastingViewModel {
         error = nil
 
         do {
-            // Resolve GPS coordinates if enabled
+            // Resolve GPS coordinates
             var latitude: Double?
             var longitude: Double?
             if useGPS {
-                let coord = try await locationService.getCurrentLocation()
-                latitude = coord.latitude
-                longitude = coord.longitude
+                if let autoCoord = autoDetectedCoordinate {
+                    latitude = autoCoord.latitude
+                    longitude = autoCoord.longitude
+                } else {
+                    let coord = try await locationService.getCurrentLocation()
+                    latitude = coord.latitude
+                    longitude = coord.longitude
+                }
             }
+
+            // Parse vintage from text
+            let parsedVintage: Int32? = {
+                let trimmed = vintageText.trimmingCharacters(in: .whitespaces)
+                guard let value = Int(trimmed) else { return nil }
+                return Int32(value)
+            }()
 
             // Format tasting date as yyyy-MM-dd
             let dateFormatter = DateFormatter()
@@ -216,7 +302,7 @@ final class LogTastingViewModel {
                 longitude: longitude,
                 locationName: locationName.isEmpty ? nil : locationName,
                 tastingDate: dateFormatter.string(from: tastingDate),
-                vintage: vintageYear.map { Int32($0) }
+                vintage: parsedVintage
             )
 
             // Create the tasting

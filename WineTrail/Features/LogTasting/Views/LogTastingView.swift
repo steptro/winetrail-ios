@@ -2,7 +2,7 @@ import SwiftUI
 
 /// New Wine wizard — a step-by-step flow for recording a wine tasting.
 ///
-/// Steps: Wine → Rating → Details → Location.
+/// Steps: Wine & Rating → Details → Location.
 /// The user can save at any step once a wine is selected (the only required field).
 /// Dark, warm premium design with glass card surfaces.
 struct LogTastingView: View {
@@ -16,34 +16,25 @@ struct LogTastingView: View {
     var preselectedWine: WineSearch?
 
     @State private var viewModel: LogTastingViewModel?
-    @State private var currentStep: WizardStep = .wine
+    @State private var currentStep: WizardStep = .wineAndRating
     @State private var shakeWineSection = false
     @State private var showCheers = false
 
     enum WizardStep: Int, CaseIterable {
-        case wine = 0
-        case rating = 1
-        case photo = 2
-        case details = 3
-        case location = 4
+        case wineAndRating = 0
+        case details = 1
 
         var title: String {
             switch self {
-            case .wine: "Wine"
-            case .rating: "Rating"
-            case .photo: "Photo"
+            case .wineAndRating: "Wine & Rating"
             case .details: "Details"
-            case .location: "Location"
             }
         }
 
         var question: String {
             switch self {
-            case .wine: "Which wine did you have?"
-            case .rating: "How was it?"
-            case .photo: "Got a photo?"
-            case .details: "What else stood out?"
-            case .location: "Where were you?"
+            case .wineAndRating: "Which wine did you have?"
+            case .details: "Capture the moment"
             }
         }
 
@@ -115,7 +106,6 @@ struct LogTastingView: View {
                 )
                 if let preselectedWine {
                     vm.selectWine(preselectedWine)
-                    currentStep = .rating
                 }
                 viewModel = vm
             }
@@ -202,7 +192,7 @@ struct LogTastingView: View {
             get: { currentStep },
             set: { newStep in
                 // Prevent swiping past step 1 without selecting a wine
-                if currentStep == .wine && newStep.rawValue > WizardStep.wine.rawValue && viewModel.selectedWine == nil {
+                if currentStep == .wineAndRating && newStep.rawValue > WizardStep.wineAndRating.rawValue && viewModel.selectedWine == nil {
                     withAnimation(.default) { shakeWineSection = true }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                         shakeWineSection = false
@@ -213,16 +203,10 @@ struct LogTastingView: View {
                 currentStep = newStep
             }
         )) {
-            wineStep(viewModel: viewModel)
-                .tag(WizardStep.wine)
-            ratingStep(viewModel: viewModel)
-                .tag(WizardStep.rating)
-            photoStep(viewModel: viewModel)
-                .tag(WizardStep.photo)
+            wineAndRatingStep(viewModel: viewModel)
+                .tag(WizardStep.wineAndRating)
             detailsStep(viewModel: viewModel)
                 .tag(WizardStep.details)
-            locationStep(viewModel: viewModel)
-                .tag(WizardStep.location)
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .animation(.easeInOut(duration: 0.25), value: currentStep)
@@ -278,7 +262,7 @@ struct LogTastingView: View {
     // MARK: - Navigation Helpers
 
     private func attemptNext(viewModel: LogTastingViewModel, next: WizardStep) {
-        if currentStep == .wine && viewModel.selectedWine == nil {
+        if currentStep == .wineAndRating && viewModel.selectedWine == nil {
             withAnimation(.default) { shakeWineSection = true }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 shakeWineSection = false
@@ -317,75 +301,105 @@ struct LogTastingView: View {
         return result
     }
 
-    // MARK: - Step 1: Wine
+    // MARK: - Step 1: Wine & Rating
 
     @ViewBuilder
-    private func wineStep(viewModel: LogTastingViewModel) -> some View {
+    private func wineAndRatingStep(viewModel: LogTastingViewModel) -> some View {
         @Bindable var vm = viewModel
-        Form {
-            if let wine = viewModel.selectedWine {
-                Section {
-                    selectedWineRow(wine: wine, viewModel: viewModel)
-                }
-
-                Section("Vintage") {
-                    Picker("Vintage", selection: $vm.vintageYear) {
-                        Text("None").tag(nil as Int?)
-                        ForEach((1900...Calendar.current.component(.year, from: Date())).reversed(), id: \.self) { year in
-                            Text(String(year)).tag(year as Int?)
-                        }
-                    }
-                    .tint(.wineAccent)
-                }
-            } else {
-                Section {
-                    HStack {
-                        TextField("Search wines...", text: $vm.searchQuery)
-                            .autocorrectionDisabled()
-                            .onSubmit { viewModel.search() }
-                        Button {
-                            viewModel.search()
-                        } label: {
-                            Image(systemName: "magnifyingglass")
-                        }
-                        .disabled(viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
-                }
-
-                if viewModel.isSearching {
-                    Section {
-                        HStack {
-                            ProgressView()
-                                .controlSize(.small)
-                            Text("Searching...")
-                                .font(Theme.captionFont)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                if !viewModel.searchResults.isEmpty {
-                    Section("Results") {
-                        ForEach(viewModel.searchResults, id: \.name) { wine in
-                            Button {
-                                viewModel.selectWine(wine)
-                            } label: {
-                                wineResultRow(wine: wine)
+        ScrollView {
+            VStack(spacing: 20) {
+                // Wine selection section
+                glassCard {
+                    if let wine = viewModel.selectedWine {
+                        selectedWineRow(wine: wine, viewModel: viewModel)
+                    } else {
+                        VStack(spacing: 12) {
+                            HStack {
+                                TextField("Search wines...", text: $vm.searchQuery)
+                                    .autocorrectionDisabled()
+                                    .onSubmit { viewModel.search() }
+                                Button {
+                                    viewModel.search()
+                                } label: {
+                                    Image(systemName: "magnifyingglass")
+                                }
+                                .disabled(viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty)
                             }
-                            .buttonStyle(.plain)
+
+                            if viewModel.isSearching {
+                                HStack {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Searching...")
+                                        .font(Theme.captionFont)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            // Recent wines section
+                            if !viewModel.recentWines.isEmpty && viewModel.searchResults.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    sectionLabel("Recent")
+                                    ForEach(viewModel.recentWines, id: \.name) { wine in
+                                        Button {
+                                            viewModel.selectWine(wine)
+                                        } label: {
+                                            wineResultRow(wine: wine)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+
+                            // Search results
+                            if !viewModel.searchResults.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    sectionLabel("Results")
+                                    ForEach(viewModel.searchResults, id: \.name) { wine in
+                                        Button {
+                                            viewModel.selectWine(wine)
+                                        } label: {
+                                            wineResultRow(wine: wine)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+
+                            NavigationLink {
+                                CreateWineView(selectedWine: $vm.selectedWine, selectedWineId: $vm.selectedWineId)
+                            } label: {
+                                Label("Create wine manually", systemImage: "plus.circle")
+                                    .foregroundStyle(.wineAccent)
+                            }
                         }
                     }
                 }
 
-                Section {
-                    NavigationLink {
-                        CreateWineView(selectedWine: $vm.selectedWine, selectedWineId: $vm.selectedWineId)
-                    } label: {
-                        Label("Create wine manually", systemImage: "plus.circle")
-                            .foregroundStyle(.wineAccent)
+                // Rating section (shown once wine is selected)
+                if viewModel.selectedWine != nil {
+                    VStack(spacing: Theme.spacing) {
+                        sectionLabel("Rating")
+
+                        RatingView(rating: viewModel.rating, ratingBinding: $vm.rating, starSize: .title)
+
+                        WineBottleSlider(rating: $vm.rating)
+                            .frame(width: 70, height: 220)
+                            .padding(.vertical, 4)
+
+                        Text("Drag to rate")
+                            .font(Theme.captionFont)
+                            .foregroundStyle(.secondary)
+
+                        Image(systemName: "arrow.up.and.down")
+                            .font(.caption)
+                            .foregroundStyle(.wineAccent.opacity(0.6))
                     }
+                    .frame(maxWidth: .infinity)
                 }
             }
+            .padding(.horizontal)
+            .padding(.top, 12)
         }
         .tint(.wineAccent)
         .offset(x: shakeWineSection ? -8 : 0)
@@ -397,59 +411,22 @@ struct LogTastingView: View {
         )
     }
 
-    // MARK: - Step 2: Rating
-
-    @ViewBuilder
-    private func ratingStep(viewModel: LogTastingViewModel) -> some View {
-        @Bindable var vm = viewModel
-        VStack(spacing: Theme.spacing) {
-            // Interactive star display
-            RatingView(rating: viewModel.rating, ratingBinding: $vm.rating, starSize: .title)
-                .padding(.top, 12)
-
-            // Wine bottle vertical slider
-            WineBottleSlider(rating: $vm.rating)
-                .frame(width: 70, height: 260)
-                .padding(.vertical, 8)
-
-            Text("Drag to rate")
-                .font(Theme.captionFont)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .contain)
-    }
-
-    // MARK: - Step 3: Photo
-
-    @ViewBuilder
-    private func photoStep(viewModel: LogTastingViewModel) -> some View {
-        @Bindable var vm = viewModel
-        ScrollView {
-            VStack(spacing: 16) {
-                glassCard {
-                    PhotoPickerView(selectedImages: $vm.selectedImages)
-                }
-
-                if viewModel.selectedImages.isEmpty {
-                    Text("You can skip this step — photos are optional.")
-                        .font(Theme.captionFont)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 8)
-                }
-            }
-            .padding(.horizontal)
-            .padding(.top, 12)
-        }
-    }
-
-    // MARK: - Step 4: Details
+    // MARK: - Step 2: Details (Photo + Notes/Food/Occasion/Price/Date/Vintage)
 
     @ViewBuilder
     private func detailsStep(viewModel: LogTastingViewModel) -> some View {
         @Bindable var vm = viewModel
         Form {
+            // Photo section
+            Section("Photo") {
+                PhotoPickerView(selectedImages: $vm.selectedImages)
+            }
+
+            Section("Vintage") {
+                TextField("2024", text: $vm.vintageText)
+                    .keyboardType(.numberPad)
+            }
+
             Section("Notes") {
                 TextField("Notes", text: $vm.notes, axis: .vertical)
                     .lineLimit(3...6)
@@ -472,6 +449,11 @@ struct LogTastingView: View {
                         Text("USD").tag("USD")
                         Text("GBP").tag("GBP")
                         Text("CHF").tag("CHF")
+                        Text("AUD").tag("AUD")
+                        Text("CAD").tag("CAD")
+                        Text("NZD").tag("NZD")
+                        Text("JPY").tag("JPY")
+                        Text("ZAR").tag("ZAR")
                     }
                     .pickerStyle(.menu)
                     .tint(.wineAccent)
@@ -481,16 +463,8 @@ struct LogTastingView: View {
                 DatePicker("Date", selection: $vm.tastingDate, in: ...Date(), displayedComponents: .date)
                     .tint(.wineAccent)
             }
-        }
-        .tint(.wineAccent)
-    }
 
-    // MARK: - Step 5: Location
-
-    @ViewBuilder
-    private func locationStep(viewModel: LogTastingViewModel) -> some View {
-        @Bindable var vm = viewModel
-        Form {
+            // Location section
             Section("Location") {
                 if locationService.authorizationStatus == .authorizedWhenInUse ||
                    locationService.authorizationStatus == .authorizedAlways {
@@ -508,6 +482,7 @@ struct LogTastingView: View {
                         .font(Theme.captionFont)
                         .foregroundStyle(.secondary)
                 }
+
                 TextField("Location name", text: $vm.locationName)
             }
         }

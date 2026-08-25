@@ -3,9 +3,8 @@ import PhotosUI
 
 /// Photo selection component for the Log Tasting flow.
 ///
-/// Supports selecting from the photo library OR taking a new photo with the camera.
-/// Displays selected photos in a horizontal scroll view, enforces a maximum of 5 photos,
-/// and provides add/remove functionality.
+/// Two prominent action buttons (Take Photo + Choose from Library), a photo count indicator,
+/// and a horizontal scroll of selected photo thumbnails with remove buttons.
 struct PhotoPickerView: View {
     /// Binding to the view model's selected images array.
     @Binding var selectedImages: [UIImage]
@@ -29,8 +28,28 @@ struct PhotoPickerView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.smallSpacing) {
-            headerView
+        VStack(alignment: .leading, spacing: Theme.spacing) {
+            if canAddMore {
+                actionButtons
+            }
+
+            // Photo count
+            Label(
+                "\(totalPhotoCount)/\(maxPhotos) photos",
+                systemImage: "photo.on.rectangle"
+            )
+            .font(Theme.captionFont)
+            .foregroundStyle(.secondary)
+
+            if isLoadingPhotos {
+                HStack(spacing: Theme.smallSpacing) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Loading photos...")
+                        .font(Theme.captionFont)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             if !selectedImages.isEmpty {
                 selectedPhotosScroll
@@ -46,51 +65,40 @@ struct PhotoPickerView: View {
         }
     }
 
-    // MARK: - Header with Add Buttons
+    // MARK: - Action Buttons
 
     @ViewBuilder
-    private var headerView: some View {
-        HStack {
-            Label(
-                "\(totalPhotoCount)/\(maxPhotos) photos",
-                systemImage: "photo.on.rectangle"
-            )
-            .font(Theme.captionFont)
-            .foregroundStyle(.secondary)
-
-            Spacer()
-
-            if canAddMore {
-                Button {
-                    showCamera = true
-                } label: {
-                    Label("Camera", systemImage: "camera")
-                        .font(Theme.captionFont)
-                        .foregroundStyle(.wineAccent)
-                }
-
-                PhotosPicker(
-                    selection: $photoPickerItems,
-                    maxSelectionCount: maxPhotos - totalPhotoCount,
-                    matching: .images
-                ) {
-                    Label("Library", systemImage: "photo")
-                        .font(Theme.captionFont)
-                        .foregroundStyle(.wineAccent)
-                }
-                .onChange(of: photoPickerItems) { _, newItems in
-                    Task { await loadPhotos(from: newItems) }
-                }
+    private var actionButtons: some View {
+        HStack(spacing: Theme.smallSpacing) {
+            // Take Photo button
+            Button {
+                showCamera = true
+            } label: {
+                Label("Take Photo", systemImage: "camera.fill")
+                    .labelStyle(.titleAndIcon)
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
             }
-        }
+            .buttonStyle(.borderedProminent)
+            .tint(.wineAccent)
 
-        if isLoadingPhotos {
-            HStack(spacing: Theme.smallSpacing) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Loading photos...")
-                    .font(Theme.captionFont)
-                    .foregroundStyle(.secondary)
+            // Choose from Library button
+            PhotosPicker(
+                selection: $photoPickerItems,
+                maxSelectionCount: maxPhotos - totalPhotoCount,
+                matching: .images
+            ) {
+                Label("Library", systemImage: "photo.on.rectangle")
+                    .labelStyle(.titleAndIcon)
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+            }
+            .buttonStyle(.bordered)
+            .tint(.wineAccent)
+            .onChange(of: photoPickerItems) { _, newItems in
+                Task { await loadPhotos(from: newItems) }
             }
         }
     }

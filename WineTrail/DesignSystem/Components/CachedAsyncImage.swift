@@ -1,4 +1,5 @@
 import SwiftUI
+import CryptoKit
 
 /// A drop-in replacement for `AsyncImage` with in-memory and disk caching.
 /// Avoids reloading photos every time the user scrolls past a cell.
@@ -78,6 +79,7 @@ final class ImageCache: @unchecked Sendable {
 
     private let memoryCache = NSCache<NSString, UIImage>()
     private let diskCacheURL: URL
+    private static let cacheVersion = 3 // Increment to invalidate stale cache
 
     private init() {
         memoryCache.countLimit = 100
@@ -86,15 +88,23 @@ final class ImageCache: @unchecked Sendable {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         diskCacheURL = caches.appendingPathComponent("ImageCache", isDirectory: true)
         try? FileManager.default.createDirectory(at: diskCacheURL, withIntermediateDirectories: true)
+
+        // Clear stale cache if version changed
+        let versionKey = "ImageCacheVersion"
+        let storedVersion = UserDefaults.standard.integer(forKey: versionKey)
+        if storedVersion < Self.cacheVersion {
+            clearDiskCache()
+            UserDefaults.standard.set(Self.cacheVersion, forKey: versionKey)
+        }
     }
 
     func get(for url: URL) -> UIImage? {
-        memoryCache.object(forKey: url.absoluteString as NSString)
+        memoryCache.object(forKey: url.path as NSString)
     }
 
     func set(_ image: UIImage, for url: URL) {
         let cost = image.pngData()?.count ?? 0
-        memoryCache.setObject(image, forKey: url.absoluteString as NSString, cost: cost)
+        memoryCache.setObject(image, forKey: url.path as NSString, cost: cost)
     }
 
     func getFromDisk(for url: URL) async -> UIImage? {
@@ -108,11 +118,18 @@ final class ImageCache: @unchecked Sendable {
         try? data.write(to: fileURL, options: .atomic)
     }
 
+    private func clearDiskCache() {
+        try? FileManager.default.removeItem(at: diskCacheURL)
+        try? FileManager.default.createDirectory(at: diskCacheURL, withIntermediateDirectories: true)
+        memoryCache.removeAllObjects()
+    }
+
     private func diskFileURL(for url: URL) -> URL {
-        let hash = url.absoluteString.data(using: .utf8)!
-            .base64EncodedString()
-            .replacingOccurrences(of: "/", with: "_")
-            .prefix(64)
-        return diskCacheURL.appendingPathComponent(String(hash))
+        // Use the path component as cache key (presigned URL query params change on every request)
+        // SHA256 ensures unique, fixed-length keys regardless of path length
+        let cacheKey = url.path
+        let digest = SHA256.hash(data: Data(cacheKey.utf8))
+        let hexString = digest.map { String(format: "%02x", $0) }.joined()
+        return diskCacheURL.appendingPathComponent(hexString)
     }
 }

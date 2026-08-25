@@ -1,9 +1,10 @@
 import SwiftUI
+import PhotosUI
 import OpenAPIRuntime
 
-/// Edit an existing tasting entry using the same wizard layout as LogTastingView.
+/// Edit an existing tasting entry using a 3-step wizard layout matching LogTastingView.
 ///
-/// Pre-fills all steps with the tasting's current data. The wine step is read-only
+/// Pre-fills all steps with the tasting's current data. The wine display is read-only
 /// (can't change the wine). On save, sends an `UpdateTastingRequest`.
 struct EditTastingView: View {
     @Environment(\.dismiss) private var dismiss
@@ -23,39 +24,31 @@ struct EditTastingView: View {
     @State private var currency: String
     @State private var locationName: String
     @State private var tastingDate: Date
-    @State private var vintageYear: Int?
+    @State private var vintageText: String
     @State private var useGPS: Bool
     @State private var selectedImages: [UIImage] = []
     @State private var photosToDelete: Set<String> = []
+    @State private var autoDetectedLocation: String?
 
     @State private var isSaving = false
     @State private var error: String?
-    @State private var currentStep: WizardStep = .wine
+    @State private var currentStep: WizardStep = .wineAndRating
 
     enum WizardStep: Int, CaseIterable {
-        case wine = 0
-        case rating = 1
-        case photo = 2
-        case details = 3
-        case location = 4
+        case wineAndRating = 0
+        case details = 1
 
         var title: String {
             switch self {
-            case .wine: "Wine"
-            case .rating: "Rating"
-            case .photo: "Photo"
+            case .wineAndRating: "Wine & Rating"
             case .details: "Details"
-            case .location: "Location"
             }
         }
 
         var question: String {
             switch self {
-            case .wine: "Your wine"
-            case .rating: "How was it?"
-            case .photo: "Got a photo?"
-            case .details: "What else stood out?"
-            case .location: "Where were you?"
+            case .wineAndRating: "Which wine did you have?"
+            case .details: "Capture the moment"
             }
         }
 
@@ -75,25 +68,30 @@ struct EditTastingView: View {
         _currency = State(initialValue: tasting.currency ?? "EUR")
         _locationName = State(initialValue: tasting.location?.locationName ?? "")
         _tastingDate = State(initialValue: Self.parseDate(tasting.tastingDate) ?? Date())
-        _vintageYear = State(initialValue: tasting.vintage.map { Int($0) })
+        _vintageText = State(initialValue: tasting.vintage.map { String($0) } ?? "")
         _useGPS = State(initialValue: false)
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Progress bar
-            stepProgressBar
+        ZStack {
+            Color(.systemGroupedBackground)
+                .ignoresSafeArea()
 
-            // Question title
-            stepHeader
+            VStack(spacing: 0) {
+                // Progress bar
+                stepProgressBar
 
-            // Step content
-            stepContent
+                // Question title
+                stepHeader
 
-            Spacer(minLength: 0)
+                // Step content
+                stepContent
 
-            // Bottom buttons
-            bottomButtons
+                Spacer(minLength: 0)
+
+                // Bottom buttons
+                bottomButtons
+            }
         }
         .navigationTitle("Edit Entry")
         .navigationBarTitleDisplayMode(.inline)
@@ -116,6 +114,9 @@ struct EditTastingView: View {
             }
         }
         .errorAlert($error)
+        .task {
+            await autoDetectLocationIfNeeded()
+        }
     }
 
     // MARK: - Step Progress Bar
@@ -163,11 +164,8 @@ struct EditTastingView: View {
     @ViewBuilder
     private var stepContent: some View {
         TabView(selection: $currentStep) {
-            wineStep.tag(WizardStep.wine)
-            ratingStep.tag(WizardStep.rating)
-            photoStep.tag(WizardStep.photo)
+            wineAndRatingStep.tag(WizardStep.wineAndRating)
             detailsStep.tag(WizardStep.details)
-            locationStep.tag(WizardStep.location)
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .animation(.easeInOut(duration: 0.25), value: currentStep)
@@ -222,15 +220,16 @@ struct EditTastingView: View {
         .padding(.bottom, 16)
     }
 
-    // MARK: - Step 1: Wine (Read-only)
+    // MARK: - Step 1: Wine & Rating
 
     @ViewBuilder
-    private var wineStep: some View {
-        Form {
-            Section {
-                HStack(spacing: 10) {
+    private var wineAndRatingStep: some View {
+        ScrollView {
+            VStack(spacing: Theme.spacing) {
+                // Read-only wine display
+                HStack(spacing: 12) {
                     Image(systemName: "wineglass.fill")
-                        .font(.title2)
+                        .font(.title)
                         .foregroundStyle(tasting.wine.color?.accentColor ?? .wineAccent)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(tasting.wine.name)
@@ -240,57 +239,53 @@ struct EditTastingView: View {
                                 .font(Theme.captionFont)
                                 .foregroundStyle(.secondary)
                         }
+                        if let region = tasting.wine.regionName {
+                            Text(region)
+                                .font(Theme.captionFont)
+                                .foregroundStyle(.tertiary)
+                        }
                     }
+                    Spacer()
                 }
-            }
+                .padding()
+                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
+                .padding(.horizontal, Theme.spacing)
 
-            Section("Vintage") {
-                Picker("Vintage", selection: $vintageYear) {
-                    Text("None").tag(nil as Int?)
-                    ForEach((1900...Calendar.current.component(.year, from: Date())).reversed(), id: \.self) { year in
-                        Text(String(year)).tag(year as Int?)
-                    }
-                }
-                .tint(.wineAccent)
+                // Rating
+                RatingView(rating: rating, ratingBinding: $rating, starSize: .title)
+                    .padding(.top, 8)
+
+                WineBottleSlider(rating: $rating)
+                    .frame(width: 70, height: 220)
+                    .padding(.vertical, 4)
+
+                Text("Drag to rate")
+                    .font(Theme.captionFont)
+                    .foregroundStyle(.secondary)
+
+                Image(systemName: "arrow.up.and.down")
+                    .font(.caption)
+                    .foregroundStyle(.wineAccent.opacity(0.6))
             }
+            .padding(.top, 12)
         }
-        .tint(.wineAccent)
     }
 
-    // MARK: - Step 2: Rating
+    // MARK: - Step 2: Details (Photos + Notes + Food + Occasion + Price + Date + Vintage)
 
     @ViewBuilder
-    private var ratingStep: some View {
-        VStack(spacing: Theme.spacing) {
-            RatingView(rating: rating, ratingBinding: $rating, starSize: .title)
-                .padding(.top, 12)
-
-            WineBottleSlider(rating: $rating)
-                .frame(width: 70, height: 260)
-                .padding(.vertical, 8)
-
-            Text("Drag to rate")
-                .font(Theme.captionFont)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    // MARK: - Step 3: Photo
-
-    @ViewBuilder
-    private var photoStep: some View {
+    private var detailsStep: some View {
         let existingPhotos = tasting.photos.filter { !photosToDelete.contains($0.id) }
 
-        ScrollView {
-            VStack(spacing: 16) {
-                // Existing photos from this tasting
+        Form {
+            // Photos section
+            Section {
+                // Existing photos
                 if !existingPhotos.isEmpty {
                     VStack(alignment: .leading, spacing: Theme.smallSpacing) {
                         Text("Current photos")
                             .font(Theme.captionFont)
                             .foregroundStyle(.secondary)
-                            .padding(.horizontal, Theme.spacing)
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: Theme.smallSpacing) {
@@ -321,41 +316,24 @@ struct EditTastingView: View {
                                     }
                                 }
                             }
-                            .padding(.horizontal, Theme.spacing)
                         }
                     }
                 }
 
-                // Add new photos
-                VStack(alignment: .leading, spacing: Theme.smallSpacing) {
-                    if !existingPhotos.isEmpty {
-                        Text("Add new photos")
-                            .font(Theme.captionFont)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, Theme.spacing)
-                    }
-
-                    PhotoPickerView(selectedImages: $selectedImages, existingPhotoCount: existingPhotos.count)
-                        .padding(.horizontal, Theme.spacing)
-                }
-
-                if selectedImages.isEmpty && existingPhotos.isEmpty {
-                    Text("You can skip this step — photos are optional.")
-                        .font(Theme.captionFont)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 8)
-                }
+                // New photos
+                PhotoPickerView(selectedImages: $selectedImages, existingPhotoCount: existingPhotos.count)
+            } header: {
+                Text("Photos")
             }
-            .padding(.top, 12)
-        }
-    }
 
-    // MARK: - Step 4: Details
+            Section("Vintage") {
+                TextField("e.g. 2019", text: $vintageText)
+                    .keyboardType(.numberPad)
+                    .onChange(of: vintageText) { _, newValue in
+                        vintageText = String(newValue.prefix(4).filter(\.isNumber))
+                    }
+            }
 
-    @ViewBuilder
-    private var detailsStep: some View {
-        Form {
             Section("Notes") {
                 TextField("Notes", text: $notes, axis: .vertical)
                     .lineLimit(3...6)
@@ -378,6 +356,11 @@ struct EditTastingView: View {
                         Text("USD").tag("USD")
                         Text("GBP").tag("GBP")
                         Text("CHF").tag("CHF")
+                        Text("AUD").tag("AUD")
+                        Text("CAD").tag("CAD")
+                        Text("NZD").tag("NZD")
+                        Text("JPY").tag("JPY")
+                        Text("ZAR").tag("ZAR")
                     }
                     .pickerStyle(.menu)
                     .tint(.wineAccent)
@@ -387,15 +370,8 @@ struct EditTastingView: View {
                 DatePicker("Date", selection: $tastingDate, in: ...Date(), displayedComponents: .date)
                     .tint(.wineAccent)
             }
-        }
-        .tint(.wineAccent)
-    }
 
-    // MARK: - Step 4: Location
-
-    @ViewBuilder
-    private var locationStep: some View {
-        Form {
+            // Location section
             Section("Location") {
                 if locationService.authorizationStatus == .authorizedWhenInUse ||
                    locationService.authorizationStatus == .authorizedAlways {
@@ -419,6 +395,21 @@ struct EditTastingView: View {
         .tint(.wineAccent)
     }
 
+    // MARK: - Auto-Detect Location
+
+    private func autoDetectLocationIfNeeded() async {
+        let hasPermission = locationService.authorizationStatus == .authorizedWhenInUse ||
+                            locationService.authorizationStatus == .authorizedAlways
+        let hasExistingLocation = tasting.location?.locationName != nil && !(tasting.location?.locationName ?? "").isEmpty
+
+        guard hasPermission, !hasExistingLocation else { return }
+
+        useGPS = true
+        if (try? await locationService.getCurrentLocation()) != nil {
+            autoDetectedLocation = "Location detected"
+        }
+    }
+
     // MARK: - Save
 
     private func save() async {
@@ -437,6 +428,12 @@ struct EditTastingView: View {
                 latitude = coord.latitude
                 longitude = coord.longitude
             }
+        }
+
+        let vintageYear: Int? = if let year = Int(vintageText), year >= 1900, year <= Calendar.current.component(.year, from: Date()) {
+            year
+        } else {
+            nil
         }
 
         let request = Components.Schemas.UpdateJournalEntryRequest(
