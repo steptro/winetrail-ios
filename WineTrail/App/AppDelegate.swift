@@ -37,7 +37,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             Datadog.initialize(
                 with: Datadog.Configuration(
                     clientToken: datadogToken,
-                    env: "production",
+                    env: {
+                        #if DEBUG
+                        return "local"
+                        #else
+                        return "production"
+                        #endif
+                    }(),
                     site: .eu1,
                     service: "WineTrail",
                     version: appVersion
