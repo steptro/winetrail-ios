@@ -51,6 +51,29 @@ struct ProfileView: View {
                 Text("Account")
             }
 
+            // Legal
+            Section {
+                NavigationLink {
+                    SafariView(url: URL(string: "https://winetrail.stephantromer.dev/privacy-policy")!)
+                        .ignoresSafeArea()
+                        .navigationTitle("Privacy Policy")
+                        .navigationBarTitleDisplayMode(.inline)
+                } label: {
+                    Label("Privacy Policy", systemImage: "hand.raised.fill")
+                }
+
+                NavigationLink {
+                    SafariView(url: URL(string: "https://winetrail.stephantromer.dev/terms-of-service")!)
+                        .ignoresSafeArea()
+                        .navigationTitle("Terms of Service")
+                        .navigationBarTitleDisplayMode(.inline)
+                } label: {
+                    Label("Terms of Service", systemImage: "doc.text.fill")
+                }
+            } header: {
+                Text("Legal")
+            }
+
             // Sign Out
             Section {
                 Button(role: .destructive) {
