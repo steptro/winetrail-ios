@@ -28,7 +28,7 @@ struct WineTrailApp: App {
         auth.startListening()
 
 //        let serverURL = URL(string: "http://localhost:8091")!
-         let serverURL = URL(string: "https://winetrail.stephantromer.dev")!
+         let serverURL = AppConfig.serverURL
         let api = APIClient(serverURL: serverURL, authService: auth)
 
         let device = DeviceService(apiClient: api)

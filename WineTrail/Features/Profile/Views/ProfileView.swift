@@ -54,7 +54,7 @@ struct ProfileView: View {
             // Legal
             Section {
                 NavigationLink {
-                    SafariView(url: URL(string: "https://winetrail.stephantromer.dev/privacy-policy")!)
+                    SafariView(url: AppConfig.privacyPolicyURL)
                         .ignoresSafeArea()
                         .navigationTitle("Privacy Policy")
                         .navigationBarTitleDisplayMode(.inline)
@@ -63,7 +63,7 @@ struct ProfileView: View {
                 }
 
                 NavigationLink {
-                    SafariView(url: URL(string: "https://winetrail.stephantromer.dev/terms-of-service")!)
+                    SafariView(url: AppConfig.termsOfServiceURL)
                         .ignoresSafeArea()
                         .navigationTitle("Terms of Service")
                         .navigationBarTitleDisplayMode(.inline)
