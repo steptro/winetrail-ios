@@ -42,7 +42,9 @@ enum Log {
     }
 
     /// Error-level log (sent to Datadog).
+    /// Silently ignores cancellation errors (task/request cancelled by navigation).
     static func error(_ message: String, error: Error? = nil, attributes: [String: any Encodable] = [:]) {
+        if let error, error.isCancellation { return }
         #if DEBUG
         print("❌ [ERROR] \(message)\(error.map { " — \($0)" } ?? "")")
         #endif
