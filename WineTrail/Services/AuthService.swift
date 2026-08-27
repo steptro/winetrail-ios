@@ -174,6 +174,13 @@ final class AuthService: @unchecked Sendable {
     /// - Parameter forceRefresh: If true, forces a token refresh regardless of expiry.
     /// - Returns: The current ID token string.
     func getIDToken(forceRefresh: Bool = false) async throws -> String {
+        // Wait for Firebase to finish restoring auth state on cold launch
+        if isLoading {
+            for _ in 0..<50 { // Up to 5 seconds (50 × 100ms)
+                try await Task.sleep(for: .milliseconds(100))
+                if !isLoading { break }
+            }
+        }
         guard let user = currentUser else {
             throw AuthenticationError.notAuthenticated
         }

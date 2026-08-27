@@ -9,6 +9,14 @@ extension Error {
         }
         // Check localizedDescription for wrapped cancellation errors from OpenAPI client
         let description = String(describing: self)
-        return description.contains("CancellationError")
+        if description.contains("CancellationError") {
+            return true
+        }
+        // Google Sign-In user cancelled (GIDSignIn error code -5)
+        let nsError = self as NSError
+        if nsError.domain == "com.google.GIDSignIn" && nsError.code == -5 {
+            return true
+        }
+        return false
     }
 }
