@@ -18,7 +18,7 @@ final class ProfileService {
 
     /// Updates the current user's profile (display name and/or username).
     @discardableResult
-    func updateProfile(displayName: String, username: String? = nil) async throws -> Components.Schemas.UserProfile {
+    func updateProfile(displayName: String? = nil, username: String? = nil) async throws -> Components.Schemas.UserProfile {
         let response = try await apiClient.client.updateProfile(
             body: .json(.init(displayName: displayName, username: username))
         )

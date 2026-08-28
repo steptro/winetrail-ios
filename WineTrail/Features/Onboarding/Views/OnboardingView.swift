@@ -264,7 +264,7 @@ struct OnboardingView: View {
         do {
             let name = displayName.trimmingCharacters(in: .whitespaces)
             _ = try await profileService.updateProfile(
-                displayName: name.isEmpty ? trimmed : name,
+                displayName: name.isEmpty ? nil : name,
                 username: trimmed
             )
             WineAnalytics.logOnboardingCompleted(username: trimmed)
