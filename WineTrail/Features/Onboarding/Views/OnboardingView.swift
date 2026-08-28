@@ -194,7 +194,7 @@ struct OnboardingView: View {
             .foregroundStyle(.white)
             .background(.wineAccent, in: Capsule())
             .padding(.horizontal, 24)
-            .disabled(displayName.trimmingCharacters(in: .whitespaces).isEmpty || username.trimmingCharacters(in: .whitespaces).count < 3 || isSaving)
+            .disabled(username.trimmingCharacters(in: .whitespaces).count < 3 || isSaving)
 
             Button("Skip for now") {
                 appState.currentRoute = .main
@@ -264,7 +264,7 @@ struct OnboardingView: View {
         do {
             let name = displayName.trimmingCharacters(in: .whitespaces)
             _ = try await profileService.updateProfile(
-                displayName: name.isEmpty ? nil : name,
+                displayName: name.isEmpty ? trimmed : name,
                 username: trimmed
             )
             WineAnalytics.logOnboardingCompleted(username: trimmed)

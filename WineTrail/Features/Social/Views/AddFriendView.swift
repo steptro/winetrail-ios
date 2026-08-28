@@ -39,7 +39,7 @@ struct AddFriendView: View {
                 }
             }
             .listStyle(.plain)
-            .searchable(text: $query, isPresented: .constant(true), prompt: "Search by username or name")
+            .searchable(text: $query, prompt: "Search by username or name")
             .onChange(of: query) { _, newValue in
                 performSearch(query: newValue)
             }
