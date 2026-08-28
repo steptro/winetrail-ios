@@ -125,7 +125,7 @@ struct WinesListView: View {
     NavigationStack {
         WinesListView()
             .environment(WineService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )))
     }

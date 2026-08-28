@@ -644,15 +644,15 @@ struct LogTastingView: View {
 #Preview {
     LogTastingView()
         .environment(WineService(apiClient: APIClient(
-            serverURL: URL(string: "https://api.winetrail.app")!,
+            serverURL: AppConfig.serverURL,
             authService: AuthService()
         )))
         .environment(JournalService(apiClient: APIClient(
-            serverURL: URL(string: "https://api.winetrail.app")!,
+            serverURL: AppConfig.serverURL,
             authService: AuthService()
         )))
         .environment(PhotoService(apiClient: APIClient(
-            serverURL: URL(string: "https://api.winetrail.app")!,
+            serverURL: AppConfig.serverURL,
             authService: AuthService()
         )))
         .environment(LocationService())

@@ -8,7 +8,7 @@ import OpenAPIURLSession
 /// Usage:
 /// ```swift
 /// let apiClient = APIClient(
-///     serverURL: URL(string: "https://api.winetrail.app")!,
+///     serverURL: AppConfig.serverURL,
 ///     authService: authService
 /// )
 /// let response = try await apiClient.client.getJournal(...)

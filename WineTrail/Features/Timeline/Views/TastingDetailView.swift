@@ -433,7 +433,7 @@ struct TastingDetailView: View {
 
 #Preview {
     let authService = AuthService()
-    let apiClient = APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: authService)
+    let apiClient = APIClient(serverURL: AppConfig.serverURL, authService: authService)
     let journalService = JournalService(apiClient: apiClient)
 
     NavigationStack {

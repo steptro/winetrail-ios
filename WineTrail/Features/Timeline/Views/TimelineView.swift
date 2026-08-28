@@ -508,7 +508,7 @@ private struct PressScaleButtonStyle: ButtonStyle {
     NavigationStack {
         TimelineView()
             .environment(JournalService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )))
     }

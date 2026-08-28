@@ -123,7 +123,7 @@ struct EditProfileView: View {
         EditProfileView()
             .environment(AuthService())
             .environment(ProfileService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )))
     }

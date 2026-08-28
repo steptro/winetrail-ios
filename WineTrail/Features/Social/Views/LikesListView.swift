@@ -80,7 +80,7 @@ struct LikesListView: View {
 #Preview {
     LikesListView(tastingId: "preview-123")
         .environment(SocialService(apiClient: APIClient(
-            serverURL: URL(string: "https://api.winetrail.app")!,
+            serverURL: AppConfig.serverURL,
             authService: AuthService()
         )))
 }

@@ -217,7 +217,7 @@ struct CommentsView: View {
 #Preview {
     CommentsView(tastingId: "preview-123")
         .environment(SocialService(apiClient: APIClient(
-            serverURL: URL(string: "https://api.winetrail.app")!,
+            serverURL: AppConfig.serverURL,
             authService: AuthService()
         )))
 }

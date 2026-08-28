@@ -157,7 +157,7 @@ private struct Triangle: Shape {
     NavigationStack {
         MapView()
             .environment(MapService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )))
     }
@@ -167,7 +167,7 @@ private struct Triangle: Shape {
     NavigationStack {
         MapView()
             .environment(MapService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )))
     }

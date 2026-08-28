@@ -10,6 +10,7 @@ struct OnboardingView: View {
     @Environment(SocialService.self) private var socialService
     @State private var currentPage = 0
     @State private var showUsernameSetup = false
+    @State private var displayName = ""
     @State private var username = ""
     @State private var isSaving = false
     @State private var usernameError: String?
@@ -115,18 +116,28 @@ struct OnboardingView: View {
         VStack(spacing: Theme.largeSpacing) {
             Spacer()
 
-            Image(systemName: "at")
+            Image(systemName: "person.crop.circle.badge.plus")
                 .font(.system(size: 60))
                 .foregroundStyle(.wineAccent)
 
-            Text("Choose a Username")
+            Text("Set Up Your Profile")
                 .font(.title2.weight(.bold))
 
-            Text("This is how friends will find you.")
+            Text("Tell us your name and pick a username.")
                 .font(Theme.subheadlineFont)
                 .foregroundStyle(.secondary)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
+                // Display name field
+                TextField("Your name", text: $displayName)
+                    .font(.title3)
+                    .textInputAutocapitalization(.words)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, 40)
+
+                // Username field
                 HStack {
                     Text("@")
                         .font(.title3)
@@ -183,7 +194,7 @@ struct OnboardingView: View {
             .foregroundStyle(.white)
             .background(.wineAccent, in: Capsule())
             .padding(.horizontal, 24)
-            .disabled(username.trimmingCharacters(in: .whitespaces).count < 3 || isSaving)
+            .disabled(displayName.trimmingCharacters(in: .whitespaces).isEmpty || username.trimmingCharacters(in: .whitespaces).count < 3 || isSaving)
 
             Button("Skip for now") {
                 appState.currentRoute = .main
@@ -251,8 +262,9 @@ struct OnboardingView: View {
         usernameError = nil
 
         do {
+            let name = displayName.trimmingCharacters(in: .whitespaces)
             _ = try await profileService.updateProfile(
-                displayName: "WineTrail User",
+                displayName: name.isEmpty ? nil : name,
                 username: trimmed
             )
             WineAnalytics.logOnboardingCompleted(username: trimmed)
@@ -271,16 +283,16 @@ struct OnboardingView: View {
         .environment(AppState(
             authService: AuthService(),
             journalService: JournalService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )),
             profileService: ProfileService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             ))
         ))
         .environment(ProfileService(apiClient: APIClient(
-            serverURL: URL(string: "https://api.winetrail.app")!,
+            serverURL: AppConfig.serverURL,
             authService: AuthService()
         )))
         .environment(LocationService())

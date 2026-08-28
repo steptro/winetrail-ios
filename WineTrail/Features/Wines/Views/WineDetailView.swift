@@ -431,7 +431,7 @@ private struct RatingEntry: Identifiable {
             lastTasted: "2026-08-10"
         ))
         .environment(JournalService(apiClient: APIClient(
-            serverURL: URL(string: "https://api.winetrail.app")!,
+            serverURL: AppConfig.serverURL,
             authService: AuthService()
         )))
     }

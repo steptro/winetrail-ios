@@ -102,17 +102,17 @@ struct EmailSignInView: View {
     EmailSignInView()
         .environment(AuthService())
         .environment(DeviceService(apiClient: APIClient(
-            serverURL: URL(string: "https://api.winetrail.app")!,
+            serverURL: AppConfig.serverURL,
             authService: AuthService()
         )))
         .environment(AppState(
             authService: AuthService(),
             journalService: JournalService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )),
             profileService: ProfileService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             ))
         ))

@@ -314,7 +314,7 @@ struct FriendsView: View {
     NavigationStack {
         FriendsView()
             .environment(SocialService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )))
     }

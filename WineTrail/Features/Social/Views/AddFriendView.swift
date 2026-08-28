@@ -174,7 +174,7 @@ struct AddFriendView: View {
 #Preview {
     AddFriendView()
         .environment(SocialService(apiClient: APIClient(
-            serverURL: URL(string: "https://api.winetrail.app")!,
+            serverURL: AppConfig.serverURL,
             authService: AuthService()
         )))
 }

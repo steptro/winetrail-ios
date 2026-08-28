@@ -360,7 +360,7 @@ struct UserProfileView: View {
             displayName: "Stephan"
         )
         .environment(SocialService(apiClient: APIClient(
-            serverURL: URL(string: "https://api.winetrail.app")!,
+            serverURL: AppConfig.serverURL,
             authService: AuthService()
         )))
     }

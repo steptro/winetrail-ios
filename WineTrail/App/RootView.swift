@@ -28,22 +28,22 @@ struct RootView: View {
         .environment(AppState(
             authService: AuthService(),
             journalService: JournalService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )),
             profileService: ProfileService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             ))
         ))
         .environment(AuthService())
-        .environment(APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService()))
-        .environment(DeviceService(apiClient: APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService())))
-        .environment(JournalService(apiClient: APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService())))
-        .environment(WineService(apiClient: APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService())))
-        .environment(PhotoService(apiClient: APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService())))
-        .environment(StatsService(apiClient: APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService())))
-        .environment(MapService(apiClient: APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService())))
+        .environment(APIClient(serverURL: AppConfig.serverURL, authService: AuthService()))
+        .environment(DeviceService(apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService())))
+        .environment(JournalService(apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService())))
+        .environment(WineService(apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService())))
+        .environment(PhotoService(apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService())))
+        .environment(StatsService(apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService())))
+        .environment(MapService(apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService())))
         .environment(LocationService())
-        .environment(ProfileService(apiClient: APIClient(serverURL: URL(string: "https://api.winetrail.app")!, authService: AuthService())))
+        .environment(ProfileService(apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService())))
 }

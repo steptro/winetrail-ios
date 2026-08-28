@@ -347,11 +347,11 @@ private struct GlassCardModifier: ViewModifier {
         ProfileView()
             .environment(AuthService())
             .environment(ProfileService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )))
             .environment(StatsService(apiClient: APIClient(
-                serverURL: URL(string: "https://api.winetrail.app")!,
+                serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )))
     }
