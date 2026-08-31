@@ -138,7 +138,7 @@ struct SocialFeedPostView: View {
                         Image(systemName: "person.circle.fill")
                             .font(.title3)
                             .foregroundStyle(.secondary)
-                        Text(post.user.displayName ?? post.user.username)
+                        Text(post.user.username)
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.primary)
                     }

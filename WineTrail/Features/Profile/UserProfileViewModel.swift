@@ -15,6 +15,8 @@ final class UserProfileViewModel {
     private(set) var hasMoreTastings = true
     private(set) var error: String?
     private(set) var isSendingRequest = false
+    private(set) var notifyOnNewWine = false
+    private(set) var isUpdatingNotifications = false
     private var currentPage = 0
     private let pageSize = 20
 
@@ -43,12 +45,42 @@ final class UserProfileViewModel {
 
         do {
             profile = try await socialService.getUserProfile(userId: userId)
+            await loadNotificationPreference()
         } catch {
             Log.error("Failed to load user profile", error: error)
             self.error = "Could not load profile."
         }
 
         isLoadingProfile = false
+    }
+
+    /// Loads the per-friend new-wine notification preference. Only meaningful when friends.
+    private func loadNotificationPreference() async {
+        guard isFriend, let friendshipId = profile?.friendshipId else { return }
+        do {
+            notifyOnNewWine = try await socialService.getFriendWineNotifications(friendshipId: friendshipId)
+        } catch {
+            Log.error("Failed to load friend notification preference", error: error)
+        }
+    }
+
+    /// Toggles whether the current user is notified when this friend posts a new wine.
+    func setNotifyOnNewWine(_ enabled: Bool) async {
+        guard let friendshipId = profile?.friendshipId else { return }
+        let previous = notifyOnNewWine
+        notifyOnNewWine = enabled // optimistic
+        isUpdatingNotifications = true
+        do {
+            let confirmed = try await socialService.setFriendWineNotifications(
+                friendshipId: friendshipId, notifyOnNewWine: enabled)
+            notifyOnNewWine = confirmed
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } catch {
+            notifyOnNewWine = previous // rollback
+            Log.error("Failed to update friend notification preference", error: error)
+            self.error = "Could not update notifications."
+        }
+        isUpdatingNotifications = false
     }
 
     func loadTastings() async {

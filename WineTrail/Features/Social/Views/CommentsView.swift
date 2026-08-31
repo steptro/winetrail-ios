@@ -112,7 +112,7 @@ struct CommentsView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(comment.author.displayName ?? comment.author.username)
+                    Text(comment.author.username)
                         .font(.caption.weight(.semibold))
                     Spacer()
                     Text(formatRelativeDate(comment.createdAt))

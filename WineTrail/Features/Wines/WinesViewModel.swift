@@ -18,6 +18,22 @@ final class WinesViewModel {
     private var currentPage = 0
     private let pageSize = 20
 
+    /// Debounce interval for search-as-you-type on the My Wines list.
+    private static let searchDebounce: Duration = .milliseconds(300)
+    private var searchDebounceTask: Task<Void, Never>?
+
+    /// The text bound to the search field. Editing this schedules a debounced search
+    /// (300ms) — results update automatically as the user types.
+    var searchText: String = "" {
+        didSet {
+            guard oldValue != searchText else { return }
+            scheduleDebouncedSearch()
+        }
+    }
+
+    /// The query currently applied to the loaded results.
+    private(set) var activeQuery: String = ""
+
     /// Currently selected sort option. Changing this reloads the list.
     var selectedSort: WineSort = .lastTasted {
         didSet {
@@ -56,6 +72,32 @@ final class WinesViewModel {
         await loadNextPage()
     }
 
+    /// Schedules a debounced search after `searchDebounce`. Each keystroke cancels the
+    /// pending task and starts a new one, so the query only applies once typing pauses.
+    private func scheduleDebouncedSearch() {
+        searchDebounceTask?.cancel()
+        searchDebounceTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.searchDebounce)
+            guard !Task.isCancelled else { return }
+            await self?.applySearch()
+        }
+    }
+
+    /// Applies the current `searchText` as the active query and reloads from page 0
+    /// if it changed. Invoked by the debounce task (and immediately on submit).
+    func applySearch() async {
+        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != activeQuery else { return }
+        activeQuery = trimmed
+        await loadInitial()
+    }
+
+    /// Submits the search immediately (Return key), bypassing the debounce delay.
+    func submitSearch() async {
+        searchDebounceTask?.cancel()
+        await applySearch()
+    }
+
     /// Loads the next page of wines if not already loading and more pages exist.
     ///
     /// - Preconditions: `isLoading == false`, `hasMorePages == true`
@@ -70,6 +112,7 @@ final class WinesViewModel {
             let page = try await wineService.getMyWines(
                 page: currentPage,
                 size: pageSize,
+                query: activeQuery.isEmpty ? nil : activeQuery,
                 sort: selectedSort.apiSortOption,
                 order: selectedOrder,
                 color: selectedColor

@@ -85,6 +85,26 @@ final class SocialService {
         )
     }
 
+    // MARK: - Friend Notification Preferences
+
+    /// Returns whether the current user is notified when this friend posts a new wine.
+    func getFriendWineNotifications(friendshipId: String) async throws -> Bool {
+        let response = try await apiClient.client.getFriendWineNotifications(
+            path: .init(friendshipId: friendshipId)
+        )
+        return try response.ok.body.json.notifyOnNewWine
+    }
+
+    /// Enables or disables new-wine notifications for this friend. Returns the new value.
+    @discardableResult
+    func setFriendWineNotifications(friendshipId: String, notifyOnNewWine: Bool) async throws -> Bool {
+        let response = try await apiClient.client.setFriendWineNotifications(
+            path: .init(friendshipId: friendshipId),
+            body: .json(.init(notifyOnNewWine: notifyOnNewWine))
+        )
+        return try response.ok.body.json.notifyOnNewWine
+    }
+
     // MARK: - Likes
 
     /// Gets who liked a journal entry.

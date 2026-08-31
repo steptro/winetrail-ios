@@ -56,6 +56,14 @@ struct WinesListView: View {
                 colorFilterMenu
             }
         }
+        .searchable(
+            text: searchBinding,
+            placement: .navigationBarDrawer(displayMode: .automatic),
+            prompt: "Search your wines"
+        )
+        .onSubmit(of: .search) {
+            Task { await viewModel?.submitSearch() }
+        }
         .task {
             if viewModel == nil {
                 viewModel = WinesViewModel(wineService: wineService)
@@ -65,6 +73,17 @@ struct WinesListView: View {
         .onReceive(NotificationCenter.default.publisher(for: .tastingDidChange)) { _ in
             Task { await viewModel?.loadInitial() }
         }
+    }
+
+    // MARK: - Search
+
+    /// Binding to the view model's search text. Editing schedules a debounced (300ms)
+    /// search automatically; Return submits immediately.
+    private var searchBinding: Binding<String> {
+        Binding(
+            get: { viewModel?.searchText ?? "" },
+            set: { viewModel?.searchText = $0 }
+        )
     }
 
     // MARK: - Sort Picker

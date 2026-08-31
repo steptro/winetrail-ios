@@ -6,6 +6,7 @@ struct UserProfileView: View {
     @Environment(SocialService.self) private var socialService
     @State private var viewModel: UserProfileViewModel?
     @State private var showRemoveConfirmation = false
+    @State private var pendingNotifyValue: Bool?
     @State private var commentsTastingId: String?
     @State private var likesTastingId: String?
 
@@ -34,8 +35,11 @@ struct UserProfileView: View {
         .navigationTitle(displayName ?? "@\(username)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
                 if let viewModel {
+                    if viewModel.isFriend {
+                        notificationBellToolbarItem(viewModel: viewModel)
+                    }
                     friendshipToolbarItem(viewModel: viewModel)
                 }
             }
@@ -99,6 +103,27 @@ struct UserProfileView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("You'll no longer see each other's tastings.")
+        }
+        .confirmationDialog(
+            pendingNotifyValue == true ? "Turn on new wine alerts?" : "Turn off new wine alerts?",
+            isPresented: Binding(
+                get: { pendingNotifyValue != nil },
+                set: { if !$0 { pendingNotifyValue = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let target = pendingNotifyValue {
+                Button(target ? "Turn On" : "Turn Off") {
+                    Task { await viewModel.setNotifyOnNewWine(target) }
+                    pendingNotifyValue = nil
+                }
+                Button("Cancel", role: .cancel) { pendingNotifyValue = nil }
+            }
+        } message: {
+            let name = profile.displayName ?? profile.username
+            Text(pendingNotifyValue == true
+                 ? "You'll be notified when \(name) adds a new wine."
+                 : "You'll stop getting notified when \(name) adds a new wine.")
         }
     }
 
@@ -168,6 +193,25 @@ struct UserProfileView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Notification Bell Toolbar Item
+
+    @ViewBuilder
+    private func notificationBellToolbarItem(viewModel: UserProfileViewModel) -> some View {
+        if viewModel.isUpdatingNotifications {
+            ProgressView()
+                .controlSize(.small)
+        } else {
+            Button {
+                pendingNotifyValue = !viewModel.notifyOnNewWine
+            } label: {
+                Image(systemName: viewModel.notifyOnNewWine ? "bell.fill" : "bell")
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .accessibilityLabel(viewModel.notifyOnNewWine ? "Turn off new wine alerts" : "Turn on new wine alerts")
+            .tint(viewModel.notifyOnNewWine ? .wineAccent : nil)
+        }
     }
 
     // MARK: - Friendship Toolbar Item

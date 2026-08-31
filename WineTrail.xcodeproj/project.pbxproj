@@ -334,7 +334,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = WineTrail/Supporting/WineTrail.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = US3A9LQX4B;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
@@ -342,6 +342,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WineTrail/Supporting/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = WineTrail;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "WineTrail uses your camera to take photos of wines you're tasting.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "WineTrail uses your location to tag where you tasted a wine.";
@@ -386,7 +387,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = WineTrail/Supporting/WineTrail.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = US3A9LQX4B;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
@@ -394,6 +395,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WineTrail/Supporting/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = WineTrail;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "WineTrail uses your camera to take photos of wines you're tasting.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "WineTrail uses your location to tag where you tasted a wine.";
