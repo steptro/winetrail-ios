@@ -5,6 +5,8 @@ import OpenAPIRuntime
 
 extension Components.Schemas.JournalEntryDto: Identifiable {}
 
+extension Components.Schemas.FeedJournalEntryDto: Identifiable {}
+
 extension Components.Schemas.UserWineStats: Identifiable {
     public var id: String { wine.id }
 }

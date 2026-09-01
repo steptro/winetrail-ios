@@ -10,13 +10,7 @@ import Observation
 @MainActor @Observable
 final class WinesViewModel {
     private let wineService: WineService
-
-    private(set) var wines: [WineStats] = []
-    private(set) var isLoading = false
-    private(set) var hasMorePages = true
-    private(set) var error: Error?
-    private var currentPage = 0
-    private let pageSize = 20
+    @ObservationIgnored private let paginator = Paginator<WineStats>(logContext: "wines")
 
     /// Debounce interval for search-as-you-type on the My Wines list.
     private static let searchDebounce: Duration = .milliseconds(300)
@@ -61,15 +55,29 @@ final class WinesViewModel {
 
     init(wineService: WineService) {
         self.wineService = wineService
+        paginator.setFetch { [weak self] page, size in
+            guard let self else { return PagedResult(content: [], totalPages: 0, totalElements: 0, currentPage: page, isLast: true) }
+            return try await self.wineService.getMyWines(
+                page: page,
+                size: size,
+                query: self.activeQuery.isEmpty ? nil : self.activeQuery,
+                sort: self.selectedSort.apiSortOption,
+                order: self.selectedOrder,
+                color: self.selectedColor
+            )
+        }
     }
+
+    // MARK: - Paginator passthrough
+
+    var wines: [WineStats] { paginator.items }
+    var isLoading: Bool { paginator.isLoading }
+    var hasMorePages: Bool { paginator.hasMorePages }
+    var error: Error? { paginator.error }
 
     /// Resets state and loads the first page of wines with current sort/filter.
     func loadInitial() async {
-        currentPage = 0
-        wines = []
-        hasMorePages = true
-        error = nil
-        await loadNextPage()
+        await paginator.loadInitial()
     }
 
     /// Schedules a debounced search after `searchDebounce`. Each keystroke cancels the
@@ -98,45 +106,8 @@ final class WinesViewModel {
         await applySearch()
     }
 
-    /// Loads the next page of wines if not already loading and more pages exist.
-    ///
-    /// - Preconditions: `isLoading == false`, `hasMorePages == true`
-    /// - Postconditions: `wines` extended with new content, `currentPage` incremented,
-    ///   `isLoading` reset to false. On error, existing data is preserved.
-    func loadNextPage() async {
-        guard !isLoading, hasMorePages else { return }
-        isLoading = true
-        error = nil
-
-        do {
-            let page = try await wineService.getMyWines(
-                page: currentPage,
-                size: pageSize,
-                query: activeQuery.isEmpty ? nil : activeQuery,
-                sort: selectedSort.apiSortOption,
-                order: selectedOrder,
-                color: selectedColor
-            )
-            wines.append(contentsOf: page.content)
-            hasMorePages = !page.isLast
-            currentPage += 1
-        } catch {
-            Log.error("Failed to load wines", error: error)
-            self.error = error
-        }
-
-        isLoading = false
-    }
-
     /// Triggers pagination when a wine appears near the end of the list.
-    ///
-    /// Prefetches the next page when the user scrolls within 5 items of the end,
-    /// preventing the user from seeing a loading indicator in most cases.
     func onWineAppear(_ wine: WineStats) async {
-        guard let index = wines.firstIndex(where: { $0.id == wine.id }) else { return }
-        let thresholdIndex = max(wines.count - 5, 0)
-        if index >= thresholdIndex {
-            await loadNextPage()
-        }
+        await paginator.loadMoreIfNeeded(currentItem: wine)
     }
 }

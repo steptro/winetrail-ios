@@ -7,23 +7,29 @@ import Observation
 final class UserProfileViewModel {
     private let socialService: SocialService
     let userId: String
+    @ObservationIgnored private let tastingsPaginator: Paginator<Components.Schemas.FeedJournalEntryDto>
 
     private(set) var profile: Components.Schemas.PublicUserProfileDto?
-    private(set) var tastings: [Components.Schemas.FeedJournalEntryDto] = []
     private(set) var isLoadingProfile = false
-    private(set) var isLoadingTastings = false
-    private(set) var hasMoreTastings = true
-    private(set) var error: String?
     private(set) var isSendingRequest = false
     private(set) var notifyOnNewWine = false
     private(set) var isUpdatingNotifications = false
-    private var currentPage = 0
-    private let pageSize = 20
+    private(set) var error: String?
 
     init(userId: String, socialService: SocialService) {
         self.userId = userId
         self.socialService = socialService
+        self.tastingsPaginator = Paginator(logContext: "user tastings") { [weak socialService] page, size in
+            guard let socialService else { return PagedResult(content: [], totalPages: 0, totalElements: 0, currentPage: page, isLast: true) }
+            return try await socialService.getUserTastings(userId: userId, page: page, size: size)
+        }
     }
+
+    // MARK: - Tastings passthrough
+
+    var tastings: [Components.Schemas.FeedJournalEntryDto] { tastingsPaginator.items }
+    var isLoadingTastings: Bool { tastingsPaginator.isLoading }
+    var hasMoreTastings: Bool { tastingsPaginator.hasMorePages }
 
     var isFriend: Bool {
         profile?.friendshipStatus == .FRIENDS
@@ -84,28 +90,13 @@ final class UserProfileViewModel {
     }
 
     func loadTastings() async {
-        guard isFriend, !isLoadingTastings, hasMoreTastings else { return }
-        isLoadingTastings = true
-
-        do {
-            let page = try await socialService.getUserTastings(userId: userId, page: currentPage, size: pageSize)
-            tastings.append(contentsOf: page.content)
-            hasMoreTastings = !page.isLast
-            currentPage += 1
-        } catch {
-            Log.error("Failed to load user tastings", error: error)
-            hasMoreTastings = false
-        }
-
-        isLoadingTastings = false
+        guard isFriend else { return }
+        await tastingsPaginator.loadNextPage()
     }
 
     func onTastingAppear(_ tasting: Components.Schemas.FeedJournalEntryDto) async {
-        guard let index = tastings.firstIndex(where: { $0.id == tasting.id }) else { return }
-        let threshold = max(tastings.count - 5, 0)
-        if index >= threshold {
-            await loadTastings()
-        }
+        guard isFriend else { return }
+        await tastingsPaginator.loadMoreIfNeeded(currentItem: tasting)
     }
 
     // MARK: - Friendship Actions
@@ -145,9 +136,7 @@ final class UserProfileViewModel {
         isSendingRequest = true
         do {
             try await socialService.removeFriend(friendshipId: friendshipId)
-            tastings = []
-            currentPage = 0
-            hasMoreTastings = true
+            await tastingsPaginator.loadInitial()
             await loadProfile()
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch {
@@ -159,14 +148,14 @@ final class UserProfileViewModel {
 
     /// Toggle like on a tasting in this profile's feed.
     func toggleLike(on post: Components.Schemas.FeedJournalEntryDto) async {
-        guard let index = tastings.firstIndex(where: { $0.id == post.id }) else { return }
-
         let wasLiked = post.likedByMe
         let previousCount = post.likeCount
 
         // Optimistic update
-        tastings[index].likedByMe.toggle()
-        tastings[index].likeCount += wasLiked ? -1 : 1
+        tastingsPaginator.mutate(id: post.id) { p in
+            p.likedByMe.toggle()
+            p.likeCount += wasLiked ? -1 : 1
+        }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
         do {
@@ -177,16 +166,16 @@ final class UserProfileViewModel {
             }
         } catch {
             // Rollback
-            tastings[index].likedByMe = wasLiked
-            tastings[index].likeCount = previousCount
+            tastingsPaginator.mutate(id: post.id) { p in
+                p.likedByMe = wasLiked
+                p.likeCount = previousCount
+            }
             Log.error("Failed to toggle like", error: error)
         }
     }
 
     /// Resets tastings for pull-to-refresh
-    func resetTastings() {
-        tastings = []
-        currentPage = 0
-        hasMoreTastings = true
+    func resetTastings() async {
+        await tastingsPaginator.loadInitial()
     }
 }

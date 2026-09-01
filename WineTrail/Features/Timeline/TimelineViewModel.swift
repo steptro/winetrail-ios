@@ -33,30 +33,40 @@ enum TimelineSort: String, CaseIterable {
 @MainActor @Observable
 final class TimelineViewModel {
     private let journalService: JournalService
+    @ObservationIgnored private let paginator = Paginator<Tasting>(logContext: "timeline")
 
-    private(set) var tastings: [Tasting] = []
-    private(set) var isLoading = false
-    private(set) var hasMorePages = true
-    private(set) var error: Error?
     var sort: TimelineSort = .createdAt
     var sortDirection: String = "desc"
     var colorFilter: Components.Schemas.WineColor? = nil
     var searchQuery: String = ""
-    private var currentPage = 0
-    private let pageSize = 20
     private var searchTask: Task<Void, Never>?
 
     init(journalService: JournalService) {
         self.journalService = journalService
+        paginator.setFetch { [weak self] page, size in
+            guard let self else { return PagedResult(content: [], totalPages: 0, totalElements: 0, currentPage: page, isLast: true) }
+            let trimmed = self.searchQuery.trimmingCharacters(in: .whitespaces)
+            return try await self.journalService.getTimeline(
+                page: page,
+                size: size,
+                sort: self.sort.rawValue,
+                direction: self.sortDirection,
+                color: self.colorFilter,
+                query: trimmed.isEmpty ? nil : trimmed
+            )
+        }
     }
+
+    // MARK: - Paginator passthrough
+
+    var tastings: [Tasting] { paginator.items }
+    var isLoading: Bool { paginator.isLoading }
+    var hasMorePages: Bool { paginator.hasMorePages }
+    var error: Error? { paginator.error }
 
     /// Resets state and loads the first page of tastings.
     func loadInitial() async {
-        currentPage = 0
-        tastings = []
-        hasMorePages = true
-        error = nil
-        await loadNextPage()
+        await paginator.loadInitial()
     }
 
     /// Changes sort and reloads.
@@ -83,48 +93,17 @@ final class TimelineViewModel {
         }
     }
 
-    /// Loads the next page of tastings if not already loading and more pages exist.
-    func loadNextPage() async {
-        guard !isLoading, hasMorePages else { return }
-        isLoading = true
-        error = nil
-
-        let trimmedQuery = searchQuery.trimmingCharacters(in: .whitespaces)
-
-        do {
-            let page = try await journalService.getTimeline(
-                page: currentPage,
-                size: pageSize,
-                sort: sort.rawValue,
-                direction: sortDirection,
-                color: colorFilter,
-                query: trimmedQuery.isEmpty ? nil : trimmedQuery
-            )
-            tastings.append(contentsOf: page.content)
-            hasMorePages = !page.isLast
-            currentPage += 1
-        } catch {
-            Log.error("Failed to load timeline", error: error)
-            self.error = error
-        }
-
-        isLoading = false
-    }
-
-    /// Triggers pagination when a tasting appears near the end of the list.
-    ///
-    /// Prefetches the next page when the user scrolls within 5 items of the end,
-    /// preventing the user from seeing a loading indicator in most cases.
+    /// Triggers pagination when a tasting appears near the end of the list,
+    /// and prefetches photos for the next few tastings.
     func onTastingAppear(_ tasting: Tasting) async {
-        guard let index = tastings.firstIndex(where: { $0.id == tasting.id }) else { return }
-        let thresholdIndex = max(tastings.count - 5, 0)
-        if index >= thresholdIndex {
-            await loadNextPage()
-        }
+        await paginator.loadMoreIfNeeded(currentItem: tasting)
 
         // Prefetch photos for the next few tastings
-        let prefetchRange = (index + 1)..<min(index + 4, tastings.count)
-        let urls = tastings[prefetchRange]
+        let all = paginator.items
+        guard let index = all.firstIndex(where: { $0.id == tasting.id }) else { return }
+        let prefetchRange = (index + 1)..<min(index + 4, all.count)
+        guard prefetchRange.lowerBound < prefetchRange.upperBound else { return }
+        let urls = all[prefetchRange]
             .flatMap(\.photos)
             .compactMap { URL(string: $0.url) }
         if !urls.isEmpty {
@@ -136,7 +115,7 @@ final class TimelineViewModel {
     ///
     /// If the backend call fails, the timeline is reloaded to restore consistent state.
     func deleteTasting(id: String) async {
-        tastings.removeAll { $0.id == id }
+        paginator.remove(id: id)
         do {
             try await journalService.deleteTasting(id: id)
         } catch {

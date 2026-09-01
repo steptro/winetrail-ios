@@ -6,68 +6,42 @@ import Observation
 @MainActor @Observable
 final class SocialFeedViewModel {
     private let socialService: SocialService
-
-    private(set) var posts: [Components.Schemas.FeedJournalEntryDto] = []
-    private(set) var isLoading = false
-    private(set) var hasMorePages = true
-    private(set) var error: Error?
-    private var currentPage = 0
-    private let pageSize = 20
+    @ObservationIgnored private let paginator: Paginator<Components.Schemas.FeedJournalEntryDto>
 
     init(socialService: SocialService) {
         self.socialService = socialService
+        self.paginator = Paginator(logContext: "social feed") { page, size in
+            try await socialService.getFeed(page: page, size: size)
+        }
     }
+
+    // MARK: - Paginator passthrough
+
+    var posts: [Components.Schemas.FeedJournalEntryDto] { paginator.items }
+    var isLoading: Bool { paginator.isLoading }
+    var hasMorePages: Bool { paginator.hasMorePages }
+    var error: Error? { paginator.error }
 
     /// Loads the first page of the feed.
     func loadInitial() async {
-        currentPage = 0
-        posts = []
-        hasMorePages = true
-        error = nil
-        await loadNextPage()
-    }
-
-    /// Loads the next page.
-    func loadNextPage() async {
-        guard !isLoading, hasMorePages else { return }
-        isLoading = true
-        error = nil
-
-        do {
-            let page = try await socialService.getFeed(page: currentPage, size: pageSize)
-            posts.append(contentsOf: page.content)
-            hasMorePages = !page.isLast
-            currentPage += 1
-        } catch where error.isCancellation {
-            // Task cancelled, ignore
-        } catch {
-            Log.error("Failed to load social feed", error: error)
-            self.error = error
-            hasMorePages = false // Stop retrying on error
-        }
-
-        isLoading = false
+        await paginator.loadInitial()
     }
 
     /// Triggers pagination near end of list.
     func onPostAppear(_ post: Components.Schemas.FeedJournalEntryDto) async {
-        guard let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
-        let threshold = max(posts.count - 5, 0)
-        if index >= threshold {
-            await loadNextPage()
-        }
+        await paginator.loadMoreIfNeeded(currentItem: post)
     }
 
-    /// Toggles like on a post.
+    /// Toggles like on a post (optimistic update + rollback on failure).
     func toggleLike(on post: Components.Schemas.FeedJournalEntryDto) async {
-        guard let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
-
         let wasLiked = post.likedByMe
         let previousCount = post.likeCount
 
         // Optimistic update + haptic
-        posts[index].likedByMe.toggle()
-        posts[index].likeCount += wasLiked ? -1 : 1
+        paginator.mutate(id: post.id) { p in
+            p.likedByMe.toggle()
+            p.likeCount += wasLiked ? -1 : 1
+        }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
         do {
@@ -79,8 +53,10 @@ final class SocialFeedViewModel {
             }
         } catch {
             // Rollback
-            posts[index].likedByMe = wasLiked
-            posts[index].likeCount = previousCount
+            paginator.mutate(id: post.id) { p in
+                p.likedByMe = wasLiked
+                p.likeCount = previousCount
+            }
             Log.error("Failed to toggle like", error: error)
         }
     }

@@ -12,7 +12,20 @@ struct SocialFeedView: View {
     var body: some View {
         Group {
             if let viewModel {
-                if viewModel.posts.isEmpty && !viewModel.isLoading {
+                if viewModel.posts.isEmpty && viewModel.error != nil && !viewModel.isLoading {
+                    ScrollView {
+                        EmptyStateView(
+                            icon: "exclamationmark.triangle",
+                            title: "Couldn't Load Feed",
+                            message: "Something went wrong loading your friends' wines. Pull to try again.",
+                            actionLabel: Label("Retry", systemImage: "arrow.clockwise"),
+                            action: { Task { await viewModel.loadInitial() } }
+                        )
+                    }
+                    .refreshable {
+                        await Task { await viewModel.loadInitial() }.value
+                    }
+                } else if viewModel.posts.isEmpty && !viewModel.isLoading {
                     ScrollView {
                         EmptyStateView(
                             icon: "person.2",

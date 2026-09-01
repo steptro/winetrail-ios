@@ -82,8 +82,7 @@ struct UserProfileView: View {
         .refreshable {
             await viewModel.loadProfile()
             if viewModel.isFriend {
-                viewModel.resetTastings()
-                await viewModel.loadTastings()
+                await viewModel.resetTastings()
             }
         }
         .sheet(item: $commentsTastingId) { tastingId in
