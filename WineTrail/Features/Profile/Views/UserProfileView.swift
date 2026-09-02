@@ -95,7 +95,7 @@ struct UserProfileView: View {
                 LikesListView(tastingId: tastingId)
             }
         }
-        .confirmationDialog("Remove Friend", isPresented: $showRemoveConfirmation, titleVisibility: .visible) {
+        .alert("Remove Friend", isPresented: $showRemoveConfirmation) {
             Button("Remove Friend", role: .destructive) {
                 Task { await viewModel.removeFriend() }
             }
@@ -103,13 +103,12 @@ struct UserProfileView: View {
         } message: {
             Text("You'll no longer see each other's tastings.")
         }
-        .confirmationDialog(
+        .alert(
             pendingNotifyValue == true ? "Turn on new wine alerts?" : "Turn off new wine alerts?",
             isPresented: Binding(
                 get: { pendingNotifyValue != nil },
                 set: { if !$0 { pendingNotifyValue = nil } }
-            ),
-            titleVisibility: .visible
+            )
         ) {
             if let target = pendingNotifyValue {
                 Button(target ? "Turn On" : "Turn Off") {

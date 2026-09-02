@@ -115,10 +115,9 @@ struct ProfileView: View {
         .task {
             await loadData()
         }
-        .confirmationDialog(
+        .alert(
             "Delete Account",
-            isPresented: $showDeleteAccountConfirmation,
-            titleVisibility: .visible
+            isPresented: $showDeleteAccountConfirmation
         ) {
             Button("Delete My Account", role: .destructive) {
                 Task { await deleteAccount() }
