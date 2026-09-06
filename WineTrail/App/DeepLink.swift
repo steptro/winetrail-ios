@@ -10,9 +10,9 @@ enum DeepLink: Equatable {
         guard let type = userInfo["type"] as? String else { return nil }
 
         switch type {
-        case "like", "comment":
-            guard let tastingId = userInfo["tastingId"] as? String else { return nil }
-            return .tasting(id: tastingId)
+        case "like", "comment", "comment_like", "friend_wine":
+            guard let entryId = userInfo["entryId"] as? String else { return nil }
+            return .tasting(id: entryId)
         case "friend_request", "friend_accepted":
             return .friends
         default:
