@@ -163,6 +163,20 @@ final class SocialService {
         )
     }
 
+    /// Likes a comment.
+    func likeComment(commentId: String) async throws {
+        _ = try await apiClient.client.likeComment(
+            path: .init(commentId: commentId)
+        )
+    }
+
+    /// Unlikes a comment.
+    func unlikeComment(commentId: String) async throws {
+        _ = try await apiClient.client.unlikeComment(
+            path: .init(commentId: commentId)
+        )
+    }
+
     // MARK: - User Profile
 
     /// Fetches a user's public profile with stats and friendship status.
