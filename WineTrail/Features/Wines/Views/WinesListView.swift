@@ -12,7 +12,11 @@ struct WinesListView: View {
     var body: some View {
         Group {
             if let viewModel {
-                if viewModel.wines.isEmpty && !viewModel.isLoading {
+                if let error = viewModel.error, viewModel.wines.isEmpty {
+                    ErrorStateView(error: error) {
+                        Task { await viewModel.loadInitial() }
+                    }
+                } else if viewModel.wines.isEmpty && !viewModel.isLoading {
                     EmptyStateView(
                         icon: "wineglass",
                         title: "No Wines Yet",

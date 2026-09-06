@@ -14,6 +14,10 @@ struct StatsView: View {
             if let viewModel {
                 if viewModel.isLoading && viewModel.stats == nil {
                     WineGlassLoadingView()
+                } else if let error = viewModel.error, viewModel.stats == nil {
+                    ErrorStateView(error: error) {
+                        Task { await viewModel.loadStats() }
+                    }
                 } else if !viewModel.hasData {
                     EmptyStateView(
                         icon: "chart.bar",

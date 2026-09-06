@@ -15,7 +15,11 @@ struct TimelineView: View {
     var body: some View {
         Group {
             if let viewModel {
-                if viewModel.tastings.isEmpty && !viewModel.isLoading {
+                if let error = viewModel.error, viewModel.tastings.isEmpty {
+                    ErrorStateView(error: error) {
+                        Task { await viewModel.loadInitial() }
+                    }
+                } else if viewModel.tastings.isEmpty && !viewModel.isLoading {
                     ScrollView {
                         if !searchText.isEmpty {
                             EmptyStateView(

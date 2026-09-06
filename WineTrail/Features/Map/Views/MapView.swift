@@ -18,20 +18,10 @@ struct MapView: View {
             if let viewModel {
                 if viewModel.isLoading && viewModel.mapData == nil {
                     ProgressView()
-                } else if let error = viewModel.error {
-                    VStack(spacing: Theme.spacing) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.title)
-                            .foregroundStyle(.secondary)
-                        Text(error.localizedDescription)
-                            .font(Theme.captionFont)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                        Button("Retry") {
-                            Task { await viewModel.loadMapData() }
-                        }
+                } else if let error = viewModel.error, viewModel.mapData == nil {
+                    ErrorStateView(error: error) {
+                        Task { await viewModel.loadMapData() }
                     }
-                    .padding()
                 } else if viewModel.hasData {
                     mapContent(viewModel: viewModel)
                 } else {
