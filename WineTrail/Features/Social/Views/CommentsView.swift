@@ -2,6 +2,9 @@ import SwiftUI
 import FirebaseAuth
 
 /// Comments sheet for viewing and adding comments on a tasting.
+///
+/// All paging and comment mutations live in `CommentsViewModel`; this view owns only
+/// UI state (the draft text, the sending spinner, haptics, and animation).
 struct CommentsView: View {
     @Environment(SocialService.self) private var socialService
     @Environment(AuthService.self) private var authService
@@ -9,85 +12,26 @@ struct CommentsView: View {
 
     let tastingId: String
 
-    @State private var comments: [Components.Schemas.CommentDto] = []
-    @State private var isLoading = false
-    @State private var hasMorePages = true
-    @State private var currentPage = 0
+    @State private var viewModel: CommentsViewModel?
     @State private var newComment = ""
     @State private var isSending = false
-    @State private var errorMessage: String?
-    private let pageSize = 20
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Comments list
-                if isLoading && comments.isEmpty {
+                if let viewModel {
+                    content(viewModel: viewModel)
+                } else {
                     Spacer()
                     WineGlassLoadingView()
                     Spacer()
-                } else if comments.isEmpty {
-                    Spacer()
-                    VStack(spacing: 8) {
-                        Image(systemName: "bubble.right")
-                            .font(.largeTitle)
-                            .foregroundStyle(.secondary)
-                        Text("No comments yet")
-                            .font(Theme.subheadlineFont)
-                            .foregroundStyle(.secondary)
-                        Text("Be the first to comment!")
-                            .font(Theme.captionFont)
-                            .foregroundStyle(.tertiary)
-                    }
-                    Spacer()
-                } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 12) {
-                            ForEach(comments, id: \.id) { comment in
-                                commentRow(comment)
-                                    .onAppear {
-                                        if comment.id == comments.last?.id && hasMorePages {
-                                            Task { await loadMoreComments() }
-                                        }
-                                    }
-                            }
-                            if isLoading {
-                                ProgressView()
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                            }
-                        }
-                        .padding()
-                    }
                 }
 
                 Divider()
 
-                // Input bar
-                HStack(spacing: 10) {
-                    TextField("Add a comment...", text: $newComment)
-                        .textFieldStyle(.plain)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
-
-                    if isSending {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Button {
-                            Task { await sendComment() }
-                        } label: {
-                            Image(systemName: "paperplane.fill")
-                                .foregroundStyle(newComment.isEmpty ? Color.secondary : Color.wineAccent)
-                        }
-                        .disabled(newComment.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
+                inputBar
             }
-            .navigationTitle("Comments")
+            .navigationTitle((viewModel?.totalComments ?? 0) > 0 ? "\(viewModel!.totalComments) Comments" : "Comments")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -95,10 +39,88 @@ struct CommentsView: View {
                 }
             }
         }
-        .errorAlert($errorMessage)
+        .errorAlert(Binding(
+            get: { viewModel?.errorMessage },
+            set: { viewModel?.errorMessage = $0 }
+        ))
         .task {
-            await loadComments()
+            if viewModel == nil {
+                viewModel = CommentsViewModel(socialService: socialService, tastingId: tastingId)
+            }
+            await viewModel?.loadComments()
         }
+    }
+
+    // MARK: - Content
+
+    @ViewBuilder
+    private func content(viewModel: CommentsViewModel) -> some View {
+        if viewModel.isLoading && viewModel.comments.isEmpty {
+            Spacer()
+            WineGlassLoadingView()
+            Spacer()
+        } else if viewModel.comments.isEmpty {
+            Spacer()
+            VStack(spacing: 8) {
+                Image(systemName: "bubble.right")
+                    .font(.largeTitle)
+                    .foregroundStyle(.secondary)
+                Text("No comments yet")
+                    .font(Theme.subheadlineFont)
+                    .foregroundStyle(.secondary)
+                Text("Be the first to comment!")
+                    .font(Theme.captionFont)
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+        } else {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    ForEach(viewModel.comments, id: \.id) { comment in
+                        commentRow(comment)
+                            .onAppear {
+                                if viewModel.shouldLoadMore(after: comment) {
+                                    Task { await viewModel.loadMoreComments() }
+                                }
+                            }
+                    }
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    }
+                }
+                .padding()
+            }
+        }
+    }
+
+    // MARK: - Input Bar
+
+    @ViewBuilder
+    private var inputBar: some View {
+        HStack(spacing: 10) {
+            TextField("Add a comment...", text: $newComment)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
+
+            if isSending {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Button {
+                    Task { await sendComment() }
+                } label: {
+                    Image(systemName: "paperplane.fill")
+                        .foregroundStyle(newComment.isEmpty ? Color.secondary : Color.wineAccent)
+                }
+                .disabled(newComment.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
     }
 
     // MARK: - Comment Row
@@ -122,6 +144,23 @@ struct CommentsView: View {
 
                 Text(comment.body)
                     .font(.subheadline)
+
+                Button {
+                    Task { await toggleLike(comment) }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: comment.likedByMe ? "heart.fill" : "heart")
+                            .foregroundStyle(comment.likedByMe ? Color.wineAccent : Color.secondary)
+                        if comment.likeCount > 0 {
+                            Text("\(comment.likeCount)")
+                                .foregroundStyle(.secondary)
+                                .contentTransition(.numericText())
+                        }
+                    }
+                    .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 2)
             }
 
             if isOwnComment(comment) {
@@ -142,67 +181,29 @@ struct CommentsView: View {
         return comment.author.email == currentEmail
     }
 
-    private func deleteComment(_ comment: Components.Schemas.CommentDto) async {
-        do {
-            try await socialService.deleteComment(commentId: comment.id)
-            comments.removeAll { $0.id == comment.id }
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        } catch {
-            Log.error("Failed to delete comment", error: error)
-            errorMessage = "Failed to delete comment."
-        }
-    }
-
-    // MARK: - Actions
-
-    private func loadComments() async {
-        isLoading = true
-        currentPage = 0
-        hasMorePages = true
-        do {
-            let result = try await socialService.getComments(tastingId: tastingId, page: 0, size: pageSize)
-            comments = result.content
-            hasMorePages = !result.isLast
-            currentPage = 1
-        } catch {
-            Log.error("Failed to load comments", error: error)
-            errorMessage = "Failed to load comments."
-        }
-        isLoading = false
-    }
-
-    private func loadMoreComments() async {
-        guard !isLoading, hasMorePages else { return }
-        isLoading = true
-        do {
-            let result = try await socialService.getComments(tastingId: tastingId, page: currentPage, size: pageSize)
-            comments.append(contentsOf: result.content)
-            hasMorePages = !result.isLast
-            currentPage += 1
-        } catch {
-            Log.error("Failed to load more comments", error: error)
-            errorMessage = "Failed to load more comments."
-        }
-        isLoading = false
-    }
+    // MARK: - Actions (UI concerns; logic delegated to the view model)
 
     private func sendComment() async {
-        let text = newComment.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
+        guard let viewModel else { return }
         isSending = true
-
-        do {
-            let comment = try await socialService.addComment(tastingId: tastingId, body: text)
-            comments.append(comment)
+        let sent = await viewModel.sendComment(newComment)
+        if sent {
             newComment = ""
-            WineAnalytics.logComment(tastingId: tastingId)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        } catch {
-            Log.error("Failed to add comment", error: error)
-            errorMessage = "Failed to send comment. Please try again."
         }
-
         isSending = false
+    }
+
+    private func deleteComment(_ comment: Components.Schemas.CommentDto) async {
+        guard let viewModel else { return }
+        await viewModel.deleteComment(comment)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func toggleLike(_ comment: Components.Schemas.CommentDto) async {
+        guard let viewModel else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        await viewModel.toggleLike(comment)
     }
 
     // MARK: - Helpers
