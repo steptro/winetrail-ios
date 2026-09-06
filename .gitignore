@@ -48,3 +48,6 @@ GoogleService-Info.plist
 
 # Secrets
 Secrets.xcconfig
+
+# Kiro Crew tooling config
+.kiro/
