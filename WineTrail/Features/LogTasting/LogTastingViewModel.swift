@@ -79,6 +79,10 @@ final class LogTastingViewModel {
     /// Photos selected by the user for upload.
     var selectedImages: [UIImage] = []
 
+    /// A label photo captured via scan, attached to the tasting once the user
+    /// selects the matched wine. Cleared on selection or a new scan.
+    var pendingScanImage: UIImage?
+
     // MARK: - Location State
 
     /// Auto-detected GPS coordinate from background location fetch.
@@ -225,6 +229,20 @@ final class LogTastingViewModel {
         }
     }
 
+    /// Attaches the pending scanned label photo (from a successful scan match) and clears it.
+    func consumePendingScanImage() {
+        if let scanned = pendingScanImage {
+            addImage(scanned)
+            pendingScanImage = nil
+        }
+    }
+
+    /// Discards the pending scanned photo without attaching it (e.g. the user picked
+    /// a recent wine rather than the scanned match).
+    func discardPendingScanImage() {
+        pendingScanImage = nil
+    }
+
     /// Loads stats for a wine by its ID from the dedicated stats endpoint.
     private func loadWineStats(wineId: String) async {
         do {
@@ -301,7 +319,7 @@ final class LogTastingViewModel {
                 latitude: latitude,
                 longitude: longitude,
                 locationName: locationName.isEmpty ? nil : locationName,
-                tastingDate: dateFormatter.string(from: tastingDate),
+                tastingDate: nil,
                 vintage: parsedVintage
             )
 

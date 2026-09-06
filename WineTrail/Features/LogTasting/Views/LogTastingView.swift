@@ -20,6 +20,11 @@ struct LogTastingView: View {
     @State private var shakeWineSection = false
     @State private var showCheers = false
 
+    @State private var showScanCamera = false
+    @State private var isScanning = false
+    @State private var scanWarning: String?
+    @State private var scanFoundNoText = false
+
     enum WizardStep: Int, CaseIterable {
         case wineAndRating = 0
         case details = 1
@@ -61,7 +66,6 @@ struct LogTastingView: View {
                 Group {
                     if let viewModel {
                         VStack(spacing: 0) {
-                            stepProgressBar
                             stepHeader
                             stepContent(viewModel: viewModel)
                             Spacer(minLength: 0)
@@ -157,32 +161,6 @@ struct LogTastingView: View {
     }
 
     // MARK: - Step Progress Bar
-
-    private var stepProgressBar: some View {
-        VStack(spacing: 6) {
-            Text("Step \(currentStep.rawValue + 1) of \(WizardStep.allCases.count)")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color.wineAccent.opacity(0.15))
-                        .frame(height: 3)
-                    Capsule()
-                        .fill(Color.wineAccent)
-                        .frame(
-                            width: geo.size.width * CGFloat(currentStep.rawValue + 1) / CGFloat(WizardStep.allCases.count),
-                            height: 3
-                        )
-                        .animation(.easeInOut(duration: 0.3), value: currentStep)
-                }
-            }
-            .frame(height: 3)
-        }
-        .padding(.horizontal)
-        .padding(.top, 8)
-    }
 
     // MARK: - Step Content
 
@@ -326,6 +304,53 @@ struct LogTastingView: View {
                                 .disabled(viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty)
                             }
 
+                            // Prominent primary action: scan a label.
+                            Button {
+                                scanWarning = nil
+                                scanFoundNoText = false
+                                showScanCamera = true
+                            } label: {
+                                Label("Scan Label", systemImage: "camera.viewfinder")
+                                    .font(Theme.bodyFont.weight(.semibold))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 6)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.wineAccent)
+                            .disabled(isScanning)
+
+                            if isScanning {
+                                HStack {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Reading label...")
+                                        .font(Theme.captionFont)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            if let scanWarning {
+                                Label(scanWarning, systemImage: "exclamationmark.triangle")
+                                    .font(Theme.captionFont)
+                                    .foregroundStyle(.orange)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .accessibilityLabel("Scan warning: \(scanWarning)")
+
+                                // No readable text: offer a manual-create shortcut.
+                                if scanFoundNoText {
+                                    NavigationLink {
+                                        CreateWineView(selectedWine: $vm.selectedWine, selectedWineId: $vm.selectedWineId)
+                                    } label: {
+                                        Label("Add Manually", systemImage: "plus.circle")
+                                            .font(Theme.bodyFont.weight(.semibold))
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 6)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .tint(.wineSecondary)
+                                }
+                            }
+
                             if viewModel.isSearching {
                                 HStack {
                                     ProgressView()
@@ -342,6 +367,8 @@ struct LogTastingView: View {
                                     sectionLabel("Recent")
                                     ForEach(viewModel.recentWines, id: \.name) { wine in
                                         Button {
+                                            // A recent pick isn't the scanned bottle — drop the scan photo.
+                                            viewModel.discardPendingScanImage()
                                             viewModel.selectWine(wine)
                                         } label: {
                                             wineResultRow(wine: wine)
@@ -357,6 +384,8 @@ struct LogTastingView: View {
                                     sectionLabel("Results")
                                     ForEach(viewModel.searchResults, id: \.name) { wine in
                                         Button {
+                                            // Selecting a scanned match attaches the label photo.
+                                            viewModel.consumePendingScanImage()
                                             viewModel.selectWine(wine)
                                         } label: {
                                             wineResultRow(wine: wine)
@@ -366,12 +395,26 @@ struct LogTastingView: View {
                                 }
                             }
 
-                            NavigationLink {
-                                CreateWineView(selectedWine: $vm.selectedWine, selectedWineId: $vm.selectedWineId)
-                            } label: {
-                                Label("Create wine manually", systemImage: "plus.circle")
-                                    .foregroundStyle(.wineAccent)
+                            // Fallback: only offer manual entry when a search or scan
+                            // produced nothing to pick.
+                            let hasSearched = !viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty
+                            if !viewModel.isSearching && !isScanning
+                                && viewModel.searchResults.isEmpty
+                                && !scanFoundNoText
+                                && (hasSearched || scanWarning != nil) {
+                                Divider()
+                                NavigationLink {
+                                    CreateWineView(selectedWine: $vm.selectedWine, selectedWineId: $vm.selectedWineId)
+                                } label: {
+                                    Label("Add Manually", systemImage: "plus.circle")
+                                        .font(Theme.bodyFont.weight(.semibold))
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 6)
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.wineSecondary)
                             }
+
                         }
                     }
                 }
@@ -402,6 +445,14 @@ struct LogTastingView: View {
             .padding(.top, 12)
         }
         .tint(.wineAccent)
+        .fullScreenCover(isPresented: $showScanCamera) {
+            LabelScanCameraView { image in
+                showScanCamera = false
+                guard let image else { return }
+                scanLabel(image, viewModel: viewModel)
+            }
+            .ignoresSafeArea()
+        }
         .offset(x: shakeWineSection ? -8 : 0)
         .animation(
             shakeWineSection
@@ -460,8 +511,6 @@ struct LogTastingView: View {
                     .labelsHidden()
                     .frame(width: 80)
                 }
-                DatePicker("Date", selection: $vm.tastingDate, in: ...Date(), displayedComponents: .date)
-                    .tint(.wineAccent)
             }
 
             // Location section
@@ -638,6 +687,46 @@ struct LogTastingView: View {
             Spacer()
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+
+    // MARK: - Label Scanning
+
+    private func scanLabel(_ image: UIImage, viewModel: LogTastingViewModel) {
+        isScanning = true
+        scanWarning = nil
+        scanFoundNoText = false
+        // Clear any previous results so a re-scan doesn't show stale hits.
+        viewModel.searchResults = []
+        viewModel.searchQuery = ""
+        viewModel.pendingScanImage = nil
+        Task {
+            defer { isScanning = false }
+            do {
+                let result = try await WineLabelScanner.scan(image)
+                Log.info("Wine label scan result — producer: \(result.producer ?? "nil"), name: \(result.name ?? "nil"), vintage: \(result.vintage.map(String.init) ?? "nil"), confident: \(result.isConfident), query: \"\(result.searchQuery)\", rawLines: \(result.rawLines)")
+                let query = result.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !result.isConfident || query.isEmpty {
+                    scanWarning = "Couldn't confidently identify the wine from the label. Check or edit the search text below."
+                }
+                // Prefill the parsed vintage if the field is still empty.
+                if let vintage = result.vintage, viewModel.vintageText.trimmingCharacters(in: .whitespaces).isEmpty {
+                    viewModel.vintageText = String(vintage)
+                }
+                // Keep the scanned photo pending; it's attached once the user picks the matched wine.
+                if !query.isEmpty {
+                    viewModel.pendingScanImage = image
+                    viewModel.searchQuery = query
+                    viewModel.search()
+                }
+            } catch WineLabelScanner.ScanError.noTextFound {
+                scanFoundNoText = true
+                scanWarning = "No readable text found on the label. Try again with a clearer, well-lit photo."
+            } catch {
+                Log.error("Wine label scan failed", error: error)
+                scanWarning = "Couldn't read the label. Try again or search by name."
+            }
+        }
     }
 }
 

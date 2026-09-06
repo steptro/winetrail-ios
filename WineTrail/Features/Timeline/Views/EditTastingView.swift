@@ -78,9 +78,6 @@ struct EditTastingView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Progress bar
-                stepProgressBar
-
                 // Question title
                 stepHeader
 
@@ -120,32 +117,6 @@ struct EditTastingView: View {
     }
 
     // MARK: - Step Progress Bar
-
-    private var stepProgressBar: some View {
-        VStack(spacing: 6) {
-            Text("Step \(currentStep.rawValue + 1) of \(WizardStep.allCases.count)")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color.wineAccent.opacity(0.15))
-                        .frame(height: 3)
-                    Capsule()
-                        .fill(Color.wineAccent)
-                        .frame(
-                            width: geo.size.width * CGFloat(currentStep.rawValue + 1) / CGFloat(WizardStep.allCases.count),
-                            height: 3
-                        )
-                        .animation(.easeInOut(duration: 0.3), value: currentStep)
-                }
-            }
-            .frame(height: 3)
-        }
-        .padding(.horizontal)
-        .padding(.top, 8)
-    }
 
     // MARK: - Step Header
 
@@ -367,8 +338,6 @@ struct EditTastingView: View {
                     .labelsHidden()
                     .frame(width: 80)
                 }
-                DatePicker("Date", selection: $tastingDate, in: ...Date(), displayedComponents: .date)
-                    .tint(.wineAccent)
             }
 
             // Location section
@@ -446,7 +415,7 @@ struct EditTastingView: View {
             latitude: latitude,
             longitude: longitude,
             locationName: locationName.isEmpty ? nil : locationName,
-            tastingDate: dateFormatter.string(from: tastingDate),
+            tastingDate: nil,
             vintage: vintageYear.map { Int32($0) }
         )
 
