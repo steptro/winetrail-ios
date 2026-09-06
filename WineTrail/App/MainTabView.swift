@@ -6,11 +6,13 @@ import SwiftUI
 struct MainTabView: View {
     @Environment(AppState.self) private var appState
     @Environment(JournalService.self) private var journalService
+    @Environment(SocialService.self) private var socialService
     @Environment(SocialState.self) private var socialState
 
     @State private var selectedTab = 0
     @State private var showLogTasting = false
     @State private var deepLinkTasting: Tasting?
+    @State private var deepLinkTaggedPost: Components.Schemas.FeedJournalEntryDto?
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -78,6 +80,18 @@ struct MainTabView: View {
                 }
             }
         }
+        .sheet(item: $deepLinkTaggedPost) { post in
+            NavigationStack {
+                SocialTastingDetailView(post: post)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button { deepLinkTaggedPost = nil } label: {
+                                Image(systemName: "xmark")
+                            }
+                        }
+                    }
+            }
+        }
         .onChange(of: appState.pendingDeepLink) { _, deepLink in
             guard let deepLink else { return }
             handleDeepLink(deepLink)
@@ -108,6 +122,19 @@ struct MainTabView: View {
             }
         case .friends:
             selectedTab = 2 // Social tab
+        case .taggedPost(let entryId):
+            selectedTab = 2 // Social tab
+            Task {
+                do {
+                    // No single-entry social endpoint; find the post among the user's tagged wines.
+                    let tagged = try await socialService.getTaggedEntries(page: 0, size: 50)
+                    if let match = tagged.content.first(where: { $0.id == entryId }) {
+                        deepLinkTaggedPost = match
+                    }
+                } catch {
+                    Log.error("Failed to load tagged post from deep link", error: error)
+                }
+            }
         }
     }
 }

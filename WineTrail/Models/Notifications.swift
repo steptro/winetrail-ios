@@ -8,4 +8,8 @@ extension Notification.Name {
     /// Posted when friend requests change (e.g. new incoming request via silent push).
     /// Observers should refresh friend request counts and lists.
     static let friendRequestsDidChange = Notification.Name("friendRequestsDidChange")
+
+    /// Posted when the set of wines the user is tagged in changes (e.g. new tag via silent push).
+    /// Observers should refresh the tagged-wines count/list.
+    static let taggedWinesDidChange = Notification.Name("taggedWinesDidChange")
 }

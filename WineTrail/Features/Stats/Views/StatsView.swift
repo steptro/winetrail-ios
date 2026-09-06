@@ -14,8 +14,8 @@ struct StatsView: View {
             if let viewModel {
                 if viewModel.isLoading && viewModel.stats == nil {
                     WineGlassLoadingView()
-                } else if let error = viewModel.error, viewModel.stats == nil {
-                    ErrorStateView(error: error) {
+                } else if viewModel.error != nil, viewModel.stats == nil {
+                    ErrorStateView {
                         Task { await viewModel.loadStats() }
                     }
                 } else if !viewModel.hasData {

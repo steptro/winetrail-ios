@@ -15,8 +15,8 @@ struct TimelineView: View {
     var body: some View {
         Group {
             if let viewModel {
-                if let error = viewModel.error, viewModel.tastings.isEmpty {
-                    ErrorStateView(error: error) {
+                if viewModel.error != nil, viewModel.tastings.isEmpty {
+                    ErrorStateView {
                         Task { await viewModel.loadInitial() }
                     }
                 } else if viewModel.tastings.isEmpty && !viewModel.isLoading {
@@ -546,6 +546,9 @@ private struct PressScaleButtonStyle: ButtonStyle {
         likeCount: 3,
         commentCount: 1,
         likedByMe: false,
+        taggedUsers: [],
+        sharedTastingId: nil,
+        participantCount: 0,
         createdAt: Date(),
         updatedAt: Date()
     ))

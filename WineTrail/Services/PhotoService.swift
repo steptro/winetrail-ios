@@ -45,6 +45,22 @@ final class PhotoService {
         _ = try await apiClient.client.deletePhoto(path: .init(photoId: id))
     }
 
+    /// Copies selected shared-tasting photos onto the given entry (server-side S3 copy).
+    ///
+    /// - Parameters:
+    ///   - entryId: The journal entry to copy the photos onto (must belong to the shared tasting).
+    ///   - photoIds: IDs of the shared tasting's photos to copy.
+    /// - Returns: The newly created photo metadata owned by the entry.
+    @discardableResult
+    func copySharedTastingPhotos(entryId: String, photoIds: [String]) async throws -> [Components.Schemas.PhotoUploadDto] {
+        guard !photoIds.isEmpty else { return [] }
+        let response = try await apiClient.client.copySharedTastingPhotos(
+            path: .init(entryId: entryId),
+            body: .json(.init(photoIds: photoIds))
+        )
+        return try response.ok.body.json
+    }
+
     /// Iteratively compresses a UIImage to JPEG until it's under the target size.
     ///
     /// Starts at 0.8 quality and decreases by 0.1 each iteration until the data

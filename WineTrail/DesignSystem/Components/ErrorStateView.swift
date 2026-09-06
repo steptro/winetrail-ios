@@ -8,9 +8,13 @@ import SwiftUI
 ///
 /// This exists so a network/load failure is never silently rendered as an empty state
 /// ("No Wines Yet"), which would misrepresent a transient error as "you have no data".
+///
+/// The on-screen message is a friendly, generic line — never the raw `error.localizedDescription`,
+/// which for the generated OpenAPI client is a large, technical dump. The underlying error is
+/// still captured via `Log.error` at the call site for debugging.
 struct ErrorStateView: View {
-    /// The underlying error. Its `localizedDescription` is shown as the message.
-    let error: Error
+    /// Optional user-facing message. Defaults to a friendly generic line.
+    var message: String = "Something went wrong. Pull to refresh or try again."
     /// Invoked when the user taps "Try Again".
     let retry: () -> Void
 
@@ -18,7 +22,7 @@ struct ErrorStateView: View {
         EmptyStateView(
             icon: "exclamationmark.triangle",
             title: "Couldn't Load",
-            message: error.localizedDescription,
+            message: message,
             actionTitle: "Try Again",
             action: retry
         )
@@ -26,12 +30,5 @@ struct ErrorStateView: View {
 }
 
 #Preview {
-    ErrorStateView(
-        error: NSError(
-            domain: "WineTrail",
-            code: -1,
-            userInfo: [NSLocalizedDescriptionKey: "The Internet connection appears to be offline."]
-        ),
-        retry: {}
-    )
+    ErrorStateView(retry: {})
 }

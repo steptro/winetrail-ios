@@ -12,8 +12,8 @@ struct WinesListView: View {
     var body: some View {
         Group {
             if let viewModel {
-                if let error = viewModel.error, viewModel.wines.isEmpty {
-                    ErrorStateView(error: error) {
+                if viewModel.error != nil, viewModel.wines.isEmpty {
+                    ErrorStateView {
                         Task { await viewModel.loadInitial() }
                     }
                 } else if viewModel.wines.isEmpty && !viewModel.isLoading {

@@ -106,6 +106,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         if type == "friend_request_sync" {
             NotificationCenter.default.post(name: .friendRequestsDidChange, object: nil)
             completionHandler(.newData)
+        } else if type == "tagged_sync" {
+            NotificationCenter.default.post(name: .taggedWinesDidChange, object: nil)
+            completionHandler(.newData)
         } else {
             completionHandler(.noData)
         }

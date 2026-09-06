@@ -18,8 +18,8 @@ struct MapView: View {
             if let viewModel {
                 if viewModel.isLoading && viewModel.mapData == nil {
                     ProgressView()
-                } else if let error = viewModel.error, viewModel.mapData == nil {
-                    ErrorStateView(error: error) {
+                } else if viewModel.error != nil, viewModel.mapData == nil {
+                    ErrorStateView {
                         Task { await viewModel.loadMapData() }
                     }
                 } else if viewModel.hasData {

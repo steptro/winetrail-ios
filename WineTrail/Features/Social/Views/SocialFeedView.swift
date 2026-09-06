@@ -8,6 +8,7 @@ struct SocialFeedView: View {
     @State private var commentsTastingId: String?
     @State private var likesTastingId: String?
     @State private var showAddFriend = false
+    @State private var taggedCount = 0
 
     var body: some View {
         Group {
@@ -43,15 +44,20 @@ struct SocialFeedView: View {
                     ScrollView {
                         LazyVStack(spacing: 24) {
                             ForEach(viewModel.posts, id: \.id) { post in
-                                SocialFeedPostView(
-                                    post: post,
-                                    onLike: { await viewModel.toggleLike(on: post) },
-                                    onComment: {
-                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                        commentsTastingId = post.id
-                                    },
-                                    onLikesCount: { likesTastingId = post.id }
-                                )
+                                NavigationLink {
+                                    SocialTastingDetailView(post: post)
+                                } label: {
+                                    SocialFeedPostView(
+                                        post: post,
+                                        onLike: { await viewModel.toggleLike(on: post) },
+                                        onComment: {
+                                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                            commentsTastingId = post.id
+                                        },
+                                        onLikesCount: { likesTastingId = post.id }
+                                    )
+                                }
+                                .buttonStyle(.plain)
                                 .task { await viewModel.onPostAppear(post) }
                             }
                             if viewModel.isLoading {
@@ -77,6 +83,23 @@ struct SocialFeedView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 NavigationLink {
+                    TaggedWinesView()
+                } label: {
+                    Image(systemName: "tag")
+                        .overlay(alignment: .topTrailing) {
+                            if taggedCount > 0 {
+                                Text("\(taggedCount)")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(3)
+                                    .background(.red, in: Circle())
+                                    .offset(x: 6, y: -6)
+                            }
+                        }
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink {
                     FriendsView()
                 } label: {
                     Image(systemName: "person.2")
@@ -99,6 +122,7 @@ struct SocialFeedView: View {
             }
             await viewModel?.loadInitial()
             await socialState.refreshPendingCount()
+            await refreshTaggedCount()
         }
         .sheet(item: $commentsTastingId) { tastingId in
             CommentsView(tastingId: tastingId)
@@ -109,8 +133,22 @@ struct SocialFeedView: View {
         .onReceive(NotificationCenter.default.publisher(for: .friendRequestsDidChange)) { _ in
             Task { await socialState.refreshPendingCount() }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .tastingDidChange)) { _ in
+            Task { await refreshTaggedCount() }
+        }
         .sheet(isPresented: $showAddFriend) {
             AddFriendView()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .taggedWinesDidChange)) { _ in
+            Task { await refreshTaggedCount() }
+        }
+    }
+
+    private func refreshTaggedCount() async {
+        do {
+            taggedCount = try await socialService.getUnratedTaggedCount()
+        } catch {
+            Log.error("Failed to refresh tagged count", error: error)
         }
     }
 }
@@ -302,6 +340,21 @@ struct SocialFeedPostView: View {
                     .buttonStyle(.plain)
 
                     Spacer()
+                }
+
+                // Shared tasting: who's tagged (tap the post to add your own rating)
+                if post.sharedTastingId != nil, !post.taggedUsers.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.2.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.wineAccent)
+                        Text("Tasted with " + post.taggedUsers
+                            .map { $0.username }
+                            .joined(separator: ", "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
             }
             .padding(Theme.spacing)

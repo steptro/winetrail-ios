@@ -202,4 +202,45 @@ final class SocialService {
             isLast: Int(dto.page?.number ?? 0) >= Int(dto.page?.totalPages ?? 1) - 1
         )
     }
+
+    // MARK: - Shared Tastings
+
+    /// Fetches every participant's rating for a shared tasting.
+    /// Visible to any authenticated user who can see the post.
+    func getSharedTastingRatings(sharedTastingId: String) async throws -> [Components.Schemas.SharedRatingDto] {
+        let response = try await apiClient.client.getSharedTastingRatings(
+            path: .init(sharedTastingId: sharedTastingId)
+        )
+        return try response.ok.body.json
+    }
+
+    /// Fetches wines the current user has been tagged in (paginated, most-recent first).
+    func getTaggedEntries(page: Int = 0, size: Int = 20) async throws -> PagedResult<Components.Schemas.FeedJournalEntryDto> {
+        let response = try await apiClient.client.getTaggedEntries(
+            query: .init(page: Int32(page), size: Int32(size))
+        )
+        let dto = try response.ok.body.json
+        return PagedResult(
+            content: dto.content ?? [],
+            totalPages: Int(dto.page?.totalPages ?? 0),
+            totalElements: Int(dto.page?.totalElements ?? 0),
+            currentPage: Int(dto.page?.number ?? 0),
+            isLast: Int(dto.page?.number ?? 0) >= Int(dto.page?.totalPages ?? 1) - 1
+        )
+    }
+
+    /// Count of tagged shared tastings the user has not yet rated (Social tab badge).
+    func getUnratedTaggedCount() async throws -> Int {
+        let response = try await apiClient.client.getUnratedTaggedCount()
+        return Int(try response.ok.body.json.count)
+    }
+
+    /// Photos belonging to a shared tasting (across all participant entries), for reuse
+    /// when adding your own rating.
+    func getSharedTastingPhotos(sharedTastingId: String) async throws -> [Components.Schemas.PhotoUploadDto] {
+        let response = try await apiClient.client.getSharedTastingPhotos(
+            path: .init(sharedTastingId: sharedTastingId)
+        )
+        return try response.ok.body.json
+    }
 }

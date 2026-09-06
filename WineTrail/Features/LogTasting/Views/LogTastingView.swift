@@ -11,9 +11,23 @@ struct LogTastingView: View {
     @Environment(JournalService.self) private var journalService
     @Environment(PhotoService.self) private var photoService
     @Environment(LocationService.self) private var locationService
+    @Environment(SocialService.self) private var socialService
 
     /// Optional pre-selected wine (e.g. from "Log Again" on wine detail page).
     var preselectedWine: WineSearch?
+
+    /// When set, this new entry joins an existing shared tasting (the "Add my rating" flow).
+    var sharedTastingId: String?
+
+    /// Optional vintage to pre-fill (e.g. from the friend's post in the "Add my rating" flow).
+    var preselectedVintage: Int?
+
+    /// Optional fields pre-filled from the friend's post in the "Add my rating" flow.
+    var preselectedFoodPairing: String?
+    var preselectedOccasion: String?
+    var preselectedLocationName: String?
+    var preselectedLatitude: Double?
+    var preselectedLongitude: Double?
 
     @State private var viewModel: LogTastingViewModel?
     @State private var currentStep: WizardStep = .wineAndRating
@@ -24,6 +38,8 @@ struct LogTastingView: View {
     @State private var isScanning = false
     @State private var scanWarning: String?
     @State private var scanFoundNoText = false
+    @State private var showTagFriends = false
+    @State private var isLocationLocked = false
 
     enum WizardStep: Int, CaseIterable {
         case wineAndRating = 0
@@ -106,10 +122,26 @@ struct LogTastingView: View {
                     wineService: wineService,
                     journalService: journalService,
                     photoService: photoService,
-                    locationService: locationService
+                    locationService: locationService,
+                    socialService: socialService
                 )
                 if let preselectedWine {
                     vm.selectWine(preselectedWine)
+                }
+                vm.sharedTastingId = sharedTastingId
+                if let preselectedVintage {
+                    vm.vintageText = String(preselectedVintage)
+                }
+                if let preselectedFoodPairing { vm.foodPairing = preselectedFoodPairing }
+                if let preselectedOccasion { vm.occasion = preselectedOccasion }
+                if let preselectedLocationName { vm.locationName = preselectedLocationName }
+                if let preselectedLatitude, let preselectedLongitude {
+                    vm.copiedLatitude = preselectedLatitude
+                    vm.copiedLongitude = preselectedLongitude
+                }
+                // Lock the copied location (name + coordinates) behind an Edit affordance.
+                if preselectedLocationName != nil || preselectedLatitude != nil {
+                    isLocationLocked = true
                 }
                 viewModel = vm
             }
@@ -211,13 +243,21 @@ struct LogTastingView: View {
                 Button {
                     Task { await viewModel.saveTasting() }
                 } label: {
-                    Image(systemName: "checkmark")
-                        .font(.body.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .foregroundStyle(.white)
-                        .background(.wineAccent, in: Capsule())
+                    Group {
+                        if viewModel.isSaving {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "checkmark")
+                                .font(.body.weight(.semibold))
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .foregroundStyle(.white)
+                    .background(.wineAccent, in: Capsule())
                 }
+                .disabled(viewModel.isSaving)
             }
 
             // Back button (secondary, glass outline)
@@ -469,13 +509,88 @@ struct LogTastingView: View {
         @Bindable var vm = viewModel
         Form {
             // Photo section
+            // Reuse photos from the shared tasting (Add my rating flow), selected by default.
+            if viewModel.sharedTastingId != nil, !viewModel.sharedTastingPhotos.isEmpty {
+                Section {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: Theme.smallSpacing) {
+                            ForEach(viewModel.sharedTastingPhotos, id: \.id) { photo in
+                                let isSelected = viewModel.selectedSharedPhotoIds.contains(photo.id)
+                                Button {
+                                    viewModel.toggleSharedPhoto(photo.id)
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                } label: {
+                                    ZStack(alignment: .topTrailing) {
+                                        CachedAsyncImage(url: URL(string: photo.url)) { image in
+                                            image.resizable().aspectRatio(contentMode: .fill)
+                                        } placeholder: {
+                                            Rectangle().fill(.quaternary)
+                                        }
+                                        .frame(width: 80, height: 80)
+                                        .clipShape(RoundedRectangle(cornerRadius: Theme.smallCornerRadius))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: Theme.smallCornerRadius)
+                                                .strokeBorder(isSelected ? Color.wineAccent : Color.clear, lineWidth: 3)
+                                        )
+                                        .opacity(isSelected ? 1.0 : 0.5)
+
+                                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                            .font(.system(size: 18))
+                                            .foregroundStyle(isSelected ? Color.wineAccent : Color.white)
+                                            .background(Circle().fill(.black.opacity(0.4)))
+                                            .offset(x: 4, y: -4)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } header: {
+                    Text("Photos from this tasting")
+                } footer: {
+                    Text("Selected photos are copied to your entry. Tap to include or exclude.")
+                }
+            }
+
             Section("Photo") {
-                PhotoPickerView(selectedImages: $vm.selectedImages)
+                PhotoPickerView(
+                    selectedImages: $vm.selectedImages,
+                    existingPhotoCount: vm.selectedSharedPhotoIds.count
+                )
             }
 
             Section("Vintage") {
                 TextField("2024", text: $vm.vintageText)
                     .keyboardType(.numberPad)
+            }
+
+            // Tagging only applies when creating a new post, not when adding your rating
+            // to an existing shared tasting.
+            if vm.sharedTastingId == nil {
+                Section {
+                    Button {
+                        showTagFriends = true
+                    } label: {
+                        HStack {
+                            Label("Tag Friends", systemImage: "person.2")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            if vm.taggedFriendIds.isEmpty {
+                                Text("None")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("\(vm.taggedFriendIds.count) tagged")
+                                    .foregroundStyle(.wineAccent)
+                            }
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                } footer: {
+                    Text("Tagged friends are notified and can add their own rating to this wine.")
+                }
             }
 
             Section("Notes") {
@@ -515,27 +630,48 @@ struct LogTastingView: View {
 
             // Location section
             Section("Location") {
-                if locationService.authorizationStatus == .authorizedWhenInUse ||
-                   locationService.authorizationStatus == .authorizedAlways {
-                    Toggle("Use current location", isOn: $vm.useGPS)
-                        .tint(.wineAccent)
-                } else if locationService.authorizationStatus == .notDetermined {
-                    Button {
-                        Task { await locationService.requestPermission() }
-                    } label: {
-                        Label("Enable Location Access", systemImage: "location")
-                    }
-                    .foregroundStyle(.wineAccent)
-                } else {
-                    Label("Location access denied", systemImage: "location.slash")
+                if isLocationLocked {
+                    HStack {
+                        Label(vm.locationName.isEmpty ? "Shared tasting location" : vm.locationName,
+                              systemImage: "mappin.and.ellipse")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Edit") {
+                            // Clear the copied location (name + coordinates) and switch to manual entry.
+                            vm.locationName = ""
+                            vm.copiedLatitude = nil
+                            vm.copiedLongitude = nil
+                            isLocationLocked = false
+                        }
                         .font(Theme.captionFont)
-                        .foregroundStyle(.secondary)
-                }
+                        .foregroundStyle(.wineAccent)
+                    }
+                } else {
+                    if locationService.authorizationStatus == .authorizedWhenInUse ||
+                       locationService.authorizationStatus == .authorizedAlways {
+                        Toggle("Use current location", isOn: $vm.useGPS)
+                            .tint(.wineAccent)
+                    } else if locationService.authorizationStatus == .notDetermined {
+                        Button {
+                            Task { await locationService.requestPermission() }
+                        } label: {
+                            Label("Enable Location Access", systemImage: "location")
+                        }
+                        .foregroundStyle(.wineAccent)
+                    } else {
+                        Label("Location access denied", systemImage: "location.slash")
+                            .font(Theme.captionFont)
+                            .foregroundStyle(.secondary)
+                    }
 
-                TextField("Location name", text: $vm.locationName)
+                    TextField("Location name", text: $vm.locationName)
+                }
             }
         }
         .tint(.wineAccent)
+        .sheet(isPresented: $showTagFriends) {
+            TagFriendsView(selectedFriendIds: $vm.taggedFriendIds)
+        }
     }
 
     // MARK: - Glass Card Container
@@ -648,11 +784,13 @@ struct LogTastingView: View {
                     }
                 }
                 Spacer()
-                Button("Change") {
-                    viewModel.clearSelection()
+                if viewModel.sharedTastingId == nil {
+                    Button("Change") {
+                        viewModel.clearSelection()
+                    }
+                    .font(Theme.captionFont)
+                    .foregroundStyle(.wineAccent)
                 }
-                .font(Theme.captionFont)
-                .foregroundStyle(.wineAccent)
             }
 
             // Wine stats (if user has tasted this wine before)
@@ -745,4 +883,8 @@ struct LogTastingView: View {
             authService: AuthService()
         )))
         .environment(LocationService())
+        .environment(SocialService(apiClient: APIClient(
+            serverURL: AppConfig.serverURL,
+            authService: AuthService()
+        )))
 }

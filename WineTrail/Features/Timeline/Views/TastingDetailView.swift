@@ -22,6 +22,7 @@ struct TastingDetailView: View {
     @State private var likedByMe = false
     @State private var showComments = false
     @State private var showLikes = false
+    @State private var sharedRatings: [Components.Schemas.SharedRatingDto] = []
 
     init(tasting: Tasting, viewModel: TimelineViewModel, showActions: Bool = true) {
         _tasting = State(initialValue: tasting)
@@ -41,6 +42,9 @@ struct TastingDetailView: View {
 
                     // Star rating
                     starRating
+
+                    // Shared tasting: tagged friends + everyone's ratings
+                    sharedTastingSection
 
                     // Notes (blockquote style)
                     notesSection
@@ -138,6 +142,19 @@ struct TastingDetailView: View {
         likeCount = Int(tasting.likeCount)
         commentCount = Int(tasting.commentCount)
         likedByMe = tasting.likedByMe
+        await loadSharedRatings()
+    }
+
+    private func loadSharedRatings() async {
+        guard let sharedTastingId = tasting.sharedTastingId else {
+            sharedRatings = []
+            return
+        }
+        do {
+            sharedRatings = try await socialService.getSharedTastingRatings(sharedTastingId: sharedTastingId)
+        } catch {
+            Log.error("Failed to load shared tasting ratings", error: error)
+        }
     }
 
     private func toggleLike() async {
@@ -241,6 +258,54 @@ struct TastingDetailView: View {
         HStack {
             RatingView(rating: Double(tasting.rating), starSize: .title2)
             Spacer()
+        }
+    }
+
+    // MARK: - Shared Tasting
+
+    @ViewBuilder
+    private var sharedTastingSection: some View {
+        if tasting.sharedTastingId != nil {
+            VStack(alignment: .leading, spacing: Theme.smallSpacing) {
+                // Tagged friends
+                if !tasting.taggedUsers.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.2.fill")
+                            .font(.caption)
+                            .foregroundStyle(.wineAccent)
+                        Text("Tasted with " + tasting.taggedUsers
+                            .map { $0.displayName ?? $0.username }
+                            .joined(separator: ", "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // Everyone's ratings
+                if sharedRatings.count > 1 {
+                    Text("Friend Ratings")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.wineAccent)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                        .padding(.top, 4)
+
+                    ForEach(sharedRatings, id: \.user.id) { rating in
+                        HStack(spacing: 10) {
+                            Image(systemName: "person.circle.fill")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                            Text(rating.user.displayName ?? rating.user.username)
+                                .font(.subheadline)
+                            Spacer()
+                            RatingView(rating: Double(rating.rating), starSize: .footnote)
+                        }
+                    }
+                }
+            }
+            .padding(Theme.spacing)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
         }
     }
 
@@ -465,6 +530,9 @@ struct TastingDetailView: View {
                 likeCount: 5,
                 commentCount: 2,
                 likedByMe: true,
+                taggedUsers: [],
+                sharedTastingId: nil,
+                participantCount: 0,
                 createdAt: Date(),
                 updatedAt: Date()
             ),

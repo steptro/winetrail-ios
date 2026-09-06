@@ -93,6 +93,9 @@ struct TastingCard: View {
             likeCount: 3,
             commentCount: 1,
             likedByMe: false,
+            taggedUsers: [],
+            sharedTastingId: nil,
+            participantCount: 0,
             createdAt: Date(),
             updatedAt: Date()
         ))
@@ -113,6 +116,9 @@ struct TastingCard: View {
             likeCount: 0,
             commentCount: 0,
             likedByMe: false,
+            taggedUsers: [],
+            sharedTastingId: nil,
+            participantCount: 0,
             createdAt: Date(),
             updatedAt: Date()
         ))

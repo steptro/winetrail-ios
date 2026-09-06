@@ -14,6 +14,7 @@ final class LogTastingViewModel {
     private let journalService: JournalService
     private let photoService: PhotoService
     private let locationService: LocationService
+    private let socialService: SocialService
 
     // MARK: - Search State
 
@@ -73,6 +74,11 @@ final class LogTastingViewModel {
     /// Whether to capture GPS coordinates on save. Defaults to true if auto-detected.
     var useGPS = false
 
+    /// Coordinates copied from a friend's shared post (the "Add my rating" flow).
+    /// Used verbatim on save when GPS is off, so the copied location includes its pin.
+    var copiedLatitude: Double?
+    var copiedLongitude: Double?
+
     /// Date of the tasting (defaults to today).
     var tastingDate = Date()
 
@@ -82,6 +88,26 @@ final class LogTastingViewModel {
     /// A label photo captured via scan, attached to the tasting once the user
     /// selects the matched wine. Cleared on selection or a new scan.
     var pendingScanImage: UIImage?
+
+    /// Friends tagged on this post. When non-empty on a fresh post, the backend mints a
+    /// shared tasting so tagged friends can add their own rating.
+    var taggedFriendIds: [String] = []
+
+    /// When set, this entry joins an existing shared tasting (the "Add my rating" flow).
+    /// The backend enforces that the wine matches the shared tasting's wine.
+    var sharedTastingId: String? {
+        didSet {
+            guard sharedTastingId != oldValue, sharedTastingId != nil else { return }
+            Task { await loadSharedTastingPhotos() }
+        }
+    }
+
+    /// Photos from the shared tasting, offered for reuse in the "Add my rating" flow.
+    var sharedTastingPhotos: [Components.Schemas.PhotoUploadDto] = []
+
+    /// IDs of shared-tasting photos the user chose to copy onto their entry.
+    /// Defaults to all of them (shown selected by default), user can deselect.
+    var selectedSharedPhotoIds: Set<String> = []
 
     // MARK: - Location State
 
@@ -119,12 +145,14 @@ final class LogTastingViewModel {
         wineService: WineService,
         journalService: JournalService,
         photoService: PhotoService,
-        locationService: LocationService
+        locationService: LocationService,
+        socialService: SocialService
     ) {
         self.wineService = wineService
         self.journalService = journalService
         self.photoService = photoService
         self.locationService = locationService
+        self.socialService = socialService
 
         // Load recent wines on init
         Task {
@@ -291,6 +319,10 @@ final class LogTastingViewModel {
                     latitude = coord.latitude
                     longitude = coord.longitude
                 }
+            } else if let copiedLatitude, let copiedLongitude {
+                // Location copied from a shared post — send the pin so name + coordinates stay consistent.
+                latitude = copiedLatitude
+                longitude = copiedLongitude
             }
 
             // Parse vintage from text
@@ -320,7 +352,9 @@ final class LogTastingViewModel {
                 longitude: longitude,
                 locationName: locationName.isEmpty ? nil : locationName,
                 tastingDate: nil,
-                vintage: parsedVintage
+                vintage: parsedVintage,
+                taggedUserIds: taggedFriendIds.isEmpty ? nil : taggedFriendIds,
+                sharedTastingId: sharedTastingId
             )
 
             // Create the tasting
@@ -333,6 +367,21 @@ final class LogTastingViewModel {
                     images: selectedImages
                 )
                 WineAnalytics.logPhotoUploaded(tastingId: tasting.id, count: selectedImages.count)
+            }
+
+            // Copy selected photos from the shared tasting onto this entry (respect the 5-photo cap).
+            if sharedTastingId != nil, !selectedSharedPhotoIds.isEmpty {
+                let remaining = max(5 - selectedImages.count, 0)
+                let idsToCopy = sharedTastingPhotos
+                    .map { $0.id }
+                    .filter { selectedSharedPhotoIds.contains($0) }
+                    .prefix(remaining)
+                if !idsToCopy.isEmpty {
+                    try await photoService.copySharedTastingPhotos(
+                        entryId: tasting.id,
+                        photoIds: Array(idsToCopy)
+                    )
+                }
             }
 
             WineAnalytics.logTastingCreated(wineId: tasting.wine.id, rating: Double(tasting.rating))
@@ -362,5 +411,26 @@ final class LogTastingViewModel {
     /// Whether additional photos can be added.
     var canAddPhoto: Bool {
         selectedImages.count < 5
+    }
+
+    /// Loads the shared tasting's existing photos and selects them all by default.
+    func loadSharedTastingPhotos() async {
+        guard let sharedTastingId else { return }
+        do {
+            let photos = try await socialService.getSharedTastingPhotos(sharedTastingId: sharedTastingId)
+            sharedTastingPhotos = photos
+            selectedSharedPhotoIds = Set(photos.map { $0.id })
+        } catch {
+            Log.error("Failed to load shared tasting photos", error: error)
+        }
+    }
+
+    /// Toggles whether a shared-tasting photo will be copied onto the new entry.
+    func toggleSharedPhoto(_ photoId: String) {
+        if selectedSharedPhotoIds.contains(photoId) {
+            selectedSharedPhotoIds.remove(photoId)
+        } else {
+            selectedSharedPhotoIds.insert(photoId)
+        }
     }
 }

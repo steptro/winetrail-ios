@@ -164,13 +164,21 @@ struct EditTastingView: View {
                 Button {
                     Task { await save() }
                 } label: {
-                    Image(systemName: "checkmark")
-                        .font(.body.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .foregroundStyle(.white)
-                        .background(.wineAccent, in: Capsule())
+                    Group {
+                        if isSaving {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "checkmark")
+                                .font(.body.weight(.semibold))
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .foregroundStyle(.white)
+                    .background(.wineAccent, in: Capsule())
                 }
+                .disabled(isSaving)
             }
 
             if let previous = currentStep.previous {
@@ -515,6 +523,9 @@ struct EditTastingView: View {
                 likeCount: 2,
                 commentCount: 1,
                 likedByMe: true,
+                taggedUsers: [],
+                sharedTastingId: nil,
+                participantCount: 0,
                 createdAt: Date(),
                 updatedAt: Date()
             )
