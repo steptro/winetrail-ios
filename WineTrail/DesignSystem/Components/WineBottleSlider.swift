@@ -19,6 +19,10 @@ struct WineBottleSlider: View {
             let bottleHeight = geo.size.height
 
             ZStack(alignment: .bottom) {
+                // Faint tint on the whole bottle so the empty portion is visible, not just outline.
+                WineBottleShape()
+                    .fill(Color.wineAccent.opacity(0.08))
+
                 // Bottle outline
                 WineBottleShape()
                     .stroke(Color.wineAccent.opacity(0.3), lineWidth: 2)
@@ -40,6 +44,24 @@ struct WineBottleSlider: View {
                         }
                     )
                     .animation(.easeOut(duration: 0.15), value: rating)
+
+                // Fill-surface grabber: a "wine level" line + knob at the current rating,
+                // signalling the bottle is a draggable slider without relying on the caption.
+                ZStack {
+                    Capsule()
+                        .fill(.white.opacity(0.9))
+                        .frame(height: 3)
+                        .padding(.horizontal, 6)
+                        .shadow(color: .black.opacity(0.15), radius: 1, y: 1)
+                    Circle()
+                        .fill(.white)
+                        .frame(width: 14, height: 14)
+                        .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+                        .overlay(Circle().strokeBorder(Color.wineAccent.opacity(0.5), lineWidth: 1))
+                }
+                .padding(.bottom, max(bottleHeight * fillPercent - 1.5, 0))
+                .animation(.easeOut(duration: 0.15), value: rating)
+                .allowsHitTesting(false)
 
                 // Rating label overlay
                 VStack {

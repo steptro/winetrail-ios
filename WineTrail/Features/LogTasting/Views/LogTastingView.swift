@@ -98,22 +98,6 @@ struct LogTastingView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    if let viewModel {
-                        if viewModel.isSaving {
-                            ProgressView()
-                        } else {
-                            Button {
-                                Task { await viewModel.saveTasting() }
-                            } label: {
-                                Image(systemName: "checkmark")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.wineAccent)
-                            .disabled(!viewModel.canSave)
-                        }
-                    }
-                }
             }
         }
         .task {
@@ -248,7 +232,7 @@ struct LogTastingView: View {
                             ProgressView()
                                 .tint(.white)
                         } else {
-                            Image(systemName: "checkmark")
+                            Text("Save")
                                 .font(.body.weight(.semibold))
                         }
                     }
@@ -257,7 +241,7 @@ struct LogTastingView: View {
                     .foregroundStyle(.white)
                     .background(.wineAccent, in: Capsule())
                 }
-                .disabled(viewModel.isSaving)
+                .disabled(viewModel.isSaving || !viewModel.canSave)
             }
 
             // Back button (secondary, glass outline)
@@ -470,13 +454,9 @@ struct LogTastingView: View {
                             .frame(width: 70, height: 220)
                             .padding(.vertical, 4)
 
-                        Text("Drag to rate")
+                        Text("Drag the wine level to rate")
                             .font(Theme.captionFont)
                             .foregroundStyle(.secondary)
-
-                        Image(systemName: "arrow.up.and.down")
-                            .font(.caption)
-                            .foregroundStyle(.wineAccent.opacity(0.6))
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -561,7 +541,7 @@ struct LogTastingView: View {
             }
 
             Section("Vintage") {
-                TextField("2024", text: $vm.vintageText)
+                TextField("e.g. 2024", text: $vm.vintageText)
                     .keyboardType(.numberPad)
             }
 
