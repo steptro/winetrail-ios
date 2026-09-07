@@ -3,7 +3,7 @@ import Foundation
 /// Central configuration constants for the WineTrail app.
 enum AppConfig {
     /// Base hostname for the WineTrail backend and website.
-    static let hostname = "https://winetrail.stephantromer.dev"
+    static let hostname = "https://winetrail-app.com"
 //    static let hostname = "http://localhost:8091"
 
     /// API base URL used for all backend requests.
