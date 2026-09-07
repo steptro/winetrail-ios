@@ -29,7 +29,10 @@ struct EditTastingView: View {
     @State private var useGPS: Bool
     @State private var selectedImages: [UIImage] = []
     @State private var photosToDelete: Set<String> = []
-    @State private var autoDetectedLocation: String?
+
+    /// Location changes are deliberate: an existing location is shown read-only behind
+    /// an explicit Edit affordance, so saving never silently overwrites it.
+    @State private var isLocationLocked: Bool
 
     @State private var isSaving = false
     @State private var error: String?
@@ -71,6 +74,11 @@ struct EditTastingView: View {
         _tastingDate = State(initialValue: Self.parseDate(tasting.tastingDate) ?? Date())
         _vintageText = State(initialValue: tasting.vintage.map { String($0) } ?? "")
         _useGPS = State(initialValue: false)
+        // Lock location editing when the entry already has a location; an entry with no
+        // location starts unlocked so the user can add one.
+        let hasLocation = (tasting.location?.locationName?.isEmpty == false)
+            || tasting.location?.latitude != nil
+        _isLocationLocked = State(initialValue: hasLocation)
     }
 
     var body: some View {
@@ -112,9 +120,6 @@ struct EditTastingView: View {
             }
         }
         .errorAlert($error)
-        .task {
-            await autoDetectLocationIfNeeded()
-        }
     }
 
     // MARK: - Step Progress Bar
@@ -233,7 +238,7 @@ struct EditTastingView: View {
 
                 // Rating
                 RatingView(rating: rating, ratingBinding: $rating, starSize: .title)
-                    .padding(.top, 8)
+                    .padding(.top, 28)
 
                 WineBottleSlider(rating: $rating)
                     .frame(width: 70, height: 220)
@@ -351,41 +356,42 @@ struct EditTastingView: View {
 
             // Location section
             Section("Location") {
-                if locationService.authorizationStatus == .authorizedWhenInUse ||
-                   locationService.authorizationStatus == .authorizedAlways {
-                    Toggle("Use current location", isOn: $useGPS)
-                        .tint(.wineAccent)
-                } else if locationService.authorizationStatus == .notDetermined {
-                    Button {
-                        Task { await locationService.requestPermission() }
-                    } label: {
-                        Label("Enable Location Access", systemImage: "location")
-                    }
-                    .foregroundStyle(.wineAccent)
-                } else {
-                    Label("Location access denied", systemImage: "location.slash")
+                if isLocationLocked {
+                    HStack {
+                        Label(locationName.isEmpty ? "Location set" : locationName,
+                              systemImage: "mappin.and.ellipse")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Edit") {
+                            // Unlock to deliberately change the location. Clearing the name
+                            // lets the user type a new one or switch on current location.
+                            isLocationLocked = false
+                        }
                         .font(Theme.captionFont)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.wineAccent)
+                    }
+                } else {
+                    if locationService.authorizationStatus == .authorizedWhenInUse ||
+                       locationService.authorizationStatus == .authorizedAlways {
+                        Toggle("Use current location", isOn: $useGPS)
+                            .tint(.wineAccent)
+                    } else if locationService.authorizationStatus == .notDetermined {
+                        Button {
+                            Task { await locationService.requestPermission() }
+                        } label: {
+                            Label("Enable Location Access", systemImage: "location")
+                        }
+                        .foregroundStyle(.wineAccent)
+                    } else {
+                        Label("Location access denied", systemImage: "location.slash")
+                            .font(Theme.captionFont)
+                            .foregroundStyle(.secondary)
+                    }
+                    TextField("Location name", text: $locationName)
                 }
-                TextField("Location name", text: $locationName)
             }
         }
         .tint(.wineAccent)
-    }
-
-    // MARK: - Auto-Detect Location
-
-    private func autoDetectLocationIfNeeded() async {
-        let hasPermission = locationService.authorizationStatus == .authorizedWhenInUse ||
-                            locationService.authorizationStatus == .authorizedAlways
-        let hasExistingLocation = tasting.location?.locationName != nil && !(tasting.location?.locationName ?? "").isEmpty
-
-        guard hasPermission, !hasExistingLocation else { return }
-
-        useGPS = true
-        if (try? await locationService.getCurrentLocation()) != nil {
-            autoDetectedLocation = "Location detected"
-        }
     }
 
     // MARK: - Save
@@ -400,12 +406,22 @@ struct EditTastingView: View {
 
         var latitude = tasting.location?.latitude
         var longitude = tasting.location?.longitude
+        var resolvedLocationName = tasting.location?.locationName
 
-        if useGPS {
-            if let coord = try? await locationService.getCurrentLocation() {
-                latitude = coord.latitude
-                longitude = coord.longitude
+        // Location is only touched when the user deliberately tapped Edit (unlocked).
+        // While locked, the entry's existing location is preserved verbatim.
+        if !isLocationLocked {
+            if useGPS {
+                if let coord = try? await locationService.getCurrentLocation() {
+                    latitude = coord.latitude
+                    longitude = coord.longitude
+                }
+            } else {
+                // Manual edit with GPS off: drop stale coordinates, keep only the typed name.
+                latitude = nil
+                longitude = nil
             }
+            resolvedLocationName = locationName.isEmpty ? nil : locationName
         }
 
         let vintageYear: Int? = if let year = Int(vintageText), year >= 1900, year <= Calendar.current.component(.year, from: Date()) {
@@ -423,7 +439,7 @@ struct EditTastingView: View {
             currency: price.isEmpty ? nil : currency,
             latitude: latitude,
             longitude: longitude,
-            locationName: locationName.isEmpty ? nil : locationName,
+            locationName: resolvedLocationName,
             tastingDate: nil,
             vintage: vintageYear.map { Int32($0) }
         )

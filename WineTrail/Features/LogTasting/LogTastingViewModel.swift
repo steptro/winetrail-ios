@@ -193,6 +193,12 @@ final class LogTastingViewModel {
 
     // MARK: - Auto Location Detection
 
+    /// Starts a background GPS fetch when authorization is already granted. Safe to call
+    /// after the user grants permission (e.g. the first-time prompt on New Wine).
+    func startAutoLocationDetectionIfAuthorized() {
+        startAutoLocationDetection()
+    }
+
     /// Starts background GPS fetch if location permission is already granted.
     private func startAutoLocationDetection() {
         let status = locationService.authorizationStatus

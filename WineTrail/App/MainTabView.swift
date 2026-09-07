@@ -11,6 +11,7 @@ struct MainTabView: View {
 
     @State private var selectedTab = 0
     @State private var showLogTasting = false
+    @State private var didSaveTasting = false
     @State private var deepLinkTasting: Tasting?
     @State private var deepLinkTaggedPost: Components.Schemas.FeedJournalEntryDto?
 
@@ -58,9 +59,14 @@ struct MainTabView: View {
             .accessibilityLabel("New Wine")
         }
         .sheet(isPresented: $showLogTasting, onDismiss: {
-            NotificationCenter.default.post(name: .tastingDidChange, object: nil)
+            // Only refresh the timeline if the user actually saved a wine — cancelling
+            // the wizard should leave the feed untouched.
+            if didSaveTasting {
+                NotificationCenter.default.post(name: .tastingDidChange, object: nil)
+                didSaveTasting = false
+            }
         }) {
-            LogTastingView()
+            LogTastingView(didSave: $didSaveTasting)
         }
         .sheet(item: $deepLinkTasting) { tasting in
             NavigationStack {

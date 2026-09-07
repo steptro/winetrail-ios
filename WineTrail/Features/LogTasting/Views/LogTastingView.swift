@@ -30,6 +30,10 @@ struct LogTastingView: View {
     var preselectedLatitude: Double?
     var preselectedLongitude: Double?
 
+    /// Set to true once a wine is successfully saved, so the presenter can decide
+    /// whether to refresh on dismiss (a plain cancel leaves it false).
+    var didSave: Binding<Bool>?
+
     @State private var viewModel: LogTastingViewModel?
     @State private var currentStep: WizardStep = .wineAndRating
     @State private var shakeWineSection = false
@@ -129,10 +133,23 @@ struct LogTastingView: View {
                     isLocationLocked = true
                 }
                 viewModel = vm
+
+                // First time adding a wine: proactively ask for location, and default
+                // "Use current location" on once granted. Skipped for the "Add my rating"
+                // flow (which carries a copied, locked location).
+                if !isLocationLocked, locationService.authorizationStatus == .notDetermined {
+                    await locationService.requestPermission()
+                    let status = locationService.authorizationStatus
+                    if status == .authorizedWhenInUse || status == .authorizedAlways {
+                        vm.useGPS = true
+                        vm.startAutoLocationDetectionIfAuthorized()
+                    }
+                }
             }
         }
         .onChange(of: viewModel?.savedTasting?.id) { _, tastingId in
             if tastingId != nil {
+                didSave?.wrappedValue = true
                 showCheers = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                     dismiss()
@@ -460,6 +477,9 @@ struct LogTastingView: View {
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity)
+                    // Nudge the rating block down so the bottle sits nearer the vertical
+                    // centre of the step rather than crammed against the wine card.
+                    .padding(.top, 28)
                 }
             }
             .padding(.horizontal)
