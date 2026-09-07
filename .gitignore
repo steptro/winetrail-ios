@@ -24,9 +24,6 @@ Package.pins
 .Spotlight-V100
 .Trashes
 
-# Firebase
-GoogleService-Info.plist
-
 # Environment / secrets
 .env
 .env.*
