@@ -10,7 +10,7 @@
 	</array>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:winetrail.stephantromer.dev</string>
+		<string>applinks:winetrail-app.com</string>
 	</array>
 </dict>
 </plist>
