@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import OpenAPIRuntime
+import CoreLocation
 
 /// Edit an existing tasting entry using a 3-step wizard layout matching LogTastingView.
 ///

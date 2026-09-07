@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 /// New Wine wizard — a step-by-step flow for recording a wine tasting.
 ///
