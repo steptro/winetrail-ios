@@ -34,6 +34,11 @@ struct EditTastingView: View {
     /// an explicit Edit affordance, so saving never silently overwrites it.
     @State private var isLocationLocked: Bool
 
+    /// Friends tagged on this entry. Pre-filled from the entry's current tags; the
+    /// server diffs the submitted set against existing tags on save.
+    @State private var taggedFriendIds: [String]
+    @State private var showTagFriends = false
+
     @State private var isSaving = false
     @State private var error: String?
     @State private var currentStep: WizardStep = .wineAndRating
@@ -79,6 +84,7 @@ struct EditTastingView: View {
         let hasLocation = (tasting.location?.locationName?.isEmpty == false)
             || tasting.location?.latitude != nil
         _isLocationLocked = State(initialValue: hasLocation)
+        _taggedFriendIds = State(initialValue: tasting.taggedUsers.map { $0.id })
     }
 
     var body: some View {
@@ -329,6 +335,30 @@ struct EditTastingView: View {
                 TextField("Occasion", text: $occasion)
             }
 
+            Section {
+                Button {
+                    showTagFriends = true
+                } label: {
+                    HStack {
+                        Label("Tag Friends", systemImage: "person.2")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if taggedFriendIds.isEmpty {
+                            Text("None")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("\(taggedFriendIds.count) tagged")
+                                .foregroundStyle(.wineAccent)
+                        }
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            } footer: {
+                Text("Tagged friends are notified and can add their own rating to this wine.")
+            }
+
             Section("Purchase") {
                 HStack {
                     TextField("Price", text: $price)
@@ -392,6 +422,9 @@ struct EditTastingView: View {
             }
         }
         .tint(.wineAccent)
+        .sheet(isPresented: $showTagFriends) {
+            TagFriendsView(selectedFriendIds: $taggedFriendIds)
+        }
     }
 
     // MARK: - Save
@@ -441,7 +474,8 @@ struct EditTastingView: View {
             longitude: longitude,
             locationName: resolvedLocationName,
             tastingDate: nil,
-            vintage: vintageYear.map { Int32($0) }
+            vintage: vintageYear.map { Int32($0) },
+            taggedUserIds: taggedFriendIds
         )
 
         do {

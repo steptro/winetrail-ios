@@ -42,7 +42,6 @@ struct LogTastingView: View {
     @State private var showScanCamera = false
     @State private var isScanning = false
     @State private var scanWarning: String?
-    @State private var scanFoundNoText = false
     @State private var showTagFriends = false
     @State private var isLocationLocked = false
 
@@ -349,7 +348,6 @@ struct LogTastingView: View {
                             // Prominent primary action: scan a label.
                             Button {
                                 scanWarning = nil
-                                scanFoundNoText = false
                                 showScanCamera = true
                             } label: {
                                 Label("Scan Label", systemImage: "camera.viewfinder")
@@ -360,6 +358,18 @@ struct LogTastingView: View {
                             .buttonStyle(.borderedProminent)
                             .tint(.wineAccent)
                             .disabled(isScanning)
+
+                            // Always-available manual entry, directly below Scan Label.
+                            NavigationLink {
+                                CreateWineView(selectedWine: $vm.selectedWine, selectedWineId: $vm.selectedWineId)
+                            } label: {
+                                Label("Add Manually", systemImage: "plus.circle")
+                                    .font(Theme.bodyFont.weight(.semibold))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 6)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.wineSecondary)
 
                             if isScanning {
                                 HStack {
@@ -377,20 +387,6 @@ struct LogTastingView: View {
                                     .foregroundStyle(.orange)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .accessibilityLabel("Scan warning: \(scanWarning)")
-
-                                // No readable text: offer a manual-create shortcut.
-                                if scanFoundNoText {
-                                    NavigationLink {
-                                        CreateWineView(selectedWine: $vm.selectedWine, selectedWineId: $vm.selectedWineId)
-                                    } label: {
-                                        Label("Add Manually", systemImage: "plus.circle")
-                                            .font(Theme.bodyFont.weight(.semibold))
-                                            .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 6)
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .tint(.wineSecondary)
-                                }
                             }
 
                             if viewModel.isSearching {
@@ -435,26 +431,6 @@ struct LogTastingView: View {
                                         .buttonStyle(.plain)
                                     }
                                 }
-                            }
-
-                            // Fallback: only offer manual entry when a search or scan
-                            // produced nothing to pick.
-                            let hasSearched = !viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty
-                            if !viewModel.isSearching && !isScanning
-                                && viewModel.searchResults.isEmpty
-                                && !scanFoundNoText
-                                && (hasSearched || scanWarning != nil) {
-                                Divider()
-                                NavigationLink {
-                                    CreateWineView(selectedWine: $vm.selectedWine, selectedWineId: $vm.selectedWineId)
-                                } label: {
-                                    Label("Add Manually", systemImage: "plus.circle")
-                                        .font(Theme.bodyFont.weight(.semibold))
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 6)
-                                }
-                                .buttonStyle(.bordered)
-                                .tint(.wineSecondary)
                             }
 
                         }
@@ -834,7 +810,6 @@ struct LogTastingView: View {
     private func scanLabel(_ image: UIImage, viewModel: LogTastingViewModel) {
         isScanning = true
         scanWarning = nil
-        scanFoundNoText = false
         // Clear any previous results so a re-scan doesn't show stale hits.
         viewModel.searchResults = []
         viewModel.searchQuery = ""
@@ -859,7 +834,6 @@ struct LogTastingView: View {
                     viewModel.search()
                 }
             } catch WineLabelScanner.ScanError.noTextFound {
-                scanFoundNoText = true
                 scanWarning = "No readable text found on the label. Try again with a clearer, well-lit photo."
             } catch {
                 Log.error("Wine label scan failed", error: error)
