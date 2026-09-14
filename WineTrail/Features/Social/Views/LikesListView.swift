@@ -34,16 +34,24 @@ struct LikesListView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List(likers, id: \.id) { user in
-                        HStack(spacing: 12) {
-                            Image(systemName: "person.circle.fill")
-                                .font(.title2)
-                                .foregroundStyle(.wineAccent)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(user.displayName ?? user.username)
-                                    .font(.body.weight(.medium))
-                                Text("@\(user.username)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                        NavigationLink {
+                            UserProfileView(
+                                userId: user.id,
+                                username: user.username,
+                                displayName: user.displayName
+                            )
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "person.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(.wineAccent)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(user.displayName ?? user.username)
+                                        .font(.body.weight(.medium))
+                                    Text("@\(user.username)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }

@@ -16,6 +16,7 @@ final class CommentsViewModel {
     private let socialService: SocialService
     private let tastingId: String
     private let pageSize: Int
+    private let blockStore: BlockStore?
 
     private(set) var comments: [Components.Schemas.CommentDto] = []
     private(set) var totalComments = 0
@@ -26,10 +27,17 @@ final class CommentsViewModel {
 
     private var currentPage = 0
 
-    init(socialService: SocialService, tastingId: String, pageSize: Int = 20) {
+    init(socialService: SocialService, tastingId: String, pageSize: Int = 20, blockStore: BlockStore? = nil) {
         self.socialService = socialService
         self.tastingId = tastingId
         self.pageSize = pageSize
+        self.blockStore = blockStore
+    }
+
+    /// Filters out comments authored by blocked users so they never render.
+    private func visible(_ items: [Components.Schemas.CommentDto]) -> [Components.Schemas.CommentDto] {
+        guard let blockStore else { return items }
+        return items.filter { !blockStore.isBlocked($0.author.id) }
     }
 
     // MARK: - Loading
@@ -41,7 +49,7 @@ final class CommentsViewModel {
         hasMorePages = true
         do {
             let result = try await socialService.getComments(tastingId: tastingId, page: 0, size: pageSize)
-            comments = result.content
+            comments = visible(result.content)
             totalComments = result.totalElements
             hasMorePages = !result.isLast
             currentPage = 1
@@ -58,7 +66,7 @@ final class CommentsViewModel {
         isLoading = true
         do {
             let result = try await socialService.getComments(tastingId: tastingId, page: currentPage, size: pageSize)
-            comments.append(contentsOf: result.content)
+            comments.append(contentsOf: visible(result.content))
             hasMorePages = !result.isLast
             currentPage += 1
         } catch {
@@ -81,12 +89,22 @@ final class CommentsViewModel {
     func sendComment(_ text: String) async -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return false }
+
         do {
             let comment = try await socialService.addComment(tastingId: tastingId, body: trimmed)
             comments.append(comment)
             totalComments += 1
             WineAnalytics.logComment(tastingId: tastingId)
             return true
+        } catch let error as WineTrailError {
+            // Surface the server's message for rejections (e.g. objectionable content → 422).
+            if case .validationFailed(let message) = error {
+                errorMessage = message
+            } else {
+                Log.error("Failed to add comment", error: error)
+                errorMessage = error.errorDescription ?? "Failed to send comment. Please try again."
+            }
+            return false
         } catch {
             Log.error("Failed to add comment", error: error)
             errorMessage = "Failed to send comment. Please try again."

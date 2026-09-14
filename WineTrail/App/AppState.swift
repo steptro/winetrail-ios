@@ -9,6 +9,7 @@ import Observation
 final class AppState {
     enum Route: Equatable {
         case loading
+        case agreement
         case auth
         case onboarding
         case main
@@ -20,19 +21,29 @@ final class AppState {
     private let authService: AuthService
     private let journalService: JournalService
     private let profileService: ProfileService
+    private let agreementStore: AgreementStore
 
-    init(authService: AuthService, journalService: JournalService, profileService: ProfileService) {
+    init(authService: AuthService, journalService: JournalService, profileService: ProfileService, agreementStore: AgreementStore) {
         self.authService = authService
         self.journalService = journalService
         self.profileService = profileService
+        self.agreementStore = agreementStore
     }
 
-    /// Determines the initial route based on authentication state and user data.
+    /// Determines the initial route based on terms acceptance, authentication state, and user data.
     ///
+    /// - If the user has not accepted the current Terms/EULA → show the agreement gate
     /// - If not authenticated → show auth screen
     /// - If authenticated with no tastings → show onboarding
     /// - If authenticated with tastings → show main tab view
     func determineInitialRoute() async {
+        // The Terms/EULA (including the zero-tolerance policy) must be accepted before
+        // registering or logging in — required by App Store Guideline 1.2.
+        guard agreementStore.hasAcceptedCurrentTerms else {
+            currentRoute = .agreement
+            return
+        }
+
         guard authService.isAuthenticated else {
             currentRoute = .auth
             return

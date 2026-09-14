@@ -10,6 +10,8 @@ struct RootView: View {
             switch appState.currentRoute {
             case .loading:
                 ProgressView()
+            case .agreement:
+                AgreementView()
             case .auth:
                 AuthView()
             case .onboarding:
@@ -34,7 +36,8 @@ struct RootView: View {
             profileService: ProfileService(apiClient: APIClient(
                 serverURL: AppConfig.serverURL,
                 authService: AuthService()
-            ))
+            )),
+            agreementStore: AgreementStore()
         ))
         .environment(AuthService())
         .environment(APIClient(serverURL: AppConfig.serverURL, authService: AuthService()))
@@ -46,4 +49,5 @@ struct RootView: View {
         .environment(MapService(apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService())))
         .environment(LocationService())
         .environment(ProfileService(apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService())))
+        .environment(AgreementStore())
 }

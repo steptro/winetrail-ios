@@ -15,6 +15,9 @@ final class UserProfileViewModel {
     private(set) var notifyOnNewWine = false
     private(set) var isUpdatingNotifications = false
     private(set) var error: String?
+    /// True when the profile can't be shown because a block exists between the two users
+    /// (backend returns 404). Drives a friendly "user unavailable" state instead of an error.
+    private(set) var isUnavailable = false
 
     init(userId: String, socialService: SocialService) {
         self.userId = userId
@@ -48,10 +51,20 @@ final class UserProfileViewModel {
     func loadProfile() async {
         isLoadingProfile = true
         error = nil
+        isUnavailable = false
 
         do {
             profile = try await socialService.getUserProfile(userId: userId)
             await loadNotificationPreference()
+        } catch let error as WineTrailError {
+            if case .notFound = error {
+                // A block exists in either direction — present a neutral "unavailable" state
+                // rather than a scary error, and don't disclose the block.
+                isUnavailable = true
+            } else {
+                Log.error("Failed to load user profile", error: error)
+                self.error = error.errorDescription ?? "Could not load profile."
+            }
         } catch {
             Log.error("Failed to load user profile", error: error)
             self.error = "Could not load profile."

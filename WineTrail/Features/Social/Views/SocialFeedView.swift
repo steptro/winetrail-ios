@@ -4,11 +4,15 @@ import SwiftUI
 struct SocialFeedView: View {
     @Environment(SocialService.self) private var socialService
     @Environment(SocialState.self) private var socialState
+    @Environment(ModerationService.self) private var moderationService
+    @Environment(BlockStore.self) private var blockStore
     @State private var viewModel: SocialFeedViewModel?
     @State private var commentsTastingId: String?
     @State private var likesTastingId: String?
     @State private var showAddFriend = false
     @State private var taggedCount = 0
+    @State private var reportTarget: ReportTarget?
+    @State private var toastMessage: String?
 
     var body: some View {
         Group {
@@ -54,7 +58,15 @@ struct SocialFeedView: View {
                                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                             commentsTastingId = post.id
                                         },
-                                        onLikesCount: { likesTastingId = post.id }
+                                        onLikesCount: { likesTastingId = post.id },
+                                        onReport: {
+                                            reportTarget = ReportTarget(
+                                                contentType: .journalEntry,
+                                                contentId: post.id,
+                                                authorUserId: post.user.id,
+                                                authorName: post.user.username
+                                            )
+                                        }
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -118,7 +130,11 @@ struct SocialFeedView: View {
         }
         .task {
             if viewModel == nil {
-                viewModel = SocialFeedViewModel(socialService: socialService)
+                viewModel = SocialFeedViewModel(
+                    socialService: socialService,
+                    moderationService: moderationService,
+                    blockStore: blockStore
+                )
             }
             await viewModel?.loadInitial()
             await socialState.refreshPendingCount()
@@ -142,6 +158,27 @@ struct SocialFeedView: View {
         .onReceive(NotificationCenter.default.publisher(for: .taggedWinesDidChange)) { _ in
             Task { await refreshTaggedCount() }
         }
+        .sheet(item: $reportTarget) { target in
+            ReportContentSheet(target: target, onReported: {
+                toastMessage = "Thanks. Our team will review this within 24 hours."
+            })
+        }
+        .overlay(alignment: .top) {
+            if let toastMessage {
+                Text(toastMessage)
+                    .font(.footnote.weight(.medium))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .task {
+                        try? await Task.sleep(for: .seconds(2.5))
+                        withAnimation { self.toastMessage = nil }
+                    }
+            }
+        }
+        .animation(.snappy, value: toastMessage)
     }
 
     private func refreshTaggedCount() async {
@@ -166,6 +203,7 @@ struct SocialFeedPostView: View {
     let onLike: () async -> Void
     let onComment: () -> Void
     let onLikesCount: () -> Void
+    var onReport: (() -> Void)? = nil
     @State private var showHeartOverlay = false
 
     private var timeAgo: String {
@@ -199,6 +237,22 @@ struct SocialFeedPostView: View {
                 Text(timeAgo)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if let onReport {
+                    Menu {
+                        Button(role: .destructive) {
+                            onReport()
+                        } label: {
+                            Label("Report Post", systemImage: "flag")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("More options")
+                }
             }
             .padding(.horizontal, Theme.spacing)
             .padding(.vertical, 10)
@@ -378,5 +432,10 @@ struct SocialFeedPostView: View {
                 serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )))
+            .environment(BlockStore())
+            .environment(ModerationService(
+                apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService()),
+                blockStore: BlockStore()
+            ))
     }
 }

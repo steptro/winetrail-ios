@@ -114,6 +114,7 @@ struct EmailSignInView: View {
             profileService: ProfileService(apiClient: APIClient(
                 serverURL: AppConfig.serverURL,
                 authService: AuthService()
-            ))
+            )),
+            agreementStore: AgreementStore()
         ))
 }

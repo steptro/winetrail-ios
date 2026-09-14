@@ -12,4 +12,8 @@ extension Notification.Name {
     /// Posted when the set of wines the user is tagged in changes (e.g. new tag via silent push).
     /// Observers should refresh the tagged-wines count/list.
     static let taggedWinesDidChange = Notification.Name("taggedWinesDidChange")
+
+    /// Posted when the set of blocked users changes (a user was blocked or unblocked).
+    /// Observers should re-filter any content originating from blocked users.
+    static let blockedUsersDidChange = Notification.Name("blockedUsersDidChange")
 }

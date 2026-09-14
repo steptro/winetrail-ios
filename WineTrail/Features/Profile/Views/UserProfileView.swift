@@ -4,11 +4,16 @@ import SwiftUI
 /// Displays their stats, friendship status/actions, and tastings (if friends).
 struct UserProfileView: View {
     @Environment(SocialService.self) private var socialService
+    @Environment(ModerationService.self) private var moderationService
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: UserProfileViewModel?
     @State private var showRemoveConfirmation = false
     @State private var pendingNotifyValue: Bool?
     @State private var commentsTastingId: String?
     @State private var likesTastingId: String?
+    @State private var reportTarget: ReportTarget?
+    @State private var showBlockConfirmation = false
+    @State private var toastMessage: String?
 
     let userId: String
     let username: String
@@ -19,6 +24,12 @@ struct UserProfileView: View {
             if let viewModel {
                 if viewModel.isLoadingProfile && viewModel.profile == nil {
                     WineGlassLoadingView()
+                } else if viewModel.isUnavailable {
+                    ContentUnavailableView(
+                        "User Unavailable",
+                        systemImage: "person.slash",
+                        description: Text("This profile can't be shown.")
+                    )
                 } else if let profile = viewModel.profile {
                     profileContent(profile, viewModel: viewModel)
                 } else if let error = viewModel.error {
@@ -42,8 +53,55 @@ struct UserProfileView: View {
                     }
                     friendshipToolbarItem(viewModel: viewModel)
                 }
+                Menu {
+                    Button(role: .destructive) {
+                        reportTarget = ReportTarget(
+                            contentType: .user,
+                            contentId: userId,
+                            authorUserId: userId,
+                            authorName: username
+                        )
+                    } label: {
+                        Label("Report User", systemImage: "flag")
+                    }
+                    Button(role: .destructive) {
+                        showBlockConfirmation = true
+                    } label: {
+                        Label("Block @\(username)", systemImage: "nosign")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                }
+                .accessibilityLabel("More options")
             }
         }
+        .sheet(item: $reportTarget) { target in
+            ReportContentSheet(target: target, onReported: {
+                toastMessage = "Thanks. Our team will review this within 24 hours."
+            })
+        }
+        .alert("Block @\(username)?", isPresented: $showBlockConfirmation) {
+            Button("Block", role: .destructive) { Task { await blockUser() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You won't see their content and they won't be able to interact with you. This also reports them to our moderation team.")
+        }
+        .overlay(alignment: .top) {
+            if let toastMessage {
+                Text(toastMessage)
+                    .font(.footnote.weight(.medium))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .task {
+                        try? await Task.sleep(for: .seconds(2.5))
+                        withAnimation { self.toastMessage = nil }
+                    }
+            }
+        }
+        .animation(.snappy, value: toastMessage)
         .task {
             if viewModel == nil {
                 viewModel = UserProfileViewModel(userId: userId, socialService: socialService)
@@ -391,6 +449,21 @@ struct UserProfileView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, Theme.largeSpacing)
     }
+
+    // MARK: - Moderation
+
+    private func blockUser() async {
+        do {
+            try await moderationService.blockUser(userId: userId)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            toastMessage = "@\(username) has been blocked and reported."
+            try? await Task.sleep(for: .seconds(1))
+            dismiss()
+        } catch {
+            Log.error("Failed to block user", error: error)
+            toastMessage = "Couldn't block this user. Please try again."
+        }
+    }
 }
 
 
@@ -405,5 +478,9 @@ struct UserProfileView: View {
             serverURL: AppConfig.serverURL,
             authService: AuthService()
         )))
+        .environment(ModerationService(
+            apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService()),
+            blockStore: BlockStore()
+        ))
     }
 }

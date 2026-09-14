@@ -11,6 +11,9 @@ struct ProfileView: View {
     @Environment(StatsService.self) private var statsService
     @Environment(DeviceService.self) private var deviceService
     @Environment(APIClient.self) private var apiClient
+#if DEBUG
+    @Environment(AgreementStore.self) private var agreementStore
+#endif
 
     @State private var username: String = ""
     @State private var friendCount: Int = 0
@@ -46,6 +49,12 @@ struct ProfileView: View {
                         Text("\(friendCount)")
                             .foregroundStyle(.secondary)
                     }
+                }
+
+                NavigationLink {
+                    BlockedUsersView()
+                } label: {
+                    Label("Blocked Users", systemImage: "nosign")
                 }
             } header: {
                 Text("Account")
@@ -106,6 +115,22 @@ struct ProfileView: View {
             } footer: {
                 Text("Permanently deletes your account and all data. This cannot be undone.")
             }
+
+#if DEBUG
+            // Developer — debug builds only
+            Section {
+                Button(role: .destructive) {
+                    agreementStore.reset()
+                    appState.currentRoute = .agreement
+                } label: {
+                    Label("Reset EULA Acceptance", systemImage: "arrow.counterclockwise")
+                }
+            } header: {
+                Text("Developer")
+            } footer: {
+                Text("Clears terms acceptance and returns to the agreement gate. Debug builds only.")
+            }
+#endif
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Profile")

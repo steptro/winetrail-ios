@@ -8,6 +8,7 @@ import FirebaseAuth
 struct CommentsView: View {
     @Environment(SocialService.self) private var socialService
     @Environment(AuthService.self) private var authService
+    @Environment(BlockStore.self) private var blockStore
     @Environment(\.dismiss) private var dismiss
 
     let tastingId: String
@@ -15,6 +16,8 @@ struct CommentsView: View {
     @State private var viewModel: CommentsViewModel?
     @State private var newComment = ""
     @State private var isSending = false
+    @State private var reportTarget: ReportTarget?
+    @State private var toastMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -45,10 +48,31 @@ struct CommentsView: View {
         ))
         .task {
             if viewModel == nil {
-                viewModel = CommentsViewModel(socialService: socialService, tastingId: tastingId)
+                viewModel = CommentsViewModel(socialService: socialService, tastingId: tastingId, blockStore: blockStore)
             }
             await viewModel?.loadComments()
         }
+        .sheet(item: $reportTarget) { target in
+            ReportContentSheet(target: target, onReported: {
+                toastMessage = "Thanks. Our team will review this within 24 hours."
+            })
+        }
+        .overlay(alignment: .top) {
+            if let toastMessage {
+                Text(toastMessage)
+                    .font(.footnote.weight(.medium))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .task {
+                        try? await Task.sleep(for: .seconds(2.5))
+                        withAnimation { self.toastMessage = nil }
+                    }
+            }
+        }
+        .animation(.snappy, value: toastMessage)
     }
 
     // MARK: - Content
@@ -128,22 +152,25 @@ struct CommentsView: View {
     @ViewBuilder
     private func commentRow(_ comment: Components.Schemas.CommentDto) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "person.circle.fill")
-                .font(.title3)
-                .foregroundStyle(.secondary)
+            NavigationLink {
+                UserProfileView(
+                    userId: comment.author.id,
+                    username: comment.author.username,
+                    displayName: comment.author.displayName
+                )
+            } label: {
+                Image(systemName: "person.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(comment.author.username)
-                        .font(.caption.weight(.semibold))
-                    Spacer()
-                    Text(formatRelativeDate(comment.createdAt))
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
+                Text(comment.author.username)
+                    .font(.caption.weight(.semibold))
 
                 Text(comment.body)
-                    .font(.subheadline)
+                    .font(.body)
 
                 Button {
                     Task { await toggleLike(comment) }
@@ -163,6 +190,13 @@ struct CommentsView: View {
                 .padding(.top, 2)
             }
 
+            Spacer(minLength: 8)
+
+            Text(formatRelativeDate(comment.createdAt))
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .frame(height: 28)
+
             if isOwnComment(comment) {
                 Button {
                     Task { await deleteComment(comment) }
@@ -170,8 +204,31 @@ struct CommentsView: View {
                     Image(systemName: "trash")
                         .font(.caption)
                         .foregroundStyle(.red.opacity(0.7))
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+            } else {
+                Menu {
+                    Button(role: .destructive) {
+                        reportTarget = ReportTarget(
+                            contentType: .comment,
+                            contentId: comment.id,
+                            authorUserId: comment.author.id,
+                            authorName: comment.author.username
+                        )
+                    } label: {
+                        Label("Report", systemImage: "flag")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("More options for \(comment.author.username)'s comment")
             }
         }
     }
@@ -221,4 +278,10 @@ struct CommentsView: View {
             serverURL: AppConfig.serverURL,
             authService: AuthService()
         )))
+        .environment(AuthService())
+        .environment(BlockStore())
+        .environment(ModerationService(
+            apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService()),
+            blockStore: BlockStore()
+        ))
 }

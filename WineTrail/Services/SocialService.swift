@@ -1,5 +1,7 @@
 import Foundation
 import Observation
+import HTTPTypes
+import OpenAPIRuntime
 
 /// Handles all social features: feed, friends, likes, and comments.
 @Observable
@@ -148,12 +150,32 @@ final class SocialService {
     }
 
     /// Adds a comment to a journal entry.
+    ///
+    /// Throws `WineTrailError.validationFailed` with the server's message on a 422
+    /// (e.g. the backend rejected objectionable language).
     func addComment(tastingId: String, body: String) async throws -> Components.Schemas.CommentDto {
         let response = try await apiClient.client.addComment(
             path: .init(entryId: tastingId),
             body: .json(.init(body: body))
         )
-        return try response.created.body.json
+        switch response {
+        case .created(let created):
+            return try created.body.json
+        case .undocumented(let statusCode, let payload):
+            let message = await Self.errorMessage(from: payload)
+            if statusCode == 422 {
+                throw WineTrailError.validationFailed(message: message ?? "Your comment can't be posted.")
+            }
+            throw WineTrailError.from(httpStatus: .init(code: statusCode), message: message)
+        }
+    }
+
+    /// Best-effort decode of the backend's `ErrorDto.message` from an undocumented response body.
+    private static func errorMessage(from payload: OpenAPIRuntime.UndocumentedPayload) async -> String? {
+        guard let body = payload.body else { return nil }
+        guard let data = try? await Data(collecting: body, upTo: 8 * 1024) else { return nil }
+        struct ErrorDto: Decodable { let message: String? }
+        return (try? JSONDecoder().decode(ErrorDto.self, from: data))?.message
     }
 
     /// Deletes a comment.
@@ -180,27 +202,47 @@ final class SocialService {
     // MARK: - User Profile
 
     /// Fetches a user's public profile with stats and friendship status.
+    ///
+    /// Throws `WineTrailError.notFound` when the backend returns 404 — which now also
+    /// covers the case where a block exists between the two users in either direction
+    /// (the profile is intentionally hidden). Callers can treat this as "user unavailable".
     func getUserProfile(userId: String) async throws -> Components.Schemas.PublicUserProfileDto {
         let response = try await apiClient.client.getUserProfile(
             path: .init(userId: userId)
         )
-        return try response.ok.body.json
+        switch response {
+        case .ok(let ok):
+            return try ok.body.json
+        case .notFound:
+            throw WineTrailError.notFound
+        case .undocumented(let statusCode, _):
+            throw WineTrailError.from(httpStatus: .init(code: statusCode))
+        }
     }
 
     /// Fetches a user's tastings (requires friendship).
+    ///
+    /// Throws `WineTrailError.notFound` on a 404 (including a block between the users).
     func getUserTastings(userId: String, page: Int = 0, size: Int = 20) async throws -> PagedResult<Components.Schemas.FeedJournalEntryDto> {
         let response = try await apiClient.client.getUserTastings(
             path: .init(userId: userId),
             query: .init(page: Int32(page), size: Int32(size))
         )
-        let dto = try response.ok.body.json
-        return PagedResult(
-            content: dto.content ?? [],
-            totalPages: Int(dto.page?.totalPages ?? 0),
-            totalElements: Int(dto.page?.totalElements ?? 0),
-            currentPage: Int(dto.page?.number ?? 0),
-            isLast: Int(dto.page?.number ?? 0) >= Int(dto.page?.totalPages ?? 1) - 1
-        )
+        switch response {
+        case .ok(let ok):
+            let dto = try ok.body.json
+            return PagedResult(
+                content: dto.content ?? [],
+                totalPages: Int(dto.page?.totalPages ?? 0),
+                totalElements: Int(dto.page?.totalElements ?? 0),
+                currentPage: Int(dto.page?.number ?? 0),
+                isLast: Int(dto.page?.number ?? 0) >= Int(dto.page?.totalPages ?? 1) - 1
+            )
+        case .notFound:
+            throw WineTrailError.notFound
+        case .undocumented(let statusCode, _):
+            throw WineTrailError.from(httpStatus: .init(code: statusCode))
+        }
     }
 
     // MARK: - Shared Tastings

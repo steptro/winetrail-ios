@@ -9,18 +9,25 @@ import FirebaseAuth
 struct SocialTastingDetailView: View {
     @Environment(SocialService.self) private var socialService
     @Environment(AuthService.self) private var authService
-    @Environment(\.dismiss) private var dismiss
 
     let post: Components.Schemas.FeedJournalEntryDto
 
     @State private var sharedRatings: [Components.Schemas.SharedRatingDto] = []
     @State private var showAddRating = false
     @State private var showComments = false
+    @State private var reportTarget: ReportTarget?
+    @State private var toastMessage: String?
 
     /// True once the current user has their own rating in this shared tasting.
     private var hasMyRating: Bool {
         guard let myEmail = authService.currentUser?.email else { return false }
         return sharedRatings.contains { $0.user.email == myEmail }
+    }
+
+    /// True when this post belongs to the current user (hide report for own content).
+    private var isOwnPost: Bool {
+        guard let myEmail = authService.currentUser?.email else { return false }
+        return post.user.email == myEmail
     }
 
     var body: some View {
@@ -47,6 +54,45 @@ struct SocialTastingDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !isOwnPost {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(role: .destructive) {
+                        reportTarget = ReportTarget(
+                            contentType: .journalEntry,
+                            contentId: post.id,
+                            authorUserId: post.user.id,
+                            authorName: post.user.username
+                        )
+                    } label: {
+                        Image(systemName: "flag")
+                    }
+                    .tint(.red)
+                    .accessibilityLabel("Report Post")
+                }
+            }
+        }
+        .sheet(item: $reportTarget) { target in
+            ReportContentSheet(target: target, onReported: {
+                toastMessage = "Thanks. Our team will review this within 24 hours."
+            })
+        }
+        .overlay(alignment: .top) {
+            if let toastMessage {
+                Text(toastMessage)
+                    .font(.footnote.weight(.medium))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .task {
+                        try? await Task.sleep(for: .seconds(2.5))
+                        withAnimation { self.toastMessage = nil }
+                    }
+            }
+        }
+        .animation(.snappy, value: toastMessage)
         .task {
             await loadSharedRatings()
         }

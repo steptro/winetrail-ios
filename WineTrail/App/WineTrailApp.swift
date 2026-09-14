@@ -19,6 +19,9 @@ struct WineTrailApp: App {
     private let profileService: ProfileService
     private let socialService: SocialService
     private let socialState: SocialState
+    private let blockStore: BlockStore
+    private let moderationService: ModerationService
+    private let agreementStore: AgreementStore
     private let appState: AppState
 
     init() {
@@ -41,7 +44,10 @@ struct WineTrailApp: App {
         let profile = ProfileService(apiClient: api)
         let social = SocialService(apiClient: api)
         let socialSt = SocialState(socialService: social)
-        let state = AppState(authService: auth, journalService: journal, profileService: profile)
+        let blocks = BlockStore()
+        let moderation = ModerationService(apiClient: api, blockStore: blocks)
+        let agreement = AgreementStore()
+        let state = AppState(authService: auth, journalService: journal, profileService: profile, agreementStore: agreement)
 
         self.authService = auth
         self.apiClient = api
@@ -55,6 +61,9 @@ struct WineTrailApp: App {
         self.profileService = profile
         self.socialService = social
         self.socialState = socialSt
+        self.blockStore = blocks
+        self.moderationService = moderation
+        self.agreementStore = agreement
         self.appState = state
     }
 
@@ -73,6 +82,9 @@ struct WineTrailApp: App {
                 .environment(profileService)
                 .environment(socialService)
                 .environment(socialState)
+                .environment(blockStore)
+                .environment(moderationService)
+                .environment(agreementStore)
                 .environment(appState)
                 .task {
                     // Wire up AppDelegate → DeviceService for FCM token forwarding
@@ -90,6 +102,8 @@ struct WineTrailApp: App {
                     if authService.isAuthenticated {
                         await deviceService.registerTokenOnLaunch()
                         delegate.scheduleBackgroundRefresh()
+                        // Sync the authoritative block list so blocked content stays hidden.
+                        await moderationService.refreshBlockedUsers()
                     }
                 }
         }
