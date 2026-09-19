@@ -4,7 +4,6 @@ import Foundation
 enum ReportedContentType: String, CaseIterable, Sendable {
     case journalEntry = "JOURNAL_ENTRY"
     case comment = "COMMENT"
-    case user = "USER"
 }
 
 /// Reason categories a user can choose when reporting content.

@@ -95,7 +95,6 @@ final class ModerationService {
         switch type {
         case .journalEntry: return .JOURNAL_ENTRY
         case .comment: return .COMMENT
-        case .user: return .USER
         }
     }
 

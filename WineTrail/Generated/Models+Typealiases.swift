@@ -13,6 +13,7 @@ typealias MapResponse = Components.Schemas.MapData
 typealias LocationPin = Components.Schemas.LocationPin
 typealias Photo = Components.Schemas.PhotoDto
 typealias CreateJournalEntryBody = Components.Schemas.CreateJournalEntryRequest
+typealias CreateJournalEntryBodyV2 = Components.Schemas.CreateJournalEntryRequestV2
 
 // MARK: - Backwards Compatibility
 

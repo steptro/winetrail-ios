@@ -17,9 +17,10 @@ final class WineService {
     /// - Parameters:
     ///   - query: The search query string (e.g. wine name, producer).
     ///   - locale: BCP 47 locale for result localization (defaults to "en").
-    /// - Returns: An array of wine search results (may be empty).
+    /// - Returns: An array of wine search results (may be empty). External (GenAI)
+    ///   results carry a `searchRef` used to log a tasting against them.
     func search(query: String, locale: String = "en") async throws -> [WineSearch] {
-        let response = try await apiClient.client.searchWines(
+        let response = try await apiClient.client.searchWinesV2(
             query: .init(q: query, locale: locale)
         )
         return try response.ok.body.json

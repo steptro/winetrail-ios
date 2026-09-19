@@ -11,7 +11,6 @@ struct UserProfileView: View {
     @State private var pendingNotifyValue: Bool?
     @State private var commentsTastingId: String?
     @State private var likesTastingId: String?
-    @State private var reportTarget: ReportTarget?
     @State private var showBlockConfirmation = false
     @State private var toastMessage: String?
 
@@ -55,16 +54,6 @@ struct UserProfileView: View {
                 }
                 Menu {
                     Button(role: .destructive) {
-                        reportTarget = ReportTarget(
-                            contentType: .user,
-                            contentId: userId,
-                            authorUserId: userId,
-                            authorName: username
-                        )
-                    } label: {
-                        Label("Report User", systemImage: "flag")
-                    }
-                    Button(role: .destructive) {
                         showBlockConfirmation = true
                     } label: {
                         Label("Block @\(username)", systemImage: "nosign")
@@ -74,11 +63,6 @@ struct UserProfileView: View {
                 }
                 .accessibilityLabel("More options")
             }
-        }
-        .sheet(item: $reportTarget) { target in
-            ReportContentSheet(target: target, onReported: {
-                toastMessage = "Thanks. Our team will review this within 24 hours."
-            })
         }
         .alert("Block @\(username)?", isPresented: $showBlockConfirmation) {
             Button("Block", role: .destructive) { Task { await blockUser() } }

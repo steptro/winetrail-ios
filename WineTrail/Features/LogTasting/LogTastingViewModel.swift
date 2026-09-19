@@ -343,11 +343,15 @@ final class LogTastingViewModel {
             dateFormatter.dateFormat = "yyyy-MM-dd"
             dateFormatter.locale = Locale(identifier: "en_US_POSIX")
 
-            // Build the request body
-            let request = CreateTastingBody(
-                wineId: wine.wineId ?? selectedWineId,
-                externalSource: wine.externalSource,
-                externalId: wine.externalId,
+            // Build the request body (v2). A GenAI search result carries a searchRef; when
+            // present, the wine is identified by it (the server materializes a shared wine).
+            // Otherwise fall back to a local wineId or an external (provider) identity.
+            let hasSearchRef = wine.searchRef != nil
+            let request = CreateJournalEntryBodyV2(
+                wineId: hasSearchRef ? nil : (wine.wineId ?? selectedWineId),
+                externalSource: hasSearchRef ? nil : wine.externalSource,
+                externalId: hasSearchRef ? nil : wine.externalId,
+                searchRef: wine.searchRef,
                 rating: rating,
                 notes: notes.isEmpty ? nil : notes,
                 foodPairing: foodPairing.isEmpty ? nil : foodPairing,
@@ -392,6 +396,9 @@ final class LogTastingViewModel {
 
             WineAnalytics.logTastingCreated(wineId: tasting.wine.id, rating: Double(tasting.rating))
             savedTasting = tasting
+        } catch let wineTrailError as WineTrailError {
+            Log.error("Failed to save tasting", error: wineTrailError)
+            self.error = wineTrailError.errorDescription ?? "Something went wrong. Please try again."
         } catch {
             Log.error("Failed to save tasting", error: error)
             self.error = "Something went wrong. Please try again."

@@ -1,5 +1,7 @@
 import Foundation
 import Observation
+import HTTPTypes
+import OpenAPIRuntime
 
 /// Business logic layer for journal entry CRUD operations.
 ///
@@ -36,12 +38,34 @@ final class JournalService {
         return try response.ok.body.json
     }
 
-    /// Creates a new journal entry.
-    func createTasting(_ request: CreateJournalEntryBody) async throws -> JournalEntry {
-        let response = try await apiClient.client.createJournalEntry(
+    /// Creates a new journal entry (v2).
+    ///
+    /// Accepts a `searchRef` (from a v2 wine search) to log a tasting against an external
+    /// (GenAI) result. Throws `WineTrailError.validationFailed` on a 422 — e.g. when the
+    /// `searchRef` has expired and the user must search again.
+    func createTasting(_ request: CreateJournalEntryBodyV2) async throws -> JournalEntry {
+        let response = try await apiClient.client.createJournalEntryV2(
             body: .json(request)
         )
-        return try response.created.body.json
+        switch response {
+        case .created(let created):
+            return try created.body.json
+        case .undocumented(let statusCode, let payload):
+            let message = await Self.errorMessage(from: payload)
+            if statusCode == 422 {
+                throw WineTrailError.validationFailed(
+                    message: message ?? "This wine is no longer available. Please search again.")
+            }
+            throw WineTrailError.from(httpStatus: .init(code: statusCode), message: message)
+        }
+    }
+
+    /// Best-effort decode of the backend's `ErrorDto.message` from an undocumented response body.
+    private static func errorMessage(from payload: OpenAPIRuntime.UndocumentedPayload) async -> String? {
+        guard let body = payload.body else { return nil }
+        guard let data = try? await Data(collecting: body, upTo: 8 * 1024) else { return nil }
+        struct ErrorDto: Decodable { let message: String? }
+        return (try? JSONDecoder().decode(ErrorDto.self, from: data))?.message
     }
 
     /// Updates an existing journal entry.
