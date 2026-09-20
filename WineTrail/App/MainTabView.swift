@@ -33,7 +33,7 @@ struct MainTabView: View {
                         SocialFeedView()
                     }
                 }
-                .badge(socialState.pendingRequestCount)
+                .badge(socialState.socialBadgeCount)
                 Tab("Stats", systemImage: "chart.bar", value: 3) {
                     NavigationStack {
                         StatsView()
@@ -105,13 +105,16 @@ struct MainTabView: View {
         }
         .tint(.wineAccent)
         .task {
-            await socialState.refreshPendingCount()
+            await socialState.refresh()
         }
         .onChange(of: selectedTab) { _, _ in
-            Task { await socialState.refreshPendingCount() }
+            Task { await socialState.refresh() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .friendRequestsDidChange)) { _ in
             Task { await socialState.refreshPendingCount() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .taggedWinesDidChange)) { _ in
+            Task { await socialState.refreshTaggedCount() }
         }
     }
 

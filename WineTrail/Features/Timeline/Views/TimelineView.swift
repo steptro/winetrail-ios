@@ -449,7 +449,7 @@ fileprivate struct FeedPostView: View {
                             Image(systemName: likedByMe ? "heart.fill" : "heart")
                                 .font(.body)
                                 .foregroundStyle(likedByMe ? .red : .secondary)
-                                .scaleEffect(likedByMe ? 1.0 : 0.85)
+                                .scaleEffect(likedByMe ? 1.15 : 1.0)
                                 .animation(.spring(response: 0.3, dampingFraction: 0.5), value: likedByMe)
                         }
                         .buttonStyle(.plain)

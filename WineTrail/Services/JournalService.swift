@@ -40,9 +40,9 @@ final class JournalService {
 
     /// Creates a new journal entry (v2).
     ///
-    /// Accepts a `searchRef` (from a v2 wine search) to log a tasting against an external
-    /// (GenAI) result. Throws `WineTrailError.validationFailed` on a 422 — e.g. when the
-    /// `searchRef` has expired and the user must search again.
+    /// Sends a wine payload (from a v2 GenAI search result) so the server finds-or-creates a
+    /// shared wine, or a `wineId` for an existing wine. Throws `WineTrailError.validationFailed`
+    /// on a 422 (e.g. invalid wine data).
     func createTasting(_ request: CreateJournalEntryBodyV2) async throws -> JournalEntry {
         let response = try await apiClient.client.createJournalEntryV2(
             body: .json(request)
@@ -54,7 +54,7 @@ final class JournalService {
             let message = await Self.errorMessage(from: payload)
             if statusCode == 422 {
                 throw WineTrailError.validationFailed(
-                    message: message ?? "This wine is no longer available. Please search again.")
+                    message: message ?? "This tasting can't be saved. Please check the details and try again.")
             }
             throw WineTrailError.from(httpStatus: .init(code: statusCode), message: message)
         }

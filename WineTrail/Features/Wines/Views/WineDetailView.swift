@@ -26,6 +26,9 @@ struct WineDetailView: View {
                     // Wine identity + colour badge
                     wineIdentity
 
+                    // Grape varieties + description
+                    aboutSection
+
                     // Stats row
                     statsSection
 
@@ -178,6 +181,41 @@ struct WineDetailView: View {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - About (grape varieties + description)
+
+    @ViewBuilder
+    private var aboutSection: some View {
+        let grapes = wine.wine.grapeVarieties?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let description = wine.wine.description?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasGrapes = !(grapes ?? "").isEmpty
+        let hasDescription = !(description ?? "").isEmpty
+
+        if hasGrapes || hasDescription {
+            VStack(alignment: .leading, spacing: Theme.smallSpacing) {
+                if hasGrapes, let grapes {
+                    Label {
+                        Text(grapes)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                    } icon: {
+                        Image(systemName: "leaf.fill")
+                            .foregroundStyle(.wineAccent)
+                    }
+                }
+
+                if hasDescription, let description {
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Theme.spacing)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
         }
     }
 
@@ -423,7 +461,9 @@ private struct RatingEntry: Identifiable {
                 producer: "Marchesi di Barolo",
                 regionName: "Barolo",
                 country: "IT",
-                color: .RED
+                color: .RED,
+                grapeVarieties: "Nebbiolo",
+                description: "A structured, age-worthy red with aromas of cherry, rose, and tar."
             ),
             timesDrunk: 5,
             averageRating: 4.2,

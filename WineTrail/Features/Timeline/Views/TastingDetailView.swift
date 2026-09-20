@@ -40,6 +40,9 @@ struct TastingDetailView: View {
                     // Wine identity
                     wineIdentity
 
+                    // Grape varieties + description
+                    wineAboutSection
+
                     // Star rating
                     starRating
 
@@ -249,6 +252,41 @@ struct TastingDetailView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Wine About (grape varieties + description)
+
+    @ViewBuilder
+    private var wineAboutSection: some View {
+        let grapes = tasting.wine.grapeVarieties?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let description = tasting.wine.description?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasGrapes = !(grapes ?? "").isEmpty
+        let hasDescription = !(description ?? "").isEmpty
+
+        if hasGrapes || hasDescription {
+            VStack(alignment: .leading, spacing: Theme.smallSpacing) {
+                if hasGrapes, let grapes {
+                    Label {
+                        Text(grapes)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                    } icon: {
+                        Image(systemName: "leaf.fill")
+                            .foregroundStyle(.wineAccent)
+                    }
+                }
+
+                if hasDescription, let description {
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Theme.spacing)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
+        }
     }
 
     // MARK: - Star Rating

@@ -337,6 +337,9 @@ struct LogTastingView: View {
                                 TextField("Search wines...", text: $vm.searchQuery)
                                     .autocorrectionDisabled()
                                     .onSubmit { viewModel.search() }
+                                    .onChange(of: vm.searchQuery) {
+                                        viewModel.searchDebounced()
+                                    }
                                 Button {
                                     viewModel.search()
                                 } label: {
@@ -344,6 +347,7 @@ struct LogTastingView: View {
                                 }
                                 .disabled(viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty)
                             }
+                            .padding(.bottom, 8)
 
                             // Prominent primary action: scan a label.
                             Button {
@@ -396,23 +400,6 @@ struct LogTastingView: View {
                                     Text("Searching...")
                                         .font(Theme.captionFont)
                                         .foregroundStyle(.secondary)
-                                }
-                            }
-
-                            // Recent wines section
-                            if !viewModel.recentWines.isEmpty && viewModel.searchResults.isEmpty {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    sectionLabel("Recent")
-                                    ForEach(viewModel.recentWines, id: \.name) { wine in
-                                        Button {
-                                            // A recent pick isn't the scanned bottle — drop the scan photo.
-                                            viewModel.discardPendingScanImage()
-                                            viewModel.selectWine(wine)
-                                        } label: {
-                                            wineResultRow(wine: wine)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
                                 }
                             }
 

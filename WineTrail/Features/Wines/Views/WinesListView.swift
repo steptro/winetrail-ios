@@ -8,6 +8,7 @@ import SwiftUI
 struct WinesListView: View {
     @Environment(WineService.self) private var wineService
     @State private var viewModel: WinesViewModel?
+    @State private var showWineSearch = false
 
     var body: some View {
         Group {
@@ -54,11 +55,19 @@ struct WinesListView: View {
         .navigationTitle("Your Wines")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                sortPicker
+                sortAndFilterMenu
             }
             ToolbarItem(placement: .topBarTrailing) {
-                colorFilterMenu
+                Button {
+                    showWineSearch = true
+                } label: {
+                    Label("Search Wines", systemImage: "magnifyingglass")
+                }
             }
+        }
+        .sheet(isPresented: $showWineSearch) {
+            WineSearchView()
+                .environment(wineService)
         }
         .searchable(
             text: searchBinding,
@@ -90,53 +99,46 @@ struct WinesListView: View {
         )
     }
 
-    // MARK: - Sort Picker
+    // MARK: - Sort & Filter Menu
 
-    private var sortPicker: some View {
+    private var sortAndFilterMenu: some View {
         Menu {
             if let viewModel {
                 @Bindable var vm = viewModel
-                Picker("Sort", selection: $vm.selectedSort) {
-                    ForEach(WineSort.allCases) { sort in
-                        Text(sort.displayName).tag(sort)
+
+                Section("Sort") {
+                    Picker("Sort", selection: $vm.selectedSort) {
+                        ForEach(WineSort.allCases) { sort in
+                            Text(sort.displayName).tag(sort)
+                        }
+                    }
+                    Picker("Order", selection: $vm.selectedOrder) {
+                        Label("Ascending", systemImage: "arrow.up").tag(Components.Schemas.SortOrder.ASC)
+                        Label("Descending", systemImage: "arrow.down").tag(Components.Schemas.SortOrder.DESC)
                     }
                 }
 
-                Divider()
-
-                Picker("Order", selection: $vm.selectedOrder) {
-                    Label("Ascending", systemImage: "arrow.up").tag(Components.Schemas.SortOrder.ASC)
-                    Label("Descending", systemImage: "arrow.down").tag(Components.Schemas.SortOrder.DESC)
-                }
-            }
-        } label: {
-            Label("Sort", systemImage: "arrow.up.arrow.down")
-        }
-    }
-
-    // MARK: - Color Filter Menu
-
-    private var colorFilterMenu: some View {
-        Menu {
-            if let viewModel {
-                @Bindable var vm = viewModel
-                Picker("Color", selection: $vm.selectedColor) {
-                    Text("All Colors").tag(nil as Components.Schemas.WineColor?)
-                    Divider()
-                    ForEach(allWineColors, id: \.self) { color in
-                        Label(color.displayName, systemImage: "circle.fill")
-                            .tint(color.accentColor)
-                            .tag(color as Components.Schemas.WineColor?)
+                Section("Filter") {
+                    Picker("Color", selection: $vm.selectedColor) {
+                        Text("All Colors").tag(nil as Components.Schemas.WineColor?)
+                        ForEach(allWineColors, id: \.self) { color in
+                            Label(color.displayName, systemImage: "circle.fill")
+                                .tint(color.accentColor)
+                                .tag(color as Components.Schemas.WineColor?)
+                        }
                     }
                 }
             }
         } label: {
-            Label("Filter", systemImage: filterIcon)
+            Label("Sort & Filter", systemImage: menuIcon)
         }
     }
 
-    private var filterIcon: String {
-        viewModel?.selectedColor != nil ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease"
+    /// Reflects an active color filter so the grouped menu signals when a filter is applied.
+    private var menuIcon: String {
+        viewModel?.selectedColor != nil
+            ? "line.3.horizontal.decrease.circle.fill"
+            : "arrow.up.arrow.down"
     }
 
     private var allWineColors: [Components.Schemas.WineColor] {

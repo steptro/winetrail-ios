@@ -7,7 +7,7 @@ import Combine
 /// ViewModel for the Log Tasting feature.
 ///
 /// Manages debounced wine search (300ms), form state for all tasting fields,
-/// recent wines, auto-location detection, and the save flow (validate → create tasting → upload photos).
+/// auto-location detection, and the save flow (validate → create tasting → upload photos).
 @MainActor @Observable
 final class LogTastingViewModel {
     private let wineService: WineService
@@ -40,10 +40,10 @@ final class LogTastingViewModel {
     var hasSearched = false
 
     private var searchTask: Task<Void, Never>?
-    // MARK: - Recent Wines
 
-    /// The last 5 unique wines the user logged, loaded on init.
-    var recentWines: [WineSearch] = []
+    /// The most recent query that was searched (immediately or after debounce). Used to suppress a
+    /// redundant debounced search when the query is set programmatically then searched explicitly.
+    private var lastSearchedQuery: String?
 
     // MARK: - Form State
 
@@ -154,41 +154,8 @@ final class LogTastingViewModel {
         self.locationService = locationService
         self.socialService = socialService
 
-        // Load recent wines on init
-        Task {
-            await loadRecentWines()
-        }
-
         // Start auto-location detection if permission is granted
         startAutoLocationDetection()
-    }
-
-    // MARK: - Recent Wines
-
-    /// Fetches the last 5 unique wines from the journal timeline.
-    func loadRecentWines() async {
-        do {
-            let timeline = try await journalService.getTimeline(page: 0, size: 10)
-            var seen = Set<String>()
-            var unique: [WineSearch] = []
-            for tasting in timeline.content {
-                let key = tasting.wine.id
-                guard !seen.contains(key) else { continue }
-                seen.insert(key)
-                unique.append(WineSearch(
-                    wineId: tasting.wine.id,
-                    name: tasting.wine.name,
-                    producer: tasting.wine.producer,
-                    region: tasting.wine.regionName,
-                    country: tasting.wine.country,
-                    color: tasting.wine.color
-                ))
-                if unique.count >= 5 { break }
-            }
-            recentWines = unique
-        } catch {
-            Log.error("Failed to load recent wines", error: error)
-        }
     }
 
     // MARK: - Auto Location Detection
@@ -220,6 +187,47 @@ final class LogTastingViewModel {
 
     // MARK: - Wine Search
 
+    /// Debounced search triggered as the user types. Waits 500ms after the last keystroke and only
+    /// searches once the query is at least 3 characters, to avoid a request per keystroke.
+    func searchDebounced() {
+        let trimmed = searchQuery.trimmingCharacters(in: .whitespaces)
+
+        // Skip if an explicit search (button/submit/scan) already handled this exact query, so a
+        // programmatic searchQuery change doesn't fire a redundant second search.
+        guard trimmed != lastSearchedQuery else { return }
+
+        searchTask?.cancel()
+
+        guard trimmed.count >= 3 else {
+            searchResults = []
+            isSearching = false
+            hasSearched = false
+            return
+        }
+
+        isSearching = true
+        searchTask = Task {
+            do {
+                try await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
+
+                lastSearchedQuery = trimmed
+                let locale = Locale.current.language.languageCode?.identifier ?? "en"
+                let results = try await wineService.search(query: trimmed, locale: locale)
+                guard !Task.isCancelled else { return }
+                searchResults = results
+            } catch is CancellationError {
+                return
+            } catch {
+                guard !Task.isCancelled else { return }
+                Log.error("Wine search failed", error: error)
+                searchResults = []
+            }
+            isSearching = false
+            hasSearched = true
+        }
+    }
+
     /// Searches for wines matching the current query.
     /// Called explicitly when the user taps the search button.
     func search() {
@@ -231,6 +239,8 @@ final class LogTastingViewModel {
             isSearching = false
             return
         }
+
+        lastSearchedQuery = trimmed
 
         isSearching = true
         searchTask = Task {
@@ -271,12 +281,6 @@ final class LogTastingViewModel {
         }
     }
 
-    /// Discards the pending scanned photo without attaching it (e.g. the user picked
-    /// a recent wine rather than the scanned match).
-    func discardPendingScanImage() {
-        pendingScanImage = nil
-    }
-
     /// Loads stats for a wine by its ID from the dedicated stats endpoint.
     private func loadWineStats(wineId: String) async {
         do {
@@ -295,6 +299,7 @@ final class LogTastingViewModel {
         searchQuery = ""
         searchResults = []
         hasSearched = false
+        lastSearchedQuery = nil
     }
 
     // MARK: - Save Tasting
@@ -343,15 +348,21 @@ final class LogTastingViewModel {
             dateFormatter.dateFormat = "yyyy-MM-dd"
             dateFormatter.locale = Locale(identifier: "en_US_POSIX")
 
-            // Build the request body (v2). A GenAI search result carries a searchRef; when
-            // present, the wine is identified by it (the server materializes a shared wine).
-            // Otherwise fall back to a local wineId or an external (provider) identity.
-            let hasSearchRef = wine.searchRef != nil
+            // Build the request body (v2). A wine that already exists locally (user-created or
+            // previously materialized) has a wineId. A fresh GenAI result has no wineId but an
+            // externalSource — send the full wine payload so the server finds-or-creates a shared
+            // wine from it.
+            let isExternalWine = wine.wineId == nil && selectedWineId == nil && wine.externalSource != nil
             let request = CreateJournalEntryBodyV2(
-                wineId: hasSearchRef ? nil : (wine.wineId ?? selectedWineId),
-                externalSource: hasSearchRef ? nil : wine.externalSource,
-                externalId: hasSearchRef ? nil : wine.externalId,
-                searchRef: wine.searchRef,
+                wineId: isExternalWine ? nil : (wine.wineId ?? selectedWineId),
+                externalSource: isExternalWine ? wine.externalSource : nil,
+                wineName: isExternalWine ? wine.name : nil,
+                producer: isExternalWine ? wine.producer : nil,
+                region: isExternalWine ? wine.region : nil,
+                country: isExternalWine ? wine.country : nil,
+                color: isExternalWine ? wine.color : nil,
+                grapeVarieties: isExternalWine ? wine.grapeVarieties : nil,
+                description: isExternalWine ? wine.description : nil,
                 rating: rating,
                 notes: notes.isEmpty ? nil : notes,
                 foodPairing: foodPairing.isEmpty ? nil : foodPairing,
