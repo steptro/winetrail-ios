@@ -83,7 +83,7 @@ struct ProfileView: View {
                 Text("Legal")
             }
 
-            // Sign Out
+            // Danger
             Section {
                 Button(role: .destructive) {
                     Task {
@@ -94,10 +94,7 @@ struct ProfileView: View {
                 } label: {
                     Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                 }
-            }
 
-            // Delete Account
-            Section {
                 Button(role: .destructive) {
                     showDeleteAccountConfirmation = true
                 } label: {
@@ -112,6 +109,8 @@ struct ProfileView: View {
                     }
                 }
                 .disabled(isDeleting)
+            } header: {
+                Text("Danger")
             } footer: {
                 Text("Permanently deletes your account and all data. This cannot be undone.")
             }
@@ -131,6 +130,11 @@ struct ProfileView: View {
                 Text("Clears terms acceptance and returns to the agreement gate. Debug builds only.")
             }
 #endif
+
+            // App metadata
+            Section {
+                appVersionFooter
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Profile")
@@ -151,6 +155,19 @@ struct ProfileView: View {
         } message: {
             Text("This will permanently delete your account, all your wines, tastings, photos, and social data. This cannot be undone.")
         }
+    }
+
+    private var appVersionFooter: some View {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
+
+        return Text("WineTrail v\(version) (\(build))")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+            .accessibilityLabel("WineTrail version \(version), build \(build)")
     }
 
     // MARK: - Profile Header
