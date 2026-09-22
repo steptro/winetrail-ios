@@ -6,6 +6,7 @@ import SwiftUI
 /// varieties, description) and offers a quick action to log a tasting for it.
 struct WineSearchDetailView: View {
     let wine: WineSearch
+    var showsNavigationTitle = true
 
     @State private var showLogTasting = false
 
@@ -18,7 +19,7 @@ struct WineSearchDetailView: View {
             }
             .padding(Theme.spacing)
         }
-        .navigationTitle(wine.name)
+        .navigationTitle(showsNavigationTitle ? wine.name : "")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showLogTasting) {
             LogTastingView(preselectedWine: wine)

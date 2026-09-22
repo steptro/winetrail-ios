@@ -58,6 +58,13 @@ struct WinesListView: View {
                 sortAndFilterMenu
             }
             ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    StatsView()
+                } label: {
+                    Label("Stats", systemImage: "chart.bar")
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showWineSearch = true
                 } label: {

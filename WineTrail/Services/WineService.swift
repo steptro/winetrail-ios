@@ -36,6 +36,20 @@ final class WineService {
         return try response.created.body.json
     }
 
+    /// Fetches full details for a single wine by its global ID.
+    ///
+    /// Uses the catalog-wide `GET /wines/{id}` endpoint (not the user-scoped stats
+    /// endpoint), so it resolves any wine — including one the current user has never
+    /// logged. Used to open a shared-wine universal link.
+    /// - Parameter id: The global wine UUID.
+    /// - Returns: The full wine DTO.
+    func getWine(id: String) async throws -> Components.Schemas.WineDto {
+        let response = try await apiClient.client.getWine(
+            path: .init(wineId: id)
+        )
+        return try response.ok.body.json
+    }
+
     /// Fetches the authenticated user's wines with tasting stats (paginated).
     /// - Parameters:
     ///   - page: Zero-based page index.

@@ -6,6 +6,8 @@ enum DeepLink: Equatable {
     /// A friend's post the current user was tagged in — opens the social detail page.
     case taggedPost(entryId: String)
     case friends
+    /// A wine shared via a `winetrail-app.com/wines/{id}` universal link.
+    case wine(id: String)
 
     /// Parses a push notification `userInfo` dictionary into a `DeepLink`.
     static func from(userInfo: [AnyHashable: Any]) -> DeepLink? {
@@ -20,6 +22,21 @@ enum DeepLink: Equatable {
             return .taggedPost(entryId: entryId)
         case "friend_request", "friend_accepted":
             return .friends
+        default:
+            return nil
+        }
+    }
+
+    /// Parses a universal link (e.g. `https://winetrail-app.com/wines/{id}`) into a `DeepLink`.
+    ///
+    /// Only recognises paths we host an Apple App Site Association entry for; unknown
+    /// paths return `nil` so the system falls back to opening the link in the browser.
+    static func from(url: URL) -> DeepLink? {
+        let segments = url.pathComponents.filter { $0 != "/" }
+
+        switch segments.first {
+        case "wines" where segments.count >= 2:
+            return .wine(id: segments[1])
         default:
             return nil
         }

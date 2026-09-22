@@ -86,6 +86,16 @@ struct WineTrailApp: App {
                 .environment(moderationService)
                 .environment(agreementStore)
                 .environment(appState)
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    if let url = activity.webpageURL, let deepLink = DeepLink.from(url: url) {
+                        appState.pendingDeepLink = deepLink
+                    }
+                }
+                .onOpenURL { url in
+                    if let deepLink = DeepLink.from(url: url) {
+                        appState.pendingDeepLink = deepLink
+                    }
+                }
                 .task {
                     // Wire up AppDelegate → DeviceService for FCM token forwarding
                     delegate.deviceService = deviceService

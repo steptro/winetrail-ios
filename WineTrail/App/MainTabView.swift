@@ -1,23 +1,38 @@
 import SwiftUI
 
-/// Main tab-based navigation container with Journal, Wines, Social, Stats, and Profile tabs.
+/// Main tab-based navigation container with Journal, Wines, Discover, Social, and Settings tabs.
 /// Each tab wraps its content in a NavigationStack for drill-down navigation.
 /// A floating "+" button overlays the tab bar to trigger New Wine from any tab.
+/// Stats moved to a toolbar entry inside the Wines tab.
 struct MainTabView: View {
     @Environment(AppState.self) private var appState
     @Environment(JournalService.self) private var journalService
+    @Environment(WineService.self) private var wineService
     @Environment(SocialService.self) private var socialService
     @Environment(SocialState.self) private var socialState
 
-    @State private var selectedTab = 0
+    @State private var selectedTab = 3
     @State private var showLogTasting = false
     @State private var didSaveTasting = false
     @State private var deepLinkTasting: Tasting?
     @State private var deepLinkTaggedPost: Components.Schemas.FeedJournalEntryDto?
+    @State private var deepLinkWine: SharedWine?
+
+    /// Wraps a resolved shared wine so it can drive a `.sheet(item:)`.
+    private struct SharedWine: Identifiable {
+        let id: String
+        let wine: WineSearch
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
             TabView(selection: $selectedTab) {
+                Tab("Social", systemImage: "person.2", value: 3) {
+                    NavigationStack {
+                        SocialFeedView()
+                    }
+                }
+                .badge(socialState.socialBadgeCount)
                 Tab("Journal", systemImage: "book", value: 0) {
                     NavigationStack {
                         TimelineView()
@@ -28,18 +43,12 @@ struct MainTabView: View {
                         WinesListView()
                     }
                 }
-                Tab("Social", systemImage: "person.2", value: 2) {
+                Tab("Discover", systemImage: "sparkle.magnifyingglass", value: 2) {
                     NavigationStack {
-                        SocialFeedView()
+                        DiscoverView()
                     }
                 }
-                .badge(socialState.socialBadgeCount)
-                Tab("Stats", systemImage: "chart.bar", value: 3) {
-                    NavigationStack {
-                        StatsView()
-                    }
-                }
-                Tab("Profile", systemImage: "person.crop.circle", value: 4) {
+                Tab("Settings", systemImage: "gearshape", value: 4) {
                     NavigationStack {
                         ProfileView()
                     }
@@ -98,6 +107,19 @@ struct MainTabView: View {
                     }
             }
         }
+        .sheet(item: $deepLinkWine) { shared in
+            NavigationStack {
+                WineSearchDetailView(wine: shared.wine, showsNavigationTitle: false)
+                    .environment(wineService)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button { deepLinkWine = nil } label: {
+                                Image(systemName: "xmark")
+                            }
+                        }
+                    }
+            }
+        }
         .onChange(of: appState.pendingDeepLink) { _, deepLink in
             guard let deepLink else { return }
             handleDeepLink(deepLink)
@@ -130,9 +152,9 @@ struct MainTabView: View {
                 }
             }
         case .friends:
-            selectedTab = 2 // Social tab
+            selectedTab = 3 // Social tab
         case .taggedPost(let entryId):
-            selectedTab = 2 // Social tab
+            selectedTab = 3 // Social tab
             Task {
                 do {
                     // No single-entry social endpoint; find the post among the user's tagged wines.
@@ -142,6 +164,28 @@ struct MainTabView: View {
                     }
                 } catch {
                     Log.error("Failed to load tagged post from deep link", error: error)
+                }
+            }
+        case .wine(let id):
+            Task {
+                do {
+                    // Resolve via the global catalog endpoint so a shared wine opens even
+                    // when the recipient has never logged it. Map to WineSearch so the
+                    // detail view can offer "Log a Tasting" against the catalog wine.
+                    let dto = try await wineService.getWine(id: id)
+                    let wine = WineSearch(
+                        wineId: dto.id,
+                        name: dto.name,
+                        producer: dto.producer,
+                        region: dto.regionName,
+                        country: dto.country,
+                        color: dto.color,
+                        grapeVarieties: dto.grapeVarieties,
+                        description: dto.description
+                    )
+                    deepLinkWine = SharedWine(id: dto.id, wine: wine)
+                } catch {
+                    Log.error("Failed to load wine from deep link", error: error)
                 }
             }
         }

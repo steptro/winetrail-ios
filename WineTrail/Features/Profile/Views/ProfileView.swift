@@ -39,23 +39,6 @@ struct ProfileView: View {
                 } label: {
                     Label("Edit Profile", systemImage: "person.fill")
                 }
-
-                NavigationLink {
-                    FriendsView()
-                } label: {
-                    HStack {
-                        Label("Friends", systemImage: "person.2.fill")
-                        Spacer()
-                        Text("\(friendCount)")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                NavigationLink {
-                    BlockedUsersView()
-                } label: {
-                    Label("Blocked Users", systemImage: "nosign")
-                }
             } header: {
                 Text("Account")
             }
@@ -137,7 +120,7 @@ struct ProfileView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("Profile")
+        .navigationTitle("Settings")
         .refreshable {
             await loadData()
         }

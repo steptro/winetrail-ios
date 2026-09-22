@@ -61,6 +61,9 @@ struct WineDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
+                    ShareLink(item: shareURL, subject: Text(wine.wine.name), message: Text(shareMessage)) {
+                        Label("Share Wine", systemImage: "square.and.arrow.up")
+                    }
                     Button {
                         showLogAgain = true
                     } label: {
@@ -90,6 +93,28 @@ struct WineDetailView: View {
             }
         }
         .errorAlert($errorMessage)
+    }
+
+    // MARK: - Sharing
+
+    /// Web link to this wine on the WineTrail site, used by the share sheet.
+    private var shareURL: URL {
+        AppConfig.serverURL.appendingPathComponent("wines").appendingPathComponent(wine.wine.id)
+    }
+
+    /// Human-readable summary shared alongside the link (name, producer, region).
+    private var shareMessage: String {
+        var parts: [String] = [wine.wine.name]
+
+        if let producer = wine.wine.producer, !producer.isEmpty {
+            parts.append(producer)
+        }
+        if let region = wine.wine.regionName, !region.isEmpty {
+            parts.append(region)
+        }
+
+        let identity = parts.joined(separator: " · ")
+        return "Check out \(identity) on WineTrail"
     }
 
     // MARK: - Load Data

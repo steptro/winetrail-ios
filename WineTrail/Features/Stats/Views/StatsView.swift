@@ -31,6 +31,9 @@ struct StatsView: View {
                             if let priceStats = viewModel.priceStats {
                                 priceStatsCard(stats: priceStats)
                             }
+                            if !viewModel.topWines.isEmpty {
+                                topWinesSection(wines: viewModel.topWines)
+                            }
                             ColorSplitChart(colorSplit: viewModel.colorSplit)
                             TopCountriesView(countries: viewModel.topCountries)
                             TopRegionsView(regions: viewModel.topRegions)
@@ -112,6 +115,75 @@ struct StatsView: View {
             }
             .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// Top wines section showing the highest-rated wines ranked by average rating.
+    @ViewBuilder
+    private func topWinesSection(wines: [Components.Schemas.TopWine]) -> some View {
+        VStack(alignment: .leading, spacing: Theme.smallSpacing) {
+            Text("Top Wines")
+                .font(Theme.headlineFont)
+                .foregroundStyle(.wineText)
+
+            VStack(spacing: 0) {
+                ForEach(Array(wines.enumerated()), id: \.element.wine.id) { index, entry in
+                    topWineRow(rank: index + 1, entry: entry)
+                    if index < wines.count - 1 {
+                        Divider()
+                    }
+                }
+            }
+            .background(.wineSecondaryBackground, in: .rect(cornerRadius: Theme.cornerRadius))
+        }
+    }
+
+    /// A single ranked top-wine row: rank, name/producer, rating and tasting count.
+    @ViewBuilder
+    private func topWineRow(rank: Int, entry: Components.Schemas.TopWine) -> some View {
+        HStack(spacing: Theme.spacing) {
+            Text("\(rank)")
+                .font(Theme.headlineFont)
+                .foregroundStyle(.wineAccent)
+                .frame(width: 24, alignment: .center)
+
+            Image(systemName: "wineglass.fill")
+                .font(.title3)
+                .foregroundStyle(entry.wine.color?.accentColor ?? .wineAccent)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.wine.name)
+                    .font(Theme.bodyFont.weight(.medium))
+                    .foregroundStyle(.wineText)
+                    .lineLimit(1)
+
+                HStack(spacing: 4) {
+                    if let country = entry.wine.country, !country.isEmpty {
+                        Text(WineFlag.flag(for: country))
+                    }
+                    if let producer = entry.wine.producer, !producer.isEmpty {
+                        Text(producer)
+                            .lineLimit(1)
+                    }
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    Text("\(entry.timesDrunk)×")
+                }
+                .font(Theme.captionFont)
+                .foregroundStyle(.wineSecondaryText)
+            }
+
+            Spacer()
+
+            HStack(spacing: 3) {
+                Image(systemName: "star.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.wineAccent)
+                Text(String(format: "%.1f", entry.averageRating))
+                    .font(Theme.bodyFont.weight(.semibold))
+                    .foregroundStyle(.wineText)
+            }
+        }
+        .padding(Theme.spacing)
     }
 
     private func formatPrice(_ value: Double) -> String {

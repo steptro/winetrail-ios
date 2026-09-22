@@ -127,6 +127,18 @@ struct SocialFeedView: View {
                         }
                 }
             }
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    NavigationLink {
+                        BlockedUsersView()
+                    } label: {
+                        Label("Blocked Users", systemImage: "nosign")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel("More social options")
+            }
         }
         .task {
             if viewModel == nil {

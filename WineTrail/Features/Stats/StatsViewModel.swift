@@ -66,4 +66,9 @@ final class StatsViewModel {
     var priceStats: Components.Schemas.PriceStats? {
         stats?.priceStats
     }
+
+    /// Top wines ranked by average rating (top 5 from the backend).
+    var topWines: [Components.Schemas.TopWine] {
+        stats?.topWines ?? []
+    }
 }

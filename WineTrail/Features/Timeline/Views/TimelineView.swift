@@ -93,50 +93,7 @@ struct TimelineView: View {
         .navigationTitle("Journal")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Menu {
-                    if let viewModel {
-                        Picker("Sort by", selection: Binding(
-                            get: { viewModel.sort },
-                            set: { newSort in Task { await viewModel.changeSort(newSort) } }
-                        )) {
-                            ForEach(TimelineSort.allCases, id: \.self) { option in
-                                Text(option.displayName).tag(option)
-                            }
-                        }
-
-                        Divider()
-
-                        Picker("Order", selection: Binding(
-                            get: { viewModel.sortDirection },
-                            set: { newDirection in
-                                viewModel.sortDirection = newDirection
-                                Task { await viewModel.loadInitial() }
-                            }
-                        )) {
-                            Label("Ascending", systemImage: "arrow.up").tag("asc")
-                            Label("Descending", systemImage: "arrow.down").tag("desc")
-                        }
-                    }
-                } label: {
-                    Label("Sort", systemImage: "arrow.up.arrow.down")
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    if let viewModel {
-                        Picker("Color", selection: Binding(
-                            get: { viewModel.colorFilter },
-                            set: { newColor in Task { await viewModel.changeColor(newColor) } }
-                        )) {
-                            Text("All Colors").tag(nil as Components.Schemas.WineColor?)
-                            ForEach([Components.Schemas.WineColor.RED, .WHITE, .ROSE, .ORANGE, .SPARKLING], id: \.self) { color in
-                                Text(color.displayName).tag(color as Components.Schemas.WineColor?)
-                            }
-                        }
-                    }
-                } label: {
-                    Label("Filter", systemImage: "line.3.horizontal.decrease")
-                }
+                sortAndFilterMenu
             }
         }
         .task {
@@ -171,6 +128,61 @@ struct TimelineView: View {
         } message: {
             Text("Are you sure you want to delete this entry? This cannot be undone.")
         }
+    }
+
+    // MARK: - Sort & Filter Menu
+
+    /// Combined sort + filter menu, mirroring the Wines screen: grouped `Sort`
+    /// and `Filter` sections under a single toolbar control whose icon signals
+    /// when a color filter is active.
+    private var sortAndFilterMenu: some View {
+        Menu {
+            if let viewModel {
+                Section("Sort") {
+                    Picker("Sort by", selection: Binding(
+                        get: { viewModel.sort },
+                        set: { newSort in Task { await viewModel.changeSort(newSort) } }
+                    )) {
+                        ForEach(TimelineSort.allCases, id: \.self) { option in
+                            Text(option.displayName).tag(option)
+                        }
+                    }
+                    Picker("Order", selection: Binding(
+                        get: { viewModel.sortDirection },
+                        set: { newDirection in
+                            viewModel.sortDirection = newDirection
+                            Task { await viewModel.loadInitial() }
+                        }
+                    )) {
+                        Label("Ascending", systemImage: "arrow.up").tag("asc")
+                        Label("Descending", systemImage: "arrow.down").tag("desc")
+                    }
+                }
+
+                Section("Filter") {
+                    Picker("Color", selection: Binding(
+                        get: { viewModel.colorFilter },
+                        set: { newColor in Task { await viewModel.changeColor(newColor) } }
+                    )) {
+                        Text("All Colors").tag(nil as Components.Schemas.WineColor?)
+                        ForEach([Components.Schemas.WineColor.RED, .WHITE, .ROSE, .ORANGE, .SPARKLING], id: \.self) { color in
+                            Label(color.displayName, systemImage: "circle.fill")
+                                .tint(color.accentColor)
+                                .tag(color as Components.Schemas.WineColor?)
+                        }
+                    }
+                }
+            }
+        } label: {
+            Label("Sort & Filter", systemImage: menuIcon)
+        }
+    }
+
+    /// Reflects an active color filter so the grouped menu signals when a filter is applied.
+    private var menuIcon: String {
+        viewModel?.colorFilter != nil
+            ? "line.3.horizontal.decrease.circle.fill"
+            : "arrow.up.arrow.down"
     }
 }
 

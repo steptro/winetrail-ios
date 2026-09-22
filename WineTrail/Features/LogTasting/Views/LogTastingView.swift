@@ -394,13 +394,10 @@ struct LogTastingView: View {
                             }
 
                             if viewModel.isSearching {
-                                HStack {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                    Text("Searching...")
-                                        .font(Theme.captionFont)
-                                        .foregroundStyle(.secondary)
-                                }
+                                WineGlassLoadingView()
+                                    .frame(width: 28, height: 28)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.top, Theme.spacing)
                             }
 
                             // Search results
