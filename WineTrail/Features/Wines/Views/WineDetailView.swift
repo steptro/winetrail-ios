@@ -213,8 +213,11 @@ struct WineDetailView: View {
 
     @ViewBuilder
     private var aboutSection: some View {
-        let grapes = wine.wine.grapeVarieties?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let description = wine.wine.description?.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Prefer the freshly-fetched wine summary (carries full grape/description
+        // data); fall back to the summary passed in when the fetch hasn't landed.
+        let summary = stats?.wine ?? wine.wine
+        let grapes = summary.grapeVarieties?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let description = summary.description?.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasGrapes = !(grapes ?? "").isEmpty
         let hasDescription = !(description ?? "").isEmpty
 
