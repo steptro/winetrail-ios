@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseCore
+import FirebaseAuth
 
 @main
 struct WineTrailApp: App {
@@ -22,6 +23,8 @@ struct WineTrailApp: App {
     private let blockStore: BlockStore
     private let moderationService: ModerationService
     private let agreementStore: AgreementStore
+    private let subscriptionManager: SubscriptionManager
+    private let assistantService: AssistantService
     private let appState: AppState
 
     init() {
@@ -30,8 +33,7 @@ struct WineTrailApp: App {
         let auth = AuthService()
         auth.startListening()
 
-//        let serverURL = URL(string: "http://localhost:8091")!
-         let serverURL = AppConfig.serverURL
+        let serverURL = AppConfig.serverURL
         let api = APIClient(serverURL: serverURL, authService: auth)
 
         let device = DeviceService(apiClient: api)
@@ -47,6 +49,8 @@ struct WineTrailApp: App {
         let blocks = BlockStore()
         let moderation = ModerationService(apiClient: api, blockStore: blocks)
         let agreement = AgreementStore()
+        let subscriptions = MainActor.assumeIsolated { SubscriptionManager() }
+        let assistant = MainActor.assumeIsolated { AssistantService(authService: auth) }
         let state = AppState(authService: auth, journalService: journal, profileService: profile, agreementStore: agreement)
 
         self.authService = auth
@@ -64,6 +68,8 @@ struct WineTrailApp: App {
         self.blockStore = blocks
         self.moderationService = moderation
         self.agreementStore = agreement
+        self.subscriptionManager = subscriptions
+        self.assistantService = assistant
         self.appState = state
     }
 
@@ -85,6 +91,8 @@ struct WineTrailApp: App {
                 .environment(blockStore)
                 .environment(moderationService)
                 .environment(agreementStore)
+                .environment(subscriptionManager)
+                .environment(assistantService)
                 .environment(appState)
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
                     if let url = activity.webpageURL, let deepLink = DeepLink.from(url: url) {
@@ -97,6 +105,10 @@ struct WineTrailApp: App {
                     }
                 }
                 .task {
+                    // Configure RevenueCat before auth resolves so its identity
+                    // can be aligned to the Firebase uid as soon as it's known.
+                    subscriptionManager.configure()
+
                     // Wire up AppDelegate → DeviceService for FCM token forwarding
                     delegate.deviceService = deviceService
                     delegate.appState = appState
@@ -108,6 +120,12 @@ struct WineTrailApp: App {
                     }
                     await appState.determineInitialRoute()
 
+                    // Align the RevenueCat identity with the signed-in account so
+                    // entitlements follow the user across devices and reinstalls.
+                    // Keyed on the backend's internal user id (what the RevenueCat
+                    // webhook resolves against), not the Firebase uid.
+                    await syncSubscriptionIdentity()
+
                     // Register FCM token on every launch to keep it fresh
                     if authService.isAuthenticated {
                         await deviceService.registerTokenOnLaunch()
@@ -116,6 +134,39 @@ struct WineTrailApp: App {
                         await moderationService.refreshBlockedUsers()
                     }
                 }
+                .onChange(of: authService.currentUser?.uid) { _, _ in
+                    // Follow genuine sign-in / sign-out transitions only.
+                    Task { await syncSubscriptionIdentity() }
+                }
+        }
+    }
+
+    /// Aligns RevenueCat's identity with the auth state: signs in with the backend's
+    /// internal user id when authenticated, signs out only when actually signed out.
+    ///
+    /// A failed `/me` fetch while still authenticated does NOTHING — it must never fall
+    /// through to a sign-out, which would churn the RevenueCat identity and cancel any
+    /// in-flight purchase.
+    private func syncSubscriptionIdentity() async {
+        guard authService.isAuthenticated else {
+            await subscriptionManager.signOut()
+            return
+        }
+
+        do {
+            let profile = try await profileService.getProfile()
+            await subscriptionManager.signIn(userId: profile.id.lowercased())
+
+            // Identify the customer in RevenueCat and store the FCM token for engagement.
+            subscriptionManager.setUserAttributes(
+                displayName: profile.displayName,
+                email: profile.email,
+                fcmToken: deviceService.currentFCMToken
+            )
+        } catch {
+            // Transient: leave the current RevenueCat identity untouched and try again
+            // on the next auth tick / launch, rather than logging out.
+            Log.error("Failed to resolve internal user id for RevenueCat identity", error: error)
         }
     }
 }

@@ -14,4 +14,12 @@ enum AppConfig {
 
     /// Terms of Service URL.
     static let termsOfServiceURL = URL(string: "\(hostname)/terms-of-service")!
+
+    // MARK: RevenueCat
+
+    /// RevenueCat public SDK API key (Apple platform).
+    static let revenueCatAPIKey = "appl_kYrCVamamhkOwXxKkZfeGiJgCfc"
+
+    /// Entitlement identifier that unlocks the AI Sommelier / recommendations feature.
+    static let proEntitlementID = "winetrail_pro"
 }

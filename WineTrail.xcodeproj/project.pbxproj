@@ -18,10 +18,14 @@
 		D4A35A0A303C2B3D005F634A /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = D4A35A09303C2B3D005F634A /* FirebaseAnalytics */; };
 		D4A35A0E303C2B49005F634A /* FirebaseAnalyticsCore in Frameworks */ = {isa = PBXBuildFile; productRef = D4A35A0D303C2B49005F634A /* FirebaseAnalyticsCore */; };
 		D4A35A22303C6363005F634A /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = D4A35A21303C6363005F634A /* Kingfisher */; };
+		D4AB0557306478F9003BEE0F /* StoreKitTestCertificate.cer in Resources */ = {isa = PBXBuildFile; fileRef = D4AB0556306478F9003BEE0F /* StoreKitTestCertificate.cer */; };
+		D4ABFF1530642B64003BEE0F /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = D4ABFF1430642B64003BEE0F /* RevenueCat */; };
+		D4ABFF1730642B64003BEE0F /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = D4ABFF1630642B64003BEE0F /* RevenueCatUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* WineTrail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WineTrail.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D4AB0556306478F9003BEE0F /* StoreKitTestCertificate.cer */ = {isa = PBXFileReference; lastKnownFileType = file; name = StoreKitTestCertificate.cer; path = ../../../Downloads/StoreKitTestCertificate.cer; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -51,12 +55,14 @@
 			files = (
 				D4A359253039C1C2005F634A /* DatadogCore in Frameworks */,
 				A1000001000000000000F001 /* OpenAPIRuntime in Frameworks */,
+				D4ABFF1730642B64003BEE0F /* RevenueCatUI in Frameworks */,
 				A1000001000000000000F002 /* OpenAPIURLSession in Frameworks */,
 				A1000001000000000000F003 /* FirebaseAuth in Frameworks */,
 				D4A359273039C1C2005F634A /* DatadogLogs in Frameworks */,
 				A1000001000000000000F004 /* FirebaseMessaging in Frameworks */,
 				A1000001000000000000F005 /* GoogleSignIn in Frameworks */,
 				D4A35A0E303C2B49005F634A /* FirebaseAnalyticsCore in Frameworks */,
+				D4ABFF1530642B64003BEE0F /* RevenueCat in Frameworks */,
 				D4A35A22303C6363005F634A /* Kingfisher in Frameworks */,
 				A1000001000000000000F006 /* GoogleSignInSwift in Frameworks */,
 				D4A35A0A303C2B3D005F634A /* FirebaseAnalytics in Frameworks */,
@@ -68,6 +74,7 @@
 		000000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
+				D4AB0556306478F9003BEE0F /* StoreKitTestCertificate.cer */,
 				000000000000000000000010 /* WineTrail */,
 				D4C60BEE302A48A9000A2F6E /* Frameworks */,
 				000000000000000000000020 /* Products */,
@@ -121,6 +128,8 @@
 				D4A35A09303C2B3D005F634A /* FirebaseAnalytics */,
 				D4A35A0D303C2B49005F634A /* FirebaseAnalyticsCore */,
 				D4A35A21303C6363005F634A /* Kingfisher */,
+				D4ABFF1430642B64003BEE0F /* RevenueCat */,
+				D4ABFF1630642B64003BEE0F /* RevenueCatUI */,
 			);
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* WineTrail.app */;
@@ -158,6 +167,7 @@
 				D4C60BE5302A460F000A2F6E /* XCRemoteSwiftPackageReference "swift-openapi-generator" */,
 				D4A359233039C1C2005F634A /* XCRemoteSwiftPackageReference "dd-sdk-ios" */,
 				D4A35A20303C6362005F634A /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				D4ABFF1130642B64003BEE0F /* XCRemoteSwiftPackageReference "purchases-ios" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 000000000000000000000020 /* Products */;
@@ -173,6 +183,7 @@
 		000000000000000140000000 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
+				D4AB0557306478F9003BEE0F /* StoreKitTestCertificate.cer in Resources */,
 			);
 		};
 /* End PBXResourcesBuildPhase section */
@@ -501,6 +512,14 @@
 				minimumVersion = 8.11.0;
 			};
 		};
+		D4ABFF1130642B64003BEE0F /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.90.2;
+			};
+		};
 		D4C60BE5302A460F000A2F6E /* XCRemoteSwiftPackageReference "swift-openapi-generator" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-openapi-generator";
@@ -566,6 +585,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D4A35A20303C6362005F634A /* XCRemoteSwiftPackageReference "Kingfisher" */;
 			productName = Kingfisher;
+		};
+		D4ABFF1430642B64003BEE0F /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D4ABFF1130642B64003BEE0F /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCat;
+		};
+		D4ABFF1630642B64003BEE0F /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D4ABFF1130642B64003BEE0F /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCatUI;
 		};
 		D4C60EA5302A4A3B000A2F6E /* OpenAPIGenerator */ = {
 			isa = XCSwiftPackageProductDependency;

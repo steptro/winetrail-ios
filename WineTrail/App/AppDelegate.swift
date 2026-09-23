@@ -6,6 +6,7 @@ import FirebaseMessaging
 import FirebaseAnalytics
 import DatadogCore
 import DatadogLogs
+import RevenueCat
 
 class AppDelegate: NSObject, UIApplicationDelegate {
 
@@ -25,6 +26,19 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         if FirebaseApp.app() == nil {
             FirebaseApp.configure()
+        }
+
+        // Configure RevenueCat here (not in a SwiftUI .task) so the SDK is ready before any view —
+        // including RevenueCatUI's PaywallView / presentPaywallIfNeeded — touches Purchases.shared.
+        // A .task runs after the view appears, leaving a window where opening the paywall logs
+        // "Purchases has not been configured". didFinishLaunching runs before any of that.
+        if !Purchases.isConfigured {
+            #if DEBUG
+            Purchases.logLevel = .debug
+            #else
+            Purchases.logLevel = .warn
+            #endif
+            Purchases.configure(withAPIKey: AppConfig.revenueCatAPIKey)
         }
 
         // Datadog Logging
@@ -121,6 +135,13 @@ extension AppDelegate: MessagingDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         guard let token = fcmToken else { return }
         Task { await deviceService?.onTokenRefresh(token) }
+
+        // Store the FCM token on the RevenueCat customer too, for engagement. Set here (not only at
+        // sign-in) because the token often arrives after launch, once RevenueCat is already
+        // configured; setAttributes is a no-op if the SDK is not yet configured.
+        if Purchases.isConfigured {
+            Purchases.shared.attribution.setAttributes(["fcm_token": token])
+        }
     }
 }
 

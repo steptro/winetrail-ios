@@ -1,5 +1,5 @@
 {
-  "originHash" : "1760ffbc962da043e760cf6d253acc9cd1c4ba6e1fc033af93bb4e41ba5f99c2",
+  "originHash" : "dc77ff7298690f8e5ce2348c7603de922b6de75e50750d7658881ec65023afb7",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -188,6 +188,15 @@
       "state" : {
         "revision" : "f4a19a3c313dc2616c70bb49d29a799fb16be837",
         "version" : "2.4.1"
+      }
+    },
+    {
+      "identity" : "purchases-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RevenueCat/purchases-ios",
+      "state" : {
+        "revision" : "4faa17c4a290954fbdbf8f8a6bf0f58e48a8256c",
+        "version" : "5.90.2"
       }
     },
     {
