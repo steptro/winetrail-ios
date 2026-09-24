@@ -81,6 +81,38 @@ final class AssistantService {
         return detail.id
     }
 
+    /// Lists the user's conversations, most-recently-active first.
+    func listConversations() async throws -> [AssistantConversation] {
+        var request = try await authorizedRequest(path: "/api/v1/assistant/conversations", method: "GET")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await session.data(for: request)
+        try Self.ensureSuccess(response, body: data, context: "listConversations")
+
+        let summaries = try Self.jsonDecoder.decode([ConversationSummaryResponse].self, from: data)
+        return summaries.map { AssistantConversation(id: $0.id, title: $0.title, updatedAt: $0.updatedAt) }
+    }
+
+    /// Loads a single conversation's full transcript for resuming.
+    func getConversation(id: UUID) async throws -> [AssistantMessage] {
+        let path = "/api/v1/assistant/conversations/\(id.uuidString)"
+        var request = try await authorizedRequest(path: path, method: "GET")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await session.data(for: request)
+        try Self.ensureSuccess(response, body: data, context: "getConversation")
+
+        let detail = try Self.jsonDecoder.decode(ConversationDetailFullResponse.self, from: data)
+        return detail.messages.map {
+            AssistantMessage(
+                id: $0.id,
+                role: $0.role == .USER ? .user : .model,
+                content: $0.content,
+                createdAt: $0.createdAt
+            )
+        }
+    }
+
     // MARK: - Streaming
 
     /// Sends a user message and streams the assistant's reply as text deltas.
@@ -224,6 +256,13 @@ final class AssistantService {
 
     private static let jsonDecoder: JSONDecoder = {
         let decoder = JSONDecoder()
+        // Reuse the app's shared ISO-8601 transcoder (handles fractional seconds and plain) so the
+        // date parsing has a single source of truth, matching the generated API client.
+        let transcoder = ISO8601DateTranscoderWithFractionalSeconds()
+        decoder.dateDecodingStrategy = .custom { d in
+            let container = try d.singleValueContainer()
+            return try transcoder.decode(container.decode(String.self))
+        }
         return decoder
     }()
 
@@ -237,5 +276,38 @@ final class AssistantService {
 
     private struct ConversationDetailResponse: Decodable {
         let id: UUID
+    }
+
+    private struct ConversationSummaryResponse: Decodable {
+        let id: UUID
+        let title: String?
+        let updatedAt: Date
+    }
+
+    private struct ConversationDetailFullResponse: Decodable {
+        let id: UUID
+        let title: String?
+        let messages: [MessageResponse]
+    }
+
+    private struct MessageResponse: Decodable {
+        enum Role: String, Decodable { case USER, MODEL }
+        let id: UUID
+        let role: Role
+        let content: String
+        let createdAt: Date
+    }
+}
+
+/// A conversation summary for the list surface.
+struct AssistantConversation: Identifiable, Sendable {
+    let id: UUID
+    let title: String?
+    let updatedAt: Date
+
+    /// Display title, falling back to a placeholder when the backend hasn't derived one yet.
+    var displayTitle: String {
+        if let title, !title.isEmpty { return title }
+        return "New conversation"
     }
 }

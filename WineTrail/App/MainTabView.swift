@@ -33,39 +33,37 @@ struct MainTabView: View {
                     }
                 }
                 .badge(socialState.socialBadgeCount)
-                Tab("Journal", systemImage: "book", value: 0) {
-                    NavigationStack {
-                        TimelineView()
-                    }
-                }
                 Tab("Wines", systemImage: "wineglass", value: 1) {
                     NavigationStack {
                         WinesListView()
                     }
                 }
-                Tab("Discover", systemImage: "sparkle.magnifyingglass", value: 2) {
+                Tab("AI Sommelier", systemImage: "sparkles", value: 2) {
                     NavigationStack {
-                        DiscoverView()
+                        SommelierView()
                     }
                 }
-                Tab("Settings", systemImage: "gearshape", value: 4) {
+                Tab("Profile", systemImage: "person.crop.circle", value: 4) {
                     NavigationStack {
                         ProfileView()
                     }
                 }
             }
 
-            // Floating Action Button — New Wine
-            Button {
-                showLogTasting = true
-            } label: {
-                Image(systemName: "plus")
-                    .glassButtonStyle()
+            // Floating Action Button — New Wine. Hidden on the AI Sommelier tab (value 2), whose
+            // chat input bar occupies the bottom-right where the FAB would sit.
+            if selectedTab != 2 {
+                Button {
+                    showLogTasting = true
+                } label: {
+                    Image(systemName: "plus")
+                        .glassButtonStyle()
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 70) // Position above the tab bar
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .accessibilityLabel("New Wine")
             }
-            .padding(.trailing, 20)
-            .padding(.bottom, 70) // Position above the tab bar
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .accessibilityLabel("New Wine")
         }
         .sheet(isPresented: $showLogTasting, onDismiss: {
             // Only refresh the timeline if the user actually saved a wine — cancelling

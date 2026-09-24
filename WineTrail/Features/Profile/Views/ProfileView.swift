@@ -1,164 +1,142 @@
 import SwiftUI
 import FirebaseAuth
 
-/// Redesigned Profile tab — shows the user's wine journey first
-/// using native List with grouped sections and iOS 26 Liquid Glass.
+/// Profile tab — the user's identity, stats, and their own wines (tastings timeline).
+/// Account and app settings live behind the gear icon in the navigation bar.
 struct ProfileView: View {
     @Environment(AuthService.self) private var authService
     @Environment(ProfileService.self) private var profileService
-    @Environment(AppState.self) private var appState
     @Environment(SocialService.self) private var socialService
     @Environment(StatsService.self) private var statsService
-    @Environment(DeviceService.self) private var deviceService
-    @Environment(APIClient.self) private var apiClient
-#if DEBUG
-    @Environment(AgreementStore.self) private var agreementStore
-#endif
+    @Environment(JournalService.self) private var journalService
 
     @State private var username: String = ""
     @State private var friendCount: Int = 0
     @State private var stats: Stats?
-    @State private var error: String?
-    @State private var showDeleteAccountConfirmation = false
-    @State private var isDeleting = false
+
+    @State private var timelineViewModel: TimelineViewModel?
+    @State private var editingTasting: Tasting?
+    @State private var tastingToDelete: Tasting?
 
     var body: some View {
-        List {
-            // Profile Header — full width, no list row styling
-            Section {
+        ScrollView {
+            LazyVStack(spacing: Theme.spacing) {
                 profileHeader
-                    .frame(maxWidth: .infinity)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
-            }
 
-            // Account
-            Section {
+                statsGrid
+                    .padding(.horizontal, Theme.spacing)
+
+                myWinesSection
+            }
+            .padding(.top, Theme.spacing)
+        }
+        .navigationTitle("Profile")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
-                    EditProfileView()
+                    SettingsView()
                 } label: {
-                    Label("Edit Profile", systemImage: "person.fill")
+                    Label("Settings", systemImage: "gearshape")
                 }
-            } header: {
-                Text("Account")
-            }
-
-            // Legal
-            Section {
-                NavigationLink {
-                    SafariView(url: AppConfig.privacyPolicyURL)
-                        .ignoresSafeArea()
-                        .navigationTitle("Privacy Policy")
-                        .navigationBarTitleDisplayMode(.inline)
-                } label: {
-                    Label("Privacy Policy", systemImage: "hand.raised.fill")
-                }
-
-                NavigationLink {
-                    SafariView(url: AppConfig.termsOfServiceURL)
-                        .ignoresSafeArea()
-                        .navigationTitle("Terms of Service")
-                        .navigationBarTitleDisplayMode(.inline)
-                } label: {
-                    Label("Terms of Service", systemImage: "doc.text.fill")
-                }
-            } header: {
-                Text("Legal")
-            }
-
-            // Danger
-            Section {
-                Button(role: .destructive) {
-                    Task {
-                        try? await deviceService.unregisterToken()
-                        try? authService.signOut()
-                        appState.currentRoute = .auth
-                    }
-                } label: {
-                    Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
-                }
-
-                Button(role: .destructive) {
-                    showDeleteAccountConfirmation = true
-                } label: {
-                    if isDeleting {
-                        HStack {
-                            ProgressView()
-                                .controlSize(.small)
-                            Text("Deleting...")
-                        }
-                    } else {
-                        Label("Delete Account", systemImage: "trash")
-                    }
-                }
-                .disabled(isDeleting)
-            } header: {
-                Text("Danger")
-            } footer: {
-                Text("Permanently deletes your account and all data. This cannot be undone.")
-            }
-
-#if DEBUG
-            // Developer — debug builds only
-            Section {
-                Button(role: .destructive) {
-                    agreementStore.reset()
-                    appState.currentRoute = .agreement
-                } label: {
-                    Label("Reset EULA Acceptance", systemImage: "arrow.counterclockwise")
-                }
-            } header: {
-                Text("Developer")
-            } footer: {
-                Text("Clears terms acceptance and returns to the agreement gate. Debug builds only.")
-            }
-#endif
-
-            // App metadata
-            Section {
-                appVersionFooter
             }
         }
-        .listStyle(.insetGrouped)
-        .navigationTitle("Settings")
+        .navigationDestination(for: Tasting.self) { tasting in
+            if let timelineViewModel {
+                TastingDetailView(tasting: tasting, viewModel: timelineViewModel)
+            }
+        }
         .refreshable {
             await loadData()
         }
         .task {
-            await loadData()
-        }
-        .alert(
-            "Delete Account",
-            isPresented: $showDeleteAccountConfirmation
-        ) {
-            Button("Delete My Account", role: .destructive) {
-                Task { await deleteAccount() }
+            if timelineViewModel == nil {
+                timelineViewModel = TimelineViewModel(journalService: journalService)
             }
-            Button("Cancel", role: .cancel) {}
+            await loadData()
+            await timelineViewModel?.loadInitial()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .tastingDidChange)) { _ in
+            Task { await timelineViewModel?.loadInitial() }
+        }
+        .sheet(item: $editingTasting) { tasting in
+            NavigationStack {
+                EditTastingView(tasting: tasting)
+            }
+        }
+        .alert("Delete Wine", isPresented: Binding(
+            get: { tastingToDelete != nil },
+            set: { if !$0 { tastingToDelete = nil } }
+        )) {
+            Button("Cancel", role: .cancel) { tastingToDelete = nil }
+            Button("Delete", role: .destructive) {
+                if let tasting = tastingToDelete, let vm = timelineViewModel {
+                    Task { await vm.deleteTasting(id: tasting.id) }
+                }
+            }
         } message: {
-            Text("This will permanently delete your account, all your wines, tastings, photos, and social data. This cannot be undone.")
+            Text("Are you sure you want to delete this entry? This cannot be undone.")
         }
     }
 
-    private var appVersionFooter: some View {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
+    // MARK: - My Wines (tastings)
 
-        return Text("WineTrail v\(version) (\(build))")
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
-            .accessibilityLabel("WineTrail version \(version), build \(build)")
+    @ViewBuilder
+    private var myWinesSection: some View {
+        HStack {
+            Text("My Wines")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.wineText)
+            Spacer()
+        }
+        .padding(.horizontal, Theme.spacing)
+
+        if let vm = timelineViewModel {
+            if vm.tastings.isEmpty && !vm.isLoading {
+                EmptyStateView(
+                    icon: "wineglass",
+                    title: "No Wines Yet",
+                    message: "Add your first wine to start your journey."
+                )
+                .padding(.top, Theme.spacing)
+            } else {
+                LazyVStack(spacing: 24) {
+                    ForEach(vm.tastings, id: \.id) { tasting in
+                        NavigationLink(value: tasting) {
+                            ProfileTastingRow(tasting: tasting)
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button {
+                                editingTasting = tasting
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            Button(role: .destructive) {
+                                tastingToDelete = tasting
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .task { await vm.onTastingAppear(tasting) }
+                    }
+                    if vm.isLoading {
+                        WineGlassLoadingView()
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    }
+                }
+            }
+        } else {
+            ProgressView()
+                .padding(.top, Theme.spacing)
+        }
     }
 
-    // MARK: - Profile Header
+    // MARK: - Header
 
     private var profileHeader: some View {
         VStack(spacing: Theme.smallSpacing) {
             avatar
-                .padding(.top, Theme.spacing)
 
             Text(authService.currentUser?.displayName ?? "Wine Enthusiast")
                 .font(.title2.weight(.bold))
@@ -176,7 +154,6 @@ struct ProfileView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.bottom, Theme.smallSpacing)
     }
 
     @ViewBuilder
@@ -232,72 +209,9 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Wine Journey Content
-
-    @ViewBuilder
-    private var wineJourneyContent: some View {
-        if !colorSplit.isEmpty {
-            HStack(spacing: 8) {
-                ForEach(sortedColors, id: \.key) { entry in
-                    colorBubble(color: entry.key, count: entry.value)
-                }
-                Spacer()
-            }
-        }
-
-        if weeklyCount > 0 {
-            HStack(spacing: 8) {
-                Text("🔥")
-                    .font(.title3)
-                Text("\(weeklyCount) wine\(weeklyCount == 1 ? "" : "s") logged this week")
-                    .font(Theme.captionFont)
-                    .foregroundStyle(.secondary)
-            }
-        } else if colorSplit.isEmpty {
-            Text("Start logging wines to see your journey here!")
-                .font(Theme.captionFont)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    @ViewBuilder
-    private func colorBubble(color: String, count: Int) -> some View {
-        Text("\(count)")
-            .font(.caption.weight(.bold))
-            .foregroundStyle(.white)
-            .frame(width: 32, height: 32)
-            .background(colorForName(color), in: Circle())
-    }
-
-    // MARK: - Computed Helpers
-
-    private var colorSplit: [String: Int] {
-        guard let stats, let split = stats.colorSplit else { return [:] }
-        return split.additionalProperties.mapValues { Int($0) }
-    }
-
-    private var sortedColors: [(key: String, value: Int)] {
-        colorSplit.sorted { $0.value > $1.value }
-    }
-
     private var totalTastings: Int {
-        colorSplit.values.reduce(0, +)
-    }
-
-    private var weeklyCount: Int {
-        guard let stats, let timeline = stats.activityTimeline, !timeline.isEmpty else { return 0 }
-        return Int(timeline.last?.count ?? 0)
-    }
-
-    private func colorForName(_ name: String) -> Color {
-        switch name.uppercased() {
-        case "RED": return .wineRed
-        case "WHITE": return .wineGold
-        case "ROSE": return .wineRose
-        case "ORANGE": return .wineOrange
-        case "SPARKLING": return .wineSparkling
-        default: return .wineAccent
-        }
+        guard let stats, let split = stats.colorSplit else { return 0 }
+        return split.additionalProperties.values.reduce(0) { $0 + Int($1) }
     }
 
     // MARK: - Data Loading
@@ -334,20 +248,49 @@ struct ProfileView: View {
             // Non-critical
         }
     }
+}
 
-    private func deleteAccount() async {
-        isDeleting = true
-        do {
-            try await deviceService.unregisterToken()
-            try await authService.deleteAccount {
-                _ = try await apiClient.client.deleteAccount()
+/// Compact tasting row for the profile's "My Wines" list.
+private struct ProfileTastingRow: View {
+    let tasting: Tasting
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if let first = tasting.photos.first {
+                CachedAsyncImage(url: URL(string: first.url)) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle().fill(.quaternary)
+                }
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill((tasting.wine.color?.accentColor ?? .wineAccent).opacity(0.2))
+                    .frame(width: 56, height: 56)
+                    .overlay {
+                        Image(systemName: "wineglass.fill")
+                            .foregroundStyle(tasting.wine.color?.accentColor ?? .wineAccent)
+                    }
             }
-            appState.currentRoute = .auth
-        } catch {
-            Log.error("Failed to delete account", error: error)
-            self.error = "Failed to delete account. Please try again."
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tasting.wine.name + (tasting.vintage.map { " (\($0))" } ?? ""))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                if let producer = tasting.wine.producer, !producer.isEmpty {
+                    Text(producer)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                RatingView(rating: Double(tasting.rating), starSize: .caption)
+            }
+
+            Spacer()
         }
-        isDeleting = false
+        .padding(.horizontal, Theme.spacing)
     }
 }
 
@@ -375,6 +318,10 @@ private struct GlassCardModifier: ViewModifier {
                 authService: AuthService()
             )))
             .environment(StatsService(apiClient: APIClient(
+                serverURL: AppConfig.serverURL,
+                authService: AuthService()
+            )))
+            .environment(JournalService(apiClient: APIClient(
                 serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )))

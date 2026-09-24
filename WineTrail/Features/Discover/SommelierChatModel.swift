@@ -29,6 +29,36 @@ final class SommelierChatModel {
         self.assistant = assistant
     }
 
+    /// Resets to a fresh, empty conversation (a new thread is created lazily on the first send).
+    func startNewChat() {
+        streamTask?.cancel()
+        streamTask = nil
+        isStreaming = false
+        messages = []
+        draft = ""
+        errorMessage = nil
+        conversationId = nil
+    }
+
+    /// Resumes an existing conversation: loads its transcript and continues sending into it.
+    func resume(conversationId id: UUID) async {
+        guard let assistant else { return }
+
+        streamTask?.cancel()
+        streamTask = nil
+        isStreaming = false
+        draft = ""
+        errorMessage = nil
+
+        do {
+            let history = try await assistant.getConversation(id: id)
+            messages = history
+            conversationId = id
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? AssistantError.streamFailed.errorDescription
+        }
+    }
+
     /// Sends the current draft and starts streaming the reply.
     func send() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)

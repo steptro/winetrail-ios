@@ -3,26 +3,48 @@ import RevenueCatUI
 
 /// AI Sommelier — a multi-turn wine chat backed by the assistant endpoint.
 ///
-/// Entry is gated on the `winetrail_pro` entitlement at the tap site in `DiscoverView`, so this
-/// screen is normally reached only by subscribers. The `presentPaywallIfNeeded` here is a
-/// defensive backstop for any other entry path (e.g. a future deep link); it auto-dismisses for
-/// active subscribers.
+/// This is a top-level tab, so the paywall here is the PRIMARY Pro gate: once entitlement state
+/// has resolved, a non-subscriber is shown the paywall and a subscriber sees the chat. The gate
+/// is driven by our own resolved `isPro` (via PaywallBackstop) so it never flashes for a
+/// subscriber during the initial loading window.
 struct SommelierView: View {
     @Environment(SubscriptionManager.self) private var subscriptions
     @Environment(AssistantService.self) private var assistant
 
     @State private var model = SommelierChatModel()
+    @State private var showConversations = false
 
     var body: some View {
         chat
             .navigationTitle("AI Sommelier")
             .navigationBarTitleDisplayMode(.inline)
             .task { model.attach(assistant) }
-            // Defensive backstop for non-standard entry paths (e.g. a future deep link):
-            // only present the paywall once entitlement state has RESOLVED and the user is
-            // genuinely not Pro. Gating on our own resolved state (rather than letting
-            // presentPaywallIfNeeded read RevenueCat's cache) prevents a paywall flash for a
-            // subscriber during the initial loading window. Discover already gates entry on Pro.
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        model.startNewChat()
+                    } label: {
+                        Label("New Chat", systemImage: "square.and.pencil")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showConversations = true
+                    } label: {
+                        Label("Conversations", systemImage: "clock.arrow.circlepath")
+                    }
+                }
+            }
+            .sheet(isPresented: $showConversations) {
+                ConversationsListView { id in
+                    showConversations = false
+                    Task { await model.resume(conversationId: id) }
+                }
+                .environment(assistant)
+            }
+            // Primary Pro gate for this top-level tab: only present the paywall once entitlement
+            // state has RESOLVED and the user is genuinely not Pro (via our own isPro, so it never
+            // flashes for a subscriber during the initial loading window).
             .modifier(PaywallBackstop(
                 shouldPresent: !subscriptions.isLoading && !subscriptions.isPro,
                 onResolved: { Task { await subscriptions.refresh() } }
