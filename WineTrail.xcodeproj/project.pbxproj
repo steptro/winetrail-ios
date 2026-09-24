@@ -19,6 +19,7 @@
 		D4A35A0E303C2B49005F634A /* FirebaseAnalyticsCore in Frameworks */ = {isa = PBXBuildFile; productRef = D4A35A0D303C2B49005F634A /* FirebaseAnalyticsCore */; };
 		D4A35A22303C6363005F634A /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = D4A35A21303C6363005F634A /* Kingfisher */; };
 		D4AB0557306478F9003BEE0F /* StoreKitTestCertificate.cer in Resources */ = {isa = PBXBuildFile; fileRef = D4AB0556306478F9003BEE0F /* StoreKitTestCertificate.cer */; };
+		D4AB059C3065646C003BEE0F /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = D4AB059B3065646C003BEE0F /* MarkdownUI */; };
 		D4ABFF1530642B64003BEE0F /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = D4ABFF1430642B64003BEE0F /* RevenueCat */; };
 		D4ABFF1730642B64003BEE0F /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = D4ABFF1630642B64003BEE0F /* RevenueCatUI */; };
 /* End PBXBuildFile section */
@@ -54,6 +55,7 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				D4A359253039C1C2005F634A /* DatadogCore in Frameworks */,
+				D4AB059C3065646C003BEE0F /* MarkdownUI in Frameworks */,
 				A1000001000000000000F001 /* OpenAPIRuntime in Frameworks */,
 				D4ABFF1730642B64003BEE0F /* RevenueCatUI in Frameworks */,
 				A1000001000000000000F002 /* OpenAPIURLSession in Frameworks */,
@@ -130,6 +132,7 @@
 				D4A35A21303C6363005F634A /* Kingfisher */,
 				D4ABFF1430642B64003BEE0F /* RevenueCat */,
 				D4ABFF1630642B64003BEE0F /* RevenueCatUI */,
+				D4AB059B3065646C003BEE0F /* MarkdownUI */,
 			);
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* WineTrail.app */;
@@ -168,6 +171,7 @@
 				D4A359233039C1C2005F634A /* XCRemoteSwiftPackageReference "dd-sdk-ios" */,
 				D4A35A20303C6362005F634A /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				D4ABFF1130642B64003BEE0F /* XCRemoteSwiftPackageReference "purchases-ios" */,
+				D4AB059A3065646C003BEE0F /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 000000000000000000000020 /* Products */;
@@ -512,6 +516,14 @@
 				minimumVersion = 8.11.0;
 			};
 		};
+		D4AB059A3065646C003BEE0F /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.1;
+			};
+		};
 		D4ABFF1130642B64003BEE0F /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/RevenueCat/purchases-ios";
@@ -585,6 +597,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D4A35A20303C6362005F634A /* XCRemoteSwiftPackageReference "Kingfisher" */;
 			productName = Kingfisher;
+		};
+		D4AB059B3065646C003BEE0F /* MarkdownUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D4AB059A3065646C003BEE0F /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
+			productName = MarkdownUI;
 		};
 		D4ABFF1430642B64003BEE0F /* RevenueCat */ = {
 			isa = XCSwiftPackageProductDependency;

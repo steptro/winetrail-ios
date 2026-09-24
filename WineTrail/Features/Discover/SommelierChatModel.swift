@@ -24,6 +24,20 @@ final class SommelierChatModel {
     private var conversationId: UUID?
     private var streamTask: Task<Void, Never>?
 
+    /// The last user message we attempted to send, kept so a failed turn can be retried without
+    /// the user retyping. Cleared once a turn completes successfully.
+    private var lastUserText: String?
+
+    /// True when the most recent turn failed and there is a message available to retry.
+    private(set) var canRetry = false
+
+    /// No delta for this long during a stream is treated as a stalled reply and fails the turn,
+    /// so a hung SSE connection self-heals instead of spinning forever on the stop button.
+    private static let streamStallTimeout: Duration = .seconds(30)
+
+    /// Timestamp of the most recent streamed delta, read by the stall watchdog.
+    private var lastDeltaAt: ContinuousClock.Instant = .now
+
     /// True when there is text to send and no reply is currently streaming.
     var canSend: Bool {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isStreaming
@@ -43,6 +57,8 @@ final class SommelierChatModel {
         draft = ""
         errorMessage = nil
         conversationId = nil
+        lastUserText = nil
+        canRetry = false
     }
 
     /// Resumes an existing conversation: loads its transcript and continues sending into it.
@@ -54,6 +70,8 @@ final class SommelierChatModel {
         isStreaming = false
         draft = ""
         errorMessage = nil
+        lastUserText = nil
+        canRetry = false
 
         do {
             let history = try await assistant.getConversation(id: id)
@@ -78,12 +96,27 @@ final class SommelierChatModel {
 
         draft = ""
         errorMessage = nil
+        canRetry = false
+        lastUserText = trimmed
 
         appendUserMessage(trimmed)
         let modelMessageId = appendModelPlaceholder()
 
         isStreaming = true
         streamTask = Task { await runTurn(assistant, text: trimmed, modelMessageId: modelMessageId) }
+    }
+
+    /// Re-sends the last message after a failed turn. The failed turn left the user's bubble in the
+    /// transcript (and possibly no conversation, if creation itself failed); drop that trailing
+    /// user turn so the retry re-appends it cleanly rather than duplicating it.
+    func retryLastTurn() {
+        guard !isStreaming, let text = lastUserText else { return }
+
+        if let last = messages.last, last.role == .user, last.content == text {
+            messages.removeLast()
+        }
+
+        send(text: text)
     }
 
     /// Stops the in-flight reply at the user's request, keeping whatever has streamed so far.
@@ -95,6 +128,7 @@ final class SommelierChatModel {
         streamTask?.cancel()
         streamTask = nil
         isStreaming = false
+        canRetry = false
 
         if let last = messages.last, last.role == .model, last.content.isEmpty {
             messages.removeLast()
@@ -102,12 +136,37 @@ final class SommelierChatModel {
     }
 
     /// Ensures a conversation exists, then streams the reply into the placeholder turn.
+    ///
+    /// A watchdog races the stream: each delta pushes the deadline out, and if no delta arrives
+    /// within `streamStallTimeout` the turn fails with `.timedOut` rather than streaming forever.
     private func runTurn(_ assistant: AssistantService, text: String, modelMessageId: UUID) async {
         do {
             let conversation = try await ensureConversation(assistant)
 
-            for try await delta in assistant.streamReply(conversationId: conversation, message: text) {
-                appendDelta(delta, to: modelMessageId)
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                // Producer: consume deltas, bumping the shared deadline on each one.
+                group.addTask { @MainActor in
+                    for try await delta in assistant.streamReply(conversationId: conversation, message: text) {
+                        self.lastDeltaAt = ContinuousClock.now
+                        self.appendDelta(delta, to: modelMessageId)
+                    }
+                }
+
+                // Watchdog: fail the turn if the gap since the last delta exceeds the timeout.
+                group.addTask { @MainActor in
+                    self.lastDeltaAt = ContinuousClock.now
+                    while true {
+                        try await Task.sleep(for: .seconds(1))
+                        if ContinuousClock.now - self.lastDeltaAt > Self.streamStallTimeout {
+                            throw AssistantError.timedOut
+                        }
+                    }
+                }
+
+                // The producer finishes normally when the stream ends; cancel the watchdog then.
+                // A thrown error (timeout or stream failure) propagates out of `next()`.
+                try await group.next()
+                group.cancelAll()
             }
 
             finishTurn(modelMessageId: modelMessageId)
@@ -151,7 +210,13 @@ final class SommelierChatModel {
            messages[index].content.isEmpty {
             messages.remove(at: index)
             errorMessage = AssistantError.streamFailed.errorDescription
+            canRetry = true
+            return
         }
+
+        // Successful reply: nothing left to retry.
+        lastUserText = nil
+        canRetry = false
     }
 
     private func failTurn(_ error: Error, modelMessageId: UUID) {
@@ -172,5 +237,6 @@ final class SommelierChatModel {
         }
 
         errorMessage = (error as? LocalizedError)?.errorDescription ?? AssistantError.streamFailed.errorDescription
+        canRetry = lastUserText != nil
     }
 }

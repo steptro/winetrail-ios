@@ -1,5 +1,6 @@
 import SwiftUI
 import RevenueCatUI
+import MarkdownUI
 
 /// AI Sommelier — a multi-turn wine chat backed by the assistant endpoint.
 ///
@@ -161,17 +162,36 @@ struct SommelierView: View {
                             }
 
                             if let error = model.errorMessage {
-                                Text(error)
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                                    .id("error")
+                                VStack(spacing: 8) {
+                                    Text(error)
+                                        .font(.caption)
+                                        .foregroundStyle(.red)
+
+                                    if model.canRetry {
+                                        Button {
+                                            model.retryLastTurn()
+                                        } label: {
+                                            Label("Try Again", systemImage: "arrow.clockwise")
+                                                .font(.caption.weight(.semibold))
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .tint(.wineAccent)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .id("error")
                             }
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                     }
                     .scrollDismissesKeyboard(.interactively)
+                    .onAppear {
+                        // Opening an existing conversation loads all messages in one batch; jump
+                        // (no animation) to the newest after layout settles so it opens at the
+                        // bottom rather than the top.
+                        DispatchQueue.main.async { scrollToBottom(proxy, animated: false) }
+                    }
                     .onChange(of: model.messages.last?.content) { _, _ in
                         scrollToBottom(proxy)
                     }
@@ -236,9 +256,13 @@ struct SommelierView: View {
         (model.isStreaming || model.canSend) ? .wineGold : Color.secondary
     }
 
-    private func scrollToBottom(_ proxy: ScrollViewProxy) {
+    private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool = true) {
         guard let lastID = model.messages.last?.id else { return }
-        withAnimation(.easeOut(duration: 0.2)) {
+        if animated {
+            withAnimation(.easeOut(duration: 0.2)) {
+                proxy.scrollTo(lastID, anchor: .bottom)
+            }
+        } else {
             proxy.scrollTo(lastID, anchor: .bottom)
         }
     }
@@ -304,7 +328,11 @@ private struct MessageBubble: View {
         if message.content.isEmpty {
             Text(" ")
         } else if message.role == .model {
-            Text(LocalizedStringKey(message.content))
+            Markdown(message.content)
+                .markdownTextStyle {
+                    FontSize(UIFont.preferredFont(forTextStyle: .body).pointSize)
+                    ForegroundColor(.primary)
+                }
         } else {
             Text(message.content)
         }

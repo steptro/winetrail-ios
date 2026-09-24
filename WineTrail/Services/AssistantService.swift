@@ -20,6 +20,7 @@ enum AssistantError: LocalizedError {
     case streamFailed
     case notAuthenticated
     case notEntitled
+    case timedOut
 
     var errorDescription: String? {
         switch self {
@@ -31,6 +32,8 @@ enum AssistantError: LocalizedError {
             return "You need to be signed in to use the Sommelier."
         case .notEntitled:
             return "The Sommelier is a WineTrail Pro feature."
+        case .timedOut:
+            return "The Sommelier took too long to respond. Please try again."
         }
     }
 }
