@@ -26,6 +26,13 @@ struct WineDetailView: View {
                     // Wine identity + colour badge
                     wineIdentity
 
+                    // Ask the AI Sommelier about this wine (Pro-gated)
+                    AskSommelierButton(
+                        wineName: wine.wine.name,
+                        producer: wine.wine.producer,
+                        region: wine.wine.regionName
+                    )
+
                     // Grape varieties + description
                     aboutSection
 

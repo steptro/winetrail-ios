@@ -37,16 +37,26 @@ struct ConversationsListView: View {
                         Button {
                             onSelect(conversation.id)
                         } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(conversation.displayTitle)
-                                    .font(.body)
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(1)
-                                Text(conversation.updatedAt, format: .relative(presentation: .named))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                            HStack(spacing: 8) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(conversation.displayTitle)
+                                        .font(.body)
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+                                    Text(conversation.updatedAt, format: .relative(presentation: .named))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
                             }
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }

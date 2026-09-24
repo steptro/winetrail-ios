@@ -38,7 +38,7 @@ struct MainTabView: View {
                         WinesListView()
                     }
                 }
-                Tab("AI Sommelier", systemImage: "sparkles", value: 2) {
+                Tab("Sommelier", systemImage: "sparkles", value: 2) {
                     NavigationStack {
                         SommelierView()
                     }

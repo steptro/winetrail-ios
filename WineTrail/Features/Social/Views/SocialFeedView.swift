@@ -91,7 +91,8 @@ struct SocialFeedView: View {
                 WineGlassLoadingView()
             }
         }
-        .navigationTitle("Social")
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 NavigationLink {

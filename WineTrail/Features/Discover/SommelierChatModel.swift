@@ -15,6 +15,11 @@ final class SommelierChatModel {
     private(set) var isStreaming = false
     private(set) var errorMessage: String?
 
+    /// Set when a send is rejected with a 403 (Pro entitlement gone/absent). The view observes this
+    /// to refresh subscription state — which flips the Pro gate to the locked/paywall view — rather
+    /// than showing a generic error for what is really "you're no longer Pro".
+    private(set) var entitlementLost = false
+
     private var assistant: AssistantService?
     private var conversationId: UUID?
     private var streamTask: Task<Void, Never>?
@@ -62,16 +67,38 @@ final class SommelierChatModel {
     /// Sends the current draft and starts streaming the reply.
     func send() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isStreaming, let assistant else { return }
+        send(text: text)
+    }
+
+    /// Sends an explicit message (used to seed a chat from outside the view, e.g. an
+    /// "Ask the Sommelier about this wine" button). Clears the draft and streams the reply.
+    func send(text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !isStreaming, let assistant else { return }
 
         draft = ""
         errorMessage = nil
 
-        appendUserMessage(text)
+        appendUserMessage(trimmed)
         let modelMessageId = appendModelPlaceholder()
 
         isStreaming = true
-        streamTask = Task { await runTurn(assistant, text: text, modelMessageId: modelMessageId) }
+        streamTask = Task { await runTurn(assistant, text: trimmed, modelMessageId: modelMessageId) }
+    }
+
+    /// Stops the in-flight reply at the user's request, keeping whatever has streamed so far.
+    /// If nothing streamed into the placeholder yet, the empty model bubble is removed so the
+    /// transcript doesn't show a blank turn.
+    func cancelStreaming() {
+        guard isStreaming else { return }
+
+        streamTask?.cancel()
+        streamTask = nil
+        isStreaming = false
+
+        if let last = messages.last, last.role == .model, last.content.isEmpty {
+            messages.removeLast()
+        }
     }
 
     /// Ensures a conversation exists, then streams the reply into the placeholder turn.
@@ -135,6 +162,13 @@ final class SommelierChatModel {
         if let index = messages.firstIndex(where: { $0.id == modelMessageId }),
            messages[index].content.isEmpty {
             messages.remove(at: index)
+        }
+
+        // A 403 means the Pro entitlement is gone/absent: signal the view to refresh subscription
+        // state (surfacing the locked/paywall view) instead of showing a generic error line.
+        if case AssistantError.notEntitled = error {
+            entitlementLost = true
+            return
         }
 
         errorMessage = (error as? LocalizedError)?.errorDescription ?? AssistantError.streamFailed.errorDescription

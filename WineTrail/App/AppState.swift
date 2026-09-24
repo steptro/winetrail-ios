@@ -18,6 +18,10 @@ final class AppState {
     var currentRoute: Route = .loading
     var pendingDeepLink: DeepLink?
 
+    /// The signed-in user's backend id (stable identity), cached so views can compare
+    /// ownership by id rather than the mutable email. Nil until the profile resolves.
+    private(set) var currentUserId: String?
+
     private let authService: AuthService
     private let journalService: JournalService
     private let profileService: ProfileService
@@ -45,12 +49,14 @@ final class AppState {
         }
 
         guard authService.isAuthenticated else {
+            currentUserId = nil
             currentRoute = .auth
             return
         }
 
         do {
             let profile = try await profileService.getProfile()
+            currentUserId = profile.id
             // Show onboarding only for brand new accounts (auto-generated username from email)
             // Once a user has gone through onboarding, they'll have a custom username
             let timeline = try await journalService.getTimeline(page: 0, size: 1)

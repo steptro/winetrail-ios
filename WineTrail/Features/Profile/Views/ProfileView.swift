@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import RevenueCatUI
 
 /// Profile tab — the user's identity, stats, and their own wines (tastings timeline).
 /// Account and app settings live behind the gear icon in the navigation bar.
@@ -9,10 +10,12 @@ struct ProfileView: View {
     @Environment(SocialService.self) private var socialService
     @Environment(StatsService.self) private var statsService
     @Environment(JournalService.self) private var journalService
+    @Environment(SubscriptionManager.self) private var subscriptions
 
     @State private var username: String = ""
     @State private var friendCount: Int = 0
     @State private var stats: Stats?
+    @State private var showPaywall = false
 
     @State private var timelineViewModel: TimelineViewModel?
     @State private var editingTasting: Tasting?
@@ -23,6 +26,9 @@ struct ProfileView: View {
             LazyVStack(spacing: Theme.spacing) {
                 profileHeader
 
+                proMembershipCard
+                    .padding(.horizontal, Theme.spacing)
+
                 statsGrid
                     .padding(.horizontal, Theme.spacing)
 
@@ -30,7 +36,8 @@ struct ProfileView: View {
             }
             .padding(.top, Theme.spacing)
         }
-        .navigationTitle("Profile")
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
@@ -62,6 +69,11 @@ struct ProfileView: View {
             NavigationStack {
                 EditTastingView(tasting: tasting)
             }
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(displayCloseButton: true)
+                .onPurchaseCompleted { _ in Task { await subscriptions.refresh() } }
+                .onRestoreCompleted { _ in Task { await subscriptions.refresh() } }
         }
         .alert("Delete Wine", isPresented: Binding(
             get: { tastingToDelete != nil },
@@ -129,6 +141,72 @@ struct ProfileView: View {
         } else {
             ProgressView()
                 .padding(.top, Theme.spacing)
+        }
+    }
+
+    // MARK: - Pro Membership
+
+    /// Shows the user's WineTrail Pro status. A subscriber sees a Pro badge; a resolved
+    /// non-subscriber sees an upgrade prompt with a Subscribe button that opens the paywall.
+    /// While entitlement state is still loading, nothing is shown (so a subscriber never briefly
+    /// sees an "upgrade" prompt before their entitlement resolves).
+    @ViewBuilder
+    private var proMembershipCard: some View {
+        if subscriptions.isLoading {
+            EmptyView()
+        } else if subscriptions.isPro {
+            HStack(spacing: 12) {
+                Image(systemName: "crown.fill")
+                    .font(.title3)
+                    .foregroundStyle(.wineGold)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("WineTrail Pro")
+                        .font(.headline)
+                        .foregroundStyle(.wineText)
+                    Text("You're a Pro member")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+            .padding(Theme.spacing)
+            .frame(maxWidth: .infinity)
+            .modifier(GlassCardModifier())
+        } else {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Image(systemName: "crown.fill")
+                        .font(.title3)
+                        .foregroundStyle(.wineGold)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Upgrade to WineTrail Pro")
+                            .font(.headline)
+                            .foregroundStyle(.wineText)
+                        Text("Unlock the AI Sommelier and more")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+                }
+
+                Button {
+                    showPaywall = true
+                } label: {
+                    Text("Subscribe")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(.wineAccent, in: RoundedRectangle(cornerRadius: 12))
+                        .foregroundStyle(.white)
+                }
+            }
+            .padding(Theme.spacing)
+            .frame(maxWidth: .infinity)
+            .modifier(GlassCardModifier())
         }
     }
 
@@ -325,5 +403,6 @@ private struct GlassCardModifier: ViewModifier {
                 serverURL: AppConfig.serverURL,
                 authService: AuthService()
             )))
+            .environment(SubscriptionManager())
     }
 }

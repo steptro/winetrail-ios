@@ -8,7 +8,7 @@ import FirebaseAuth
 /// the current user has already rated (i.e. appears in the shared tasting's ratings).
 struct SocialTastingDetailView: View {
     @Environment(SocialService.self) private var socialService
-    @Environment(AuthService.self) private var authService
+    @Environment(AppState.self) private var appState
 
     let post: Components.Schemas.FeedJournalEntryDto
 
@@ -20,14 +20,14 @@ struct SocialTastingDetailView: View {
 
     /// True once the current user has their own rating in this shared tasting.
     private var hasMyRating: Bool {
-        guard let myEmail = authService.currentUser?.email else { return false }
-        return sharedRatings.contains { $0.user.email == myEmail }
+        guard let myId = appState.currentUserId else { return false }
+        return sharedRatings.contains { $0.user.id == myId }
     }
 
     /// True when this post belongs to the current user (hide report for own content).
     private var isOwnPost: Bool {
-        guard let myEmail = authService.currentUser?.email else { return false }
-        return post.user.email == myEmail
+        guard let myId = appState.currentUserId else { return false }
+        return post.user.id == myId
     }
 
     var body: some View {
@@ -45,6 +45,11 @@ struct SocialTastingDetailView: View {
                         RatingView(rating: post.rating, starSize: .title2)
                         Spacer()
                     }
+                    AskSommelierButton(
+                        wineName: post.wine.name,
+                        producer: post.wine.producer,
+                        region: post.wine.regionName
+                    )
                     sharedTastingSection
                     notesSection
                 }

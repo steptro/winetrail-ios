@@ -6,6 +6,8 @@ import FirebaseAuth
 struct WineTrailApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
+    @Environment(\.scenePhase) private var scenePhase
+
     // MARK: - Service Graph
 
     private let authService: AuthService
@@ -137,6 +139,14 @@ struct WineTrailApp: App {
                 .onChange(of: authService.currentUser?.uid) { _, _ in
                     // Follow genuine sign-in / sign-out transitions only.
                     Task { await syncSubscriptionIdentity() }
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    // Re-read entitlement on foreground: the live customerInfoStream covers a change
+                    // while the app is running, but an expiry that lands while the app is suspended
+                    // is only reflected once we come back — so refresh on activation as a backstop.
+                    if phase == .active {
+                        Task { await subscriptionManager.refresh() }
+                    }
                 }
         }
     }

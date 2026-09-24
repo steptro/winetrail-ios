@@ -30,6 +30,11 @@ final class SubscriptionManager {
 
     private var isConfigured = false
 
+    /// Long-lived observer of RevenueCat's `customerInfo` updates. Keeps `isPro` live so a
+    /// mid-session change (notably an expiry) flips the app out of Pro without waiting for a
+    /// relaunch or an explicit `refresh()`. Retained so the stream is not torn down.
+    private var customerInfoObserver: Task<Void, Never>?
+
     /// Guards against concurrent identity changes (e.g. a launch sync racing an
     /// auth-change sync) that could interleave logIn/logOut and cancel a purchase.
     private var isSyncingIdentity = false
@@ -58,6 +63,21 @@ final class SubscriptionManager {
             #if DEBUG
             await logOfferingsDiagnostics()
             #endif
+        }
+
+        observeCustomerInfo()
+    }
+
+    /// Subscribes to RevenueCat's `customerInfo` updates so entitlement changes (renewals and,
+    /// crucially, expirations) are reflected in `isPro` live — the SDK caches `CustomerInfo`, so
+    /// without this an expiry that happened mid-session keeps showing Pro until the next relaunch
+    /// or explicit refresh. Idempotent: re-subscribing cancels any prior observer first.
+    private func observeCustomerInfo() {
+        customerInfoObserver?.cancel()
+        customerInfoObserver = Task { [weak self] in
+            for await info in Purchases.shared.customerInfoStream {
+                self?.apply(info)
+            }
         }
     }
 

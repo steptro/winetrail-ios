@@ -3,35 +3,48 @@ import RevenueCatUI
 
 /// AI Sommelier — a multi-turn wine chat backed by the assistant endpoint.
 ///
-/// This is a top-level tab, so the paywall here is the PRIMARY Pro gate: once entitlement state
-/// has resolved, a non-subscriber is shown the paywall and a subscriber sees the chat. The gate
-/// is driven by our own resolved `isPro` (via PaywallBackstop) so it never flashes for a
-/// subscriber during the initial loading window.
+/// This is a top-level tab and a Pro-only feature. The gate is driven by our own resolved `isPro`:
+/// while entitlement state is loading we show a neutral loader (so a subscriber never sees a
+/// paywall flash), a resolved non-subscriber sees an explicit locked state with an "Unlock
+/// WineTrail Pro" button that presents the paywall on demand, and a subscriber sees the chat.
 struct SommelierView: View {
     @Environment(SubscriptionManager.self) private var subscriptions
     @Environment(AssistantService.self) private var assistant
 
     @State private var model = SommelierChatModel()
     @State private var showConversations = false
+    @State private var showPaywall = false
+
+    /// Optional prompt to seed a fresh chat with (e.g. "Tell me more about <wine>"), sent
+    /// automatically once the chat appears. When set, the view opens straight into a new chat.
+    private let seedPrompt: String?
+
+    @State private var didSeed = false
+
+    init(seedPrompt: String? = nil) {
+        self.seedPrompt = seedPrompt
+    }
 
     var body: some View {
-        chat
-            .navigationTitle("AI Sommelier")
+        content
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .task { model.attach(assistant) }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        model.startNewChat()
-                    } label: {
-                        Label("New Chat", systemImage: "square.and.pencil")
+                if subscriptions.isPro {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            model.startNewChat()
+                        } label: {
+                            Label("New Chat", systemImage: "square.and.pencil")
+                        }
                     }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showConversations = true
-                    } label: {
-                        Label("Conversations", systemImage: "clock.arrow.circlepath")
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showConversations = true
+                        } label: {
+                            Label("Conversations", systemImage: "clock.arrow.circlepath")
+                        }
                     }
                 }
             }
@@ -42,57 +55,130 @@ struct SommelierView: View {
                 }
                 .environment(assistant)
             }
-            // Primary Pro gate for this top-level tab: only present the paywall once entitlement
-            // state has RESOLVED and the user is genuinely not Pro (via our own isPro, so it never
-            // flashes for a subscriber during the initial loading window).
-            .modifier(PaywallBackstop(
-                shouldPresent: !subscriptions.isLoading && !subscriptions.isPro,
-                onResolved: { Task { await subscriptions.refresh() } }
-            ))
+            .sheet(isPresented: $showPaywall) {
+                PaywallView(displayCloseButton: true)
+                    .onPurchaseCompleted { _ in Task { await subscriptions.refresh() } }
+                    .onRestoreCompleted { _ in Task { await subscriptions.refresh() } }
+            }
+    }
+
+    // MARK: - Content gate
+
+    /// The Sommelier is a Pro-only feature. While entitlement state is still resolving we show a
+    /// neutral loader (never a paywall flash for a subscriber); a resolved non-subscriber lands on
+    /// the locked state, which auto-presents the paywall on appear (and its Unlock button re-opens
+    /// it if dismissed); a subscriber sees the chat.
+    @ViewBuilder
+    private var content: some View {
+        if subscriptions.isLoading {
+            WineGlassLoadingView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if subscriptions.isPro {
+            chat
+        } else {
+            proLockedState
+                // Non-Pro and entitlement has RESOLVED (this branch never renders while loading),
+                // so opening the tab surfaces the paywall directly. The locked state stays behind
+                // it as the backdrop and its Unlock button re-opens the paywall if dismissed.
+                .onAppear { showPaywall = true }
+        }
+    }
+
+    private var proLockedState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 44))
+                .foregroundStyle(.wineAccent)
+
+            Text("A WineTrail Pro Feature")
+                .font(.title3.weight(.semibold))
+                .multilineTextAlignment(.center)
+
+            Text("The AI Sommelier is available to WineTrail Pro members. Upgrade to ask for pairings, recommendations, and what to open tonight.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Button {
+                showPaywall = true
+            } label: {
+                Text("Unlock WineTrail Pro")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(.wineAccent, in: RoundedRectangle(cornerRadius: 14))
+                    .foregroundStyle(.white)
+            }
+            .padding(.top, 8)
+        }
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Chat
 
     private var chat: some View {
-        VStack(spacing: 0) {
-            transcript
-
-            Divider()
-
-            inputBar
-        }
+        transcript
+            // Pin the input as a floating bottom inset so the transcript scrolls UNDER it (and under
+            // the tab bar), matching the other screens where content flows beneath the bottom bar —
+            // rather than a VStack that reserves an opaque band above the tab bar.
+            .safeAreaInset(edge: .bottom) {
+                inputBar
+            }
+            // A send rejected with 403 means Pro is gone: refresh entitlement so the content gate
+            // flips to the locked state (which presents the paywall), instead of a generic error.
+            .onChange(of: model.entitlementLost) { _, lost in
+                if lost {
+                    Task { await subscriptions.refresh() }
+                }
+            }
+            // `.task` runs once for the view's lifetime (not on every re-appearance the way
+            // `.onAppear` does), so the seeded question is sent exactly once per opened chat.
+            .task {
+                guard let seedPrompt, !didSeed else { return }
+                didSeed = true
+                // Attach here too: this can run before body's `.task` attaches the service,
+                // and `send(text:)` no-ops without it. `attach` is idempotent.
+                model.attach(assistant)
+                model.startNewChat()
+                model.send(text: seedPrompt)
+            }
     }
 
     private var transcript: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    if model.messages.isEmpty, !model.isStreaming {
-                        emptyState
-                            .padding(.top, 48)
-                    }
+            Group {
+                if model.messages.isEmpty, !model.isStreaming {
+                    // No messages yet: center the prompt in the full available height.
+                    emptyState
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 12) {
+                            ForEach(model.messages) { message in
+                                MessageBubble(message: message)
+                                    .id(message.id)
+                            }
 
-                    ForEach(model.messages) { message in
-                        MessageBubble(message: message)
-                            .id(message.id)
+                            if let error = model.errorMessage {
+                                Text(error)
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .id("error")
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                     }
-
-                    if let error = model.errorMessage {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .id("error")
+                    .scrollDismissesKeyboard(.interactively)
+                    .onChange(of: model.messages.last?.content) { _, _ in
+                        scrollToBottom(proxy)
+                    }
+                    .onChange(of: model.messages.count) { _, _ in
+                        scrollToBottom(proxy)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-            }
-            .onChange(of: model.messages.last?.content) { _, _ in
-                scrollToBottom(proxy)
-            }
-            .onChange(of: model.messages.count) { _, _ in
-                scrollToBottom(proxy)
             }
         }
     }
@@ -116,32 +202,58 @@ struct SommelierView: View {
     }
 
     private var inputBar: some View {
-        HStack(alignment: .bottom, spacing: 8) {
+        HStack(alignment: .center, spacing: 8) {
             TextField("Ask about wine…", text: $model.draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...5)
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 20))
+                .modifier(GlassInputBackground())
                 .disabled(model.isStreaming)
 
             Button {
-                model.send()
+                if model.isStreaming {
+                    model.cancelStreaming()
+                } else {
+                    model.send()
+                }
             } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.title)
-                    .foregroundStyle(model.canSend ? .wineAccent : .secondary)
+                Image(systemName: model.isStreaming ? "stop.circle.fill" : "arrow.up.circle.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 40, height: 40)
+                    .foregroundStyle(sendButtonColor)
             }
-            .disabled(!model.canSend)
+            .disabled(!model.isStreaming && !model.canSend)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    /// Color for the send/stop button: gold when it can act (there's a draft to send, or a reply
+    /// is streaming and can be stopped), secondary when idle with an empty draft.
+    private var sendButtonColor: Color {
+        (model.isStreaming || model.canSend) ? .wineGold : Color.secondary
     }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy) {
         guard let lastID = model.messages.last?.id else { return }
         withAnimation(.easeOut(duration: 0.2)) {
             proxy.scrollTo(lastID, anchor: .bottom)
+        }
+    }
+}
+
+// MARK: - Input glass background
+
+/// Liquid Glass background for the chat input field on iOS 26+, falling back to an
+/// ultra-thin material capsule on older versions so the field stays legible everywhere.
+private struct GlassInputBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular.interactive(), in: Capsule())
+        } else {
+            content.background(.ultraThinMaterial, in: Capsule())
         }
     }
 }
@@ -155,6 +267,23 @@ private struct MessageBubble: View {
         HStack {
             if message.role == .user { Spacer(minLength: 40) }
 
+            bubbleContent
+                .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
+
+            if message.role == .model { Spacer(minLength: 40) }
+        }
+    }
+
+    /// The bubble body. An empty MODEL bubble (the placeholder before the first token streams in)
+    /// shows the branded glass loader so the wait is visible; everything else is a text bubble.
+    @ViewBuilder
+    private var bubbleContent: some View {
+        if message.role == .model, message.content.isEmpty {
+            WineGlassLoadingView()
+                .frame(width: 40, height: 40)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+        } else {
             bubbleText
                 .font(.body)
                 .foregroundStyle(message.role == .user ? Color.white : Color.primary)
@@ -165,14 +294,11 @@ private struct MessageBubble: View {
                     message.role == .user ? AnyShapeStyle(Color.wineAccent) : AnyShapeStyle(.fill.tertiary),
                     in: RoundedRectangle(cornerRadius: 18)
                 )
-                .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
-
-            if message.role == .model { Spacer(minLength: 40) }
         }
     }
 
     /// Model replies are rendered as Markdown (the assistant emits **bold**, lists, etc.); user
-    /// turns are shown verbatim. An empty placeholder renders a single space to keep bubble height.
+    /// turns are shown verbatim.
     @ViewBuilder
     private var bubbleText: some View {
         if message.content.isEmpty {
@@ -181,26 +307,6 @@ private struct MessageBubble: View {
             Text(LocalizedStringKey(message.content))
         } else {
             Text(message.content)
-        }
-    }
-}
-
-/// Applies RevenueCatUI's `presentPaywallIfNeeded` ONLY when `shouldPresent` is true — i.e. once
-/// entitlement state has resolved and the user is genuinely not Pro. When false, the modifier is
-/// not attached at all, so a subscriber (or the not-yet-loaded state) never triggers a paywall.
-private struct PaywallBackstop: ViewModifier {
-    let shouldPresent: Bool
-    let onResolved: () -> Void
-
-    func body(content: Content) -> some View {
-        if shouldPresent {
-            content.presentPaywallIfNeeded(
-                requiredEntitlementIdentifier: AppConfig.proEntitlementID,
-                purchaseCompleted: { _ in onResolved() },
-                restoreCompleted: { _ in onResolved() }
-            )
-        } else {
-            content
         }
     }
 }

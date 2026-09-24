@@ -15,6 +15,7 @@ struct WineSearchDetailView: View {
             VStack(alignment: .leading, spacing: Theme.largeSpacing) {
                 header
                 aboutSection
+                AskSommelierButton(wineName: wine.name, producer: wine.producer, region: wine.region)
                 logButton
             }
             .padding(Theme.spacing)

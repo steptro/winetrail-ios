@@ -7,8 +7,8 @@ import FirebaseAuth
 /// UI state (the draft text, the sending spinner, haptics, and animation).
 struct CommentsView: View {
     @Environment(SocialService.self) private var socialService
-    @Environment(AuthService.self) private var authService
     @Environment(BlockStore.self) private var blockStore
+    @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
     let tastingId: String
@@ -234,8 +234,8 @@ struct CommentsView: View {
     }
 
     private func isOwnComment(_ comment: Components.Schemas.CommentDto) -> Bool {
-        guard let currentEmail = authService.currentUser?.email else { return false }
-        return comment.author.email == currentEmail
+        guard let myId = appState.currentUserId else { return false }
+        return comment.author.id == myId
     }
 
     // MARK: - Actions (UI concerns; logic delegated to the view model)
@@ -283,5 +283,11 @@ struct CommentsView: View {
         .environment(ModerationService(
             apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService()),
             blockStore: BlockStore()
+        ))
+        .environment(AppState(
+            authService: AuthService(),
+            journalService: JournalService(apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService())),
+            profileService: ProfileService(apiClient: APIClient(serverURL: AppConfig.serverURL, authService: AuthService())),
+            agreementStore: AgreementStore()
         ))
 }

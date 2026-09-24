@@ -22,6 +22,15 @@ struct LikesListView: View {
                         WineGlassLoadingView()
                         Spacer()
                     }
+                } else if errorMessage != nil, likers.isEmpty {
+                    EmptyStateView(
+                        icon: "exclamationmark.triangle",
+                        title: "Couldn't Load Likes",
+                        message: "Something went wrong. Tap to try again.",
+                        actionLabel: Label("Retry", systemImage: "arrow.clockwise"),
+                        action: { Task { await loadLikes() } }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if likers.isEmpty {
                     VStack(spacing: 8) {
                         Image(systemName: "heart")
@@ -65,7 +74,6 @@ struct LikesListView: View {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                 }
             }
-            .errorAlert($errorMessage)
         .task {
                 await loadLikes()
             }
@@ -75,6 +83,7 @@ struct LikesListView: View {
 
     private func loadLikes() async {
         isLoading = true
+        errorMessage = nil
         do {
             likers = try await socialService.getLikes(tastingId: tastingId)
         } catch {

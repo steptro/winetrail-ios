@@ -19,15 +19,18 @@ enum AssistantError: LocalizedError {
     case badResponse(status: Int)
     case streamFailed
     case notAuthenticated
+    case notEntitled
 
     var errorDescription: String? {
         switch self {
-        case .badResponse(let status):
-            return "The assistant returned an unexpected response (\(status))."
+        case .badResponse:
+            return "The Sommelier returned an unexpected response. Please try again."
         case .streamFailed:
-            return "The assistant is unavailable. Please try again."
+            return "The Sommelier is unavailable. Please try again."
         case .notAuthenticated:
-            return "You need to be signed in to use the assistant."
+            return "You need to be signed in to use the Sommelier."
+        case .notEntitled:
+            return "The Sommelier is a WineTrail Pro feature."
         }
     }
 }
@@ -158,6 +161,7 @@ final class AssistantService {
             for try await line in bytes.lines { errorBody += line + "\n"; if errorBody.count > 2000 { break } }
             Log.error("Assistant sendMessage failed: status=\(http.statusCode) body=\(errorBody)")
             if http.statusCode == 401 { throw AssistantError.notAuthenticated }
+            if http.statusCode == 403 { throw AssistantError.notEntitled }
             throw AssistantError.badResponse(status: http.statusCode)
         }
 
@@ -250,6 +254,7 @@ final class AssistantService {
             let bodyText = body.flatMap { String(data: $0, encoding: .utf8) } ?? "<no body>"
             Log.error("Assistant \(context) failed: status=\(http.statusCode) body=\(bodyText)")
             if http.statusCode == 401 { throw AssistantError.notAuthenticated }
+            if http.statusCode == 403 { throw AssistantError.notEntitled }
             throw AssistantError.badResponse(status: http.statusCode)
         }
     }
