@@ -18,7 +18,6 @@
 		D4A35A0A303C2B3D005F634A /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = D4A35A09303C2B3D005F634A /* FirebaseAnalytics */; };
 		D4A35A0E303C2B49005F634A /* FirebaseAnalyticsCore in Frameworks */ = {isa = PBXBuildFile; productRef = D4A35A0D303C2B49005F634A /* FirebaseAnalyticsCore */; };
 		D4A35A22303C6363005F634A /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = D4A35A21303C6363005F634A /* Kingfisher */; };
-		D4AB0557306478F9003BEE0F /* StoreKitTestCertificate.cer in Resources */ = {isa = PBXBuildFile; fileRef = D4AB0556306478F9003BEE0F /* StoreKitTestCertificate.cer */; };
 		D4AB059C3065646C003BEE0F /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = D4AB059B3065646C003BEE0F /* MarkdownUI */; };
 		D4ABFF1530642B64003BEE0F /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = D4ABFF1430642B64003BEE0F /* RevenueCat */; };
 		D4ABFF1730642B64003BEE0F /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = D4ABFF1630642B64003BEE0F /* RevenueCatUI */; };
@@ -26,7 +25,6 @@
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* WineTrail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WineTrail.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		D4AB0556306478F9003BEE0F /* StoreKitTestCertificate.cer */ = {isa = PBXFileReference; lastKnownFileType = file; name = StoreKitTestCertificate.cer; path = ../../../Downloads/StoreKitTestCertificate.cer; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -76,7 +74,6 @@
 		000000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				D4AB0556306478F9003BEE0F /* StoreKitTestCertificate.cer */,
 				000000000000000000000010 /* WineTrail */,
 				D4C60BEE302A48A9000A2F6E /* Frameworks */,
 				000000000000000000000020 /* Products */,
@@ -187,7 +184,6 @@
 		000000000000000140000000 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
-				D4AB0557306478F9003BEE0F /* StoreKitTestCertificate.cer in Resources */,
 			);
 		};
 /* End PBXResourcesBuildPhase section */
