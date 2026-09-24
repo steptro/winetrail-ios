@@ -1,8 +1,13 @@
 # WineTrail
 
-A personal wine diary iOS app built with SwiftUI. Log your tastings, share with friends, and track your wine journey.
+A personal wine diary iOS app built with SwiftUI. Log your tastings, share with friends, chat with an AI sommelier, and track your wine journey.
 
 ## Features
+
+### AI Sommelier
+- **Chat Assistant** — Ask a wine assistant about pairings, grape varieties, regions, tasting, and storage; replies stream in live and render as Markdown
+- **Conversations** — Start a fresh chat or reopen and resume a past conversation from the navbar
+- **Pro-gated** — Available to WineTrail Pro subscribers, with a paywall for everyone else
 
 ### Journal
 - **Log Tastings** — Record wine tastings with rating (1–5), notes, food pairing, occasion, price, vintage, date, photos, and location
@@ -23,9 +28,10 @@ A personal wine diary iOS app built with SwiftUI. Log your tastings, share with 
 - **Stats Dashboard** — Color split, top regions/countries, average rating, weekly activity chart, price stats
 
 ### Other
+- **WineTrail Pro** — Subscription (via RevenueCat) that unlocks the AI Sommelier, with an in-app paywall
 - **Push Notifications** — Real-time notifications for likes, comments, friend requests with deep link routing
 - **Onboarding** — 3-slide carousel with username setup and inline availability validation
-- **Profile** — Edit display name, username, view friends count, sign out, delete account (GDPR)
+- **Profile** — Your stats and tastings on one screen, with a gear icon for Settings (edit display name/username, sign out, delete account (GDPR))
 - **Photo Support** — Camera + library picker, up to 5 photos per tasting
 - **GPS Tagging** — Tag tastings with your current location
 - **Dark/Light Mode** — Full support with wine-themed accent colors
@@ -37,6 +43,8 @@ A personal wine diary iOS app built with SwiftUI. Log your tastings, share with 
 - **Networking**: Swift OpenAPI Generator (client generated from OpenAPI spec at build time)
 - **Auth**: Firebase Authentication (Apple Sign-In, Email/Password)
 - **Push Notifications**: Firebase Cloud Messaging with silent push for real-time updates
+- **Subscriptions**: RevenueCat (`RevenueCat` + `RevenueCatUI` paywall)
+- **AI Sommelier**: server-side streaming (SSE) rendered as Markdown
 - **Logging**: Datadog (production) + console (debug)
 - **Maps**: MapKit
 - **Charts**: Swift Charts
@@ -50,14 +58,15 @@ WineTrail/
 ├── Extensions/             # Error+Cancellation helper
 ├── Features/
 │   ├── Auth/               # Authentication views and view model
+│   ├── Discover/           # AI Sommelier chat, chat model, conversations list
 │   ├── LogTasting/         # Log new tasting flow (search, form, photo picker, camera)
 │   ├── Map/                # Map visualization
 │   ├── Onboarding/         # First-time user onboarding with username setup
-│   ├── Profile/            # User profile management, account deletion
+│   ├── Profile/            # Profile + tastings, Settings screen, account deletion
 │   ├── Social/             # Social feed, friends, comments, likes, add friend
 │   ├── Stats/              # Statistics dashboard with charts
-│   ├── Timeline/           # Journal timeline with detail/edit views
-│   └── Wines/              # Wine collection list and detail
+│   ├── Timeline/           # Tastings timeline with detail/edit views
+│   └── Wines/              # Wine collection list, detail, and wine search
 ├── Generated/              # Type aliases, helpers, and extensions for generated OpenAPI types
 ├── Models/                 # App-level models (PagedResult, Notifications, etc.)
 ├── Resources/              # OpenAPI spec, generator config, assets
@@ -71,7 +80,7 @@ WineTrail/
 
 - Xcode 16+ with iOS 18 SDK
 - A Firebase project with Authentication and Cloud Messaging enabled
-- The backend API running (defaults to `https://winetrail.stephantromer.dev`)
+- The backend API running (defaults to `https://winetrail-app.com`)
 
 ### Configuration
 
@@ -90,6 +99,7 @@ WineTrail/
 - [Firebase iOS SDK](https://github.com/firebase/firebase-ios-sdk) — Auth, Messaging
 - [Swift OpenAPI Generator](https://github.com/apple/swift-openapi-generator) — API client code generation
 - [Swift OpenAPI URLSession](https://github.com/apple/swift-openapi-urlsession) — Transport layer
+- [RevenueCat (purchases-ios)](https://github.com/RevenueCat/purchases-ios) — Subscriptions and paywall (`RevenueCat` + `RevenueCatUI`)
 - [Datadog iOS SDK](https://github.com/DataDog/dd-sdk-ios) — Logging
 
 ## API
@@ -97,7 +107,7 @@ WineTrail/
 The app consumes a REST API defined in `WineTrail/Resources/openapi.json`. The Swift client is generated at build time by the Swift OpenAPI Generator build plugin. Never edit the spec manually — always fetch from the server:
 
 ```bash
-curl -s https://winetrail.stephantromer.dev/v3/api-docs -o WineTrail/Resources/openapi.json
+curl -s https://winetrail-app.com/v3/api-docs -o WineTrail/Resources/openapi.json
 ```
 
 ## Architecture Notes

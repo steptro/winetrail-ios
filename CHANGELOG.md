@@ -3,6 +3,15 @@
 All notable changes to WineTrail. Versions follow the app's marketing version
 (`MARKETING_VERSION`), and dates are when that version was set in the project.
 
+## [Unreleased]
+
+- AI Sommelier: chat with a wine assistant for pairings, grape and region questions, and tasting or storage advice, with replies streamed in and rendered as Markdown
+- Sommelier conversations are saved: start a new chat or reopen and resume a past conversation from the navbar
+- WineTrail Pro subscription via RevenueCat, with a paywall for non-subscribers and the Sommelier gated to Pro
+- Reworked the tab bar to four tabs: Social, Wines, AI Sommelier, Profile
+- New Profile screen showing your stats and tastings, with a gear icon for Settings (the Journal tab was removed and its tastings now live on Profile)
+- The Discover tab is now the AI Sommelier; wine search lives on the Wines tab
+
 ## [1.0.0] - 2026-09-22
 
 First public release.
