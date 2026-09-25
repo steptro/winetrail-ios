@@ -45,7 +45,6 @@ struct StatsView: View {
                         await Task {
                             await viewModel.loadStats()
                         }.value
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
                 }
             } else {

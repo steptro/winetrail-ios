@@ -67,7 +67,6 @@ struct TastingDetailView: View {
             await Task {
                 await reloadTasting()
             }.value
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

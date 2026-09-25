@@ -44,7 +44,6 @@ struct TimelineView: View {
                     }
                     .refreshable {
                         await Task { await viewModel.loadInitial() }.value
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
                 } else {
                     ScrollView {
@@ -80,7 +79,6 @@ struct TimelineView: View {
                         await Task {
                             await viewModel.loadInitial()
                         }.value
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
                     .navigationDestination(for: Tasting.self) { tasting in
                         TastingDetailView(tasting: tasting, viewModel: viewModel)

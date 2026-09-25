@@ -42,7 +42,6 @@ struct SocialFeedView: View {
                     }
                     .refreshable {
                         await Task { await viewModel.loadInitial() }.value
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
                 } else {
                     ScrollView {
@@ -84,7 +83,6 @@ struct SocialFeedView: View {
                         await Task {
                             await viewModel.loadInitial()
                         }.value
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
                 }
             } else {

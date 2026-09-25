@@ -52,7 +52,6 @@ struct TaggedWinesView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable {
             await Task { await load() }.value
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
         .task {
             await load()

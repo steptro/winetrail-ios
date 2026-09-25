@@ -45,7 +45,6 @@ struct WinesListView: View {
                         await Task {
                             await viewModel.loadInitial()
                         }.value
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
                 }
             } else {

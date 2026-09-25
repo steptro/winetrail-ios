@@ -61,7 +61,6 @@ struct WineDetailView: View {
             await Task {
                 await loadTastings()
             }.value
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
