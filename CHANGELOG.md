@@ -4,7 +4,7 @@ All notable changes to WineTrail. Versions follow the app's marketing version
 (`MARKETING_VERSION`), and dates are when that version was set in the project.
 
 
-## [Unreleased]
+## [1.3.0] - 2026-09-26
 
 - Edit and delete your own post from its detail page opened via your Profile
 - The tasting, location, and pairing cards are back on the post detail page (Social and Profile)
