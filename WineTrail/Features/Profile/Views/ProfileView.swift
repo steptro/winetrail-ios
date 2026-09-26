@@ -8,19 +8,16 @@ struct ProfileView: View {
     @Environment(AuthService.self) private var authService
     @Environment(ProfileService.self) private var profileService
     @Environment(SocialService.self) private var socialService
-    @Environment(StatsService.self) private var statsService
-    @Environment(JournalService.self) private var journalService
+    @Environment(AppState.self) private var appState
     @Environment(SubscriptionManager.self) private var subscriptions
 
     @State private var username: String = ""
-    @State private var friendCount: Int = 0
-    @State private var stats: Stats?
     @State private var showPaywall = false
     @State private var showSubscriptionsUnavailable = false
 
-    @State private var timelineViewModel: TimelineViewModel?
-    @State private var editingTasting: Tasting?
-    @State private var tastingToDelete: Tasting?
+    @State private var feedViewModel: ProfileFeedViewModel?
+    @State private var commentsTastingId: String?
+    @State private var likesTastingId: String?
 
     var body: some View {
         ScrollView {
@@ -28,9 +25,6 @@ struct ProfileView: View {
                 profileHeader
 
                 proMembershipCard
-                    .padding(.horizontal, Theme.spacing)
-
-                statsGrid
                     .padding(.horizontal, Theme.spacing)
 
                 myWinesSection
@@ -48,28 +42,24 @@ struct ProfileView: View {
                 }
             }
         }
-        .navigationDestination(for: Tasting.self) { tasting in
-            if let timelineViewModel {
-                TastingDetailView(tasting: tasting, viewModel: timelineViewModel)
-            }
-        }
         .refreshable {
             await loadData()
         }
         .task {
-            if timelineViewModel == nil {
-                timelineViewModel = TimelineViewModel(journalService: journalService)
+            if feedViewModel == nil, let userId = appState.currentUserId {
+                feedViewModel = ProfileFeedViewModel(userId: userId, socialService: socialService)
             }
             await loadData()
-            await timelineViewModel?.loadInitial()
+            await feedViewModel?.loadInitial()
         }
         .onReceive(NotificationCenter.default.publisher(for: .tastingDidChange)) { _ in
-            Task { await timelineViewModel?.loadInitial() }
+            Task { await feedViewModel?.loadInitial() }
         }
-        .sheet(item: $editingTasting) { tasting in
-            NavigationStack {
-                EditTastingView(tasting: tasting)
-            }
+        .sheet(item: $commentsTastingId) { tastingId in
+            CommentsView(tastingId: tastingId)
+        }
+        .sheet(item: $likesTastingId) { tastingId in
+            LikesListView(tastingId: tastingId)
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView(displayCloseButton: true)
@@ -82,35 +72,16 @@ struct ProfileView: View {
         } message: {
             Text("We couldn't load subscriptions right now. Please try again in a little while.")
         }
-        .alert("Delete Wine", isPresented: Binding(
-            get: { tastingToDelete != nil },
-            set: { if !$0 { tastingToDelete = nil } }
-        )) {
-            Button("Cancel", role: .cancel) { tastingToDelete = nil }
-            Button("Delete", role: .destructive) {
-                if let tasting = tastingToDelete, let vm = timelineViewModel {
-                    Task { await vm.deleteTasting(id: tasting.id) }
-                }
-            }
-        } message: {
-            Text("Are you sure you want to delete this entry? This cannot be undone.")
-        }
     }
 
-    // MARK: - My Wines (tastings)
+    // MARK: - My Wines (feed-style)
 
+    /// The user's own tastings, rendered with the same card the social feed uses (photo, wine info,
+    /// rating, notes, and like/comment affordances) so the profile matches the social screen.
     @ViewBuilder
     private var myWinesSection: some View {
-        HStack {
-            Text("My Wines")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.wineText)
-            Spacer()
-        }
-        .padding(.horizontal, Theme.spacing)
-
-        if let vm = timelineViewModel {
-            if vm.tastings.isEmpty && !vm.isLoading {
+        if let vm = feedViewModel {
+            if vm.posts.isEmpty && !vm.isLoading {
                 EmptyStateView(
                     icon: "wineglass",
                     title: "No Wines Yet",
@@ -119,24 +90,22 @@ struct ProfileView: View {
                 .padding(.top, Theme.spacing)
             } else {
                 LazyVStack(spacing: 24) {
-                    ForEach(vm.tastings, id: \.id) { tasting in
-                        NavigationLink(value: tasting) {
-                            ProfileTastingRow(tasting: tasting)
+                    ForEach(vm.posts, id: \.id) { post in
+                        NavigationLink {
+                            SocialTastingDetailView(post: post)
+                        } label: {
+                            SocialFeedPostView(
+                                post: post,
+                                onLike: { await vm.toggleLike(on: post) },
+                                onComment: {
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    commentsTastingId = post.id
+                                },
+                                onLikesCount: { likesTastingId = post.id }
+                            )
                         }
                         .buttonStyle(.plain)
-                        .contextMenu {
-                            Button {
-                                editingTasting = tasting
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-                            Button(role: .destructive) {
-                                tastingToDelete = tasting
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                        .task { await vm.onTastingAppear(tasting) }
+                        .task { await vm.onPostAppear(post) }
                     }
                     if vm.isLoading {
                         WineGlassLoadingView()
@@ -270,46 +239,10 @@ struct ProfileView: View {
             .foregroundStyle(.wineAccent)
     }
 
-    // MARK: - Stats Grid
-
-    private var statsGrid: some View {
-        HStack(spacing: 0) {
-            statItem(value: "\(totalTastings)", label: "Tastings")
-            statItem(value: "\(stats?.uniqueWines ?? 0)", label: "Wines")
-            statItem(
-                value: stats?.averageRating.map { String(format: "%.1f", $0) } ?? "—",
-                label: "Avg Rating"
-            )
-            statItem(value: "\(friendCount)", label: "Friends")
-        }
-        .padding(.vertical, 12)
-        .modifier(GlassCardModifier())
-    }
-
-    private func statItem(value: String, label: String) -> some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(.wineAccent)
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var totalTastings: Int {
-        guard let stats, let split = stats.colorSplit else { return 0 }
-        return split.additionalProperties.values.reduce(0) { $0 + Int($1) }
-    }
-
     // MARK: - Data Loading
 
     private func loadData() async {
-        async let profileTask: () = loadProfile()
-        async let friendsTask: () = loadFriends()
-        async let statsTask: () = loadStats()
-        _ = await (profileTask, friendsTask, statsTask)
+        await loadProfile()
     }
 
     private func loadProfile() async {
@@ -319,67 +252,6 @@ struct ProfileView: View {
         } catch {
             // Non-critical
         }
-    }
-
-    private func loadFriends() async {
-        do {
-            let friends = try await socialService.getFriends()
-            friendCount = friends.count
-        } catch {
-            // Non-critical
-        }
-    }
-
-    private func loadStats() async {
-        do {
-            stats = try await statsService.getStats()
-        } catch {
-            // Non-critical
-        }
-    }
-}
-
-/// Compact tasting row for the profile's "My Wines" list.
-private struct ProfileTastingRow: View {
-    let tasting: Tasting
-
-    var body: some View {
-        HStack(spacing: 12) {
-            if let first = tasting.photos.first {
-                CachedAsyncImage(url: URL(string: first.url)) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Rectangle().fill(.quaternary)
-                }
-                .frame(width: 56, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            } else {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill((tasting.wine.color?.accentColor ?? .wineAccent).opacity(0.2))
-                    .frame(width: 56, height: 56)
-                    .overlay {
-                        Image(systemName: "wineglass.fill")
-                            .foregroundStyle(tasting.wine.color?.accentColor ?? .wineAccent)
-                    }
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(tasting.wine.name + (tasting.vintage.map { " (\($0))" } ?? ""))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                if let producer = tasting.wine.producer, !producer.isEmpty {
-                    Text(producer)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                RatingView(rating: Double(tasting.rating), starSize: .caption)
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, Theme.spacing)
     }
 }
 
