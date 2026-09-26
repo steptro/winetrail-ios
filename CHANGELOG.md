@@ -3,11 +3,6 @@
 All notable changes to WineTrail. Versions follow the app's marketing version
 (`MARKETING_VERSION`), and dates are when that version was set in the project.
 
-## [Unreleased]
-
-- Pinch to zoom photos on the tasting, wine, and social detail screens and in the social feed
-- Your Profile now shows your wines as full cards (photo, rating, notes) with likes and comments, matching the social feed
-- Privacy Policy and Terms of Service rows in Settings use standard text with a chevron
 
 ## [1.2.0] - 2026-09-26
 
@@ -15,10 +10,8 @@ All notable changes to WineTrail. Versions follow the app's marketing version
 - Top Wines on the Stats screen are now tappable and open the wine's detail page
 - Tasting date: set it when adding or editing a tasting, shown on the tasting detail
 - Location on a tasting is now saved with a place name (reverse-geocoded when you use GPS without typing one), shows for tastings that only have coordinates, and tapping it opens the map at that spot
-- Privacy Policy and Terms of Service now open in a sheet from Settings
-- Pull-to-refresh no longer fires a second haptic on completion (the system already buzzes on the pull)
-- Clearer message when subscriptions can't be loaded, instead of a raw error
-- Removed the redundant local StoreKit configuration
+- Pinch to zoom photos on the tasting, wine, and social detail screens and in the social feed
+- Your Profile now shows your wines as full cards (photo, rating, notes) with likes and comments, matching the social feed
 
 ## [1.1.0] - 2026-09-24
 
