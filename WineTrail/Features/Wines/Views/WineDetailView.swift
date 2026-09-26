@@ -16,6 +16,9 @@ struct WineDetailView: View {
     @State private var showLogAgain = false
     @State private var errorMessage: String?
 
+    /// Backing view model for the tasting-detail screen opened from a history row (handles delete).
+    @State private var timelineViewModel: TimelineViewModel?
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -81,6 +84,9 @@ struct WineDetailView: View {
             }
         }
         .task {
+            if timelineViewModel == nil {
+                timelineViewModel = TimelineViewModel(journalService: journalService)
+            }
             await loadTastings()
         }
         .sheet(isPresented: $showLogAgain) {
@@ -97,6 +103,9 @@ struct WineDetailView: View {
             if !isPresented {
                 Task { await loadTastings() }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .tastingDidChange)) { _ in
+            Task { await loadTastings() }
         }
         .errorAlert($errorMessage)
     }
@@ -387,7 +396,16 @@ struct WineDetailView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(tastings, id: \.id) { tasting in
-                    tastingRow(tasting)
+                    if let vm = timelineViewModel {
+                        NavigationLink {
+                            TastingDetailView(tasting: tasting, viewModel: vm)
+                        } label: {
+                            tastingRow(tasting)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        tastingRow(tasting)
+                    }
                     if tasting.id != tastings.last?.id {
                         Divider()
                     }
@@ -423,12 +441,14 @@ struct WineDetailView: View {
             }
 
             VStack(alignment: .leading, spacing: 2) {
+                Text(wine.wine.name + (tasting.vintage.map { " (\($0))" } ?? ""))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
                 HStack {
                     RatingView(rating: Double(tasting.rating), starSize: .caption)
                     Spacer()
-                    Text(formatDateShort(tasting.tastingDate))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
                 if let location = tasting.location, let name = location.locationName, !name.isEmpty {
                     Label(name, systemImage: "mappin")
@@ -443,7 +463,12 @@ struct WineDetailView: View {
                         .lineLimit(1)
                 }
             }
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
         }
+        .contentShape(Rectangle())
         .padding(.vertical, 4)
     }
 
