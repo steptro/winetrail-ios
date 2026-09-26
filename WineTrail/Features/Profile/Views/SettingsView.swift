@@ -38,12 +38,14 @@ struct SettingsView: View {
                 } label: {
                     legalRowLabel("Privacy Policy", systemImage: "hand.raised.fill")
                 }
+                .buttonStyle(.plain)
 
                 Button {
                     showTermsOfService = true
                 } label: {
                     legalRowLabel("Terms of Service", systemImage: "doc.text.fill")
                 }
+                .buttonStyle(.plain)
             } header: {
                 Text("Legal")
             }
