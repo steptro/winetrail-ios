@@ -432,7 +432,7 @@ struct LogTastingView: View {
                             .frame(width: 70, height: 220)
                             .padding(.vertical, 4)
 
-                        Text("Drag the wine level to rate")
+                        Text("Drag the stars or the wine level to rate")
                             .font(Theme.captionFont)
                             .foregroundStyle(.secondary)
                     }

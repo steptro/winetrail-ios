@@ -22,15 +22,6 @@ struct RatingView: View {
         HStack(spacing: 2) {
             ForEach(1...5, id: \.self) { index in
                 starImage(for: index)
-                    .onTapGesture {
-                        if let binding = ratingBinding {
-                            let newRating = Double(index)
-                            if newRating != binding.wrappedValue {
-                                UISelectionFeedbackGenerator().selectionChanged()
-                            }
-                            binding.wrappedValue = newRating
-                        }
-                    }
             }
             if showValue {
                 Text(String(format: "%.1f", clampedRating))
@@ -39,9 +30,48 @@ struct RatingView: View {
                     .padding(.leading, 4)
             }
         }
+        // In interactive mode, let the user drag horizontally across the stars to set the rating
+        // in half-star steps — not just tap. The gesture writes the SAME binding the bottle slider
+        // uses, so the stars and the bottle stay in lockstep. The overlay measures only the star
+        // row (matching its frame), so the numeric value label, when shown, is outside the drag
+        // region and the full travel maps cleanly across the five stars.
+        .overlay { starDragOverlay }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Rating: \(String(format: "%.1f", clampedRating)) out of 5 stars")
     }
+
+    /// Transparent hit area over the star row that turns a horizontal drag into a half-star rating.
+    /// Present only in interactive mode; the star row includes the trailing value label (when
+    /// shown), so we scale against the five-star width by trimming that label's approximate width.
+    @ViewBuilder
+    private var starDragOverlay: some View {
+        if let binding = ratingBinding {
+            GeometryReader { geo in
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                let starsWidth = showValue ? max(geo.size.width - valueLabelWidth, 1) : geo.size.width
+                                let fraction = min(max(value.location.x / starsWidth, 0), 1)
+
+                                // Map across five stars, snap to the nearest half-star, clamp 0.5…5.0.
+                                let snapped = (fraction * 5.0 * 2).rounded() / 2
+                                let newRating = min(max(snapped, 0.5), 5.0)
+
+                                if newRating != binding.wrappedValue {
+                                    UISelectionFeedbackGenerator().selectionChanged()
+                                    binding.wrappedValue = newRating
+                                }
+                            }
+                    )
+            }
+        }
+    }
+
+    /// Approximate width the numeric value label occupies (font .caption + 4pt leading padding),
+    /// trimmed from the drag region when `showValue` is on so the drag maps only across the stars.
+    private var valueLabelWidth: CGFloat { 32 }
 
     private var clampedRating: Double {
         min(max(rating, 0), 5)
@@ -68,7 +98,6 @@ struct RatingView: View {
     }
 }
 
-// MARK: - Previews
 
 #Preview("Half Stars") {
     VStack(spacing: 12) {
