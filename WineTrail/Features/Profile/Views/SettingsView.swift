@@ -15,6 +15,8 @@ struct SettingsView: View {
     @State private var showDeleteAccountConfirmation = false
     @State private var isDeleting = false
     @State private var error: String?
+    @State private var showPrivacyPolicy = false
+    @State private var showTermsOfService = false
 
     var body: some View {
         List {
@@ -31,20 +33,14 @@ struct SettingsView: View {
 
             // Legal
             Section {
-                NavigationLink {
-                    SafariView(url: AppConfig.privacyPolicyURL)
-                        .ignoresSafeArea()
-                        .navigationTitle("Privacy Policy")
-                        .navigationBarTitleDisplayMode(.inline)
+                Button {
+                    showPrivacyPolicy = true
                 } label: {
                     Label("Privacy Policy", systemImage: "hand.raised.fill")
                 }
 
-                NavigationLink {
-                    SafariView(url: AppConfig.termsOfServiceURL)
-                        .ignoresSafeArea()
-                        .navigationTitle("Terms of Service")
-                        .navigationBarTitleDisplayMode(.inline)
+                Button {
+                    showTermsOfService = true
                 } label: {
                     Label("Terms of Service", systemImage: "doc.text.fill")
                 }
@@ -108,6 +104,14 @@ struct SettingsView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showPrivacyPolicy) {
+            SafariView(url: AppConfig.privacyPolicyURL)
+                .ignoresSafeArea()
+        }
+        .sheet(isPresented: $showTermsOfService) {
+            SafariView(url: AppConfig.termsOfServiceURL)
+                .ignoresSafeArea()
+        }
         .alert(
             "Delete Account",
             isPresented: $showDeleteAccountConfirmation
