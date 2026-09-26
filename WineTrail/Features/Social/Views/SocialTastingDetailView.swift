@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 import FirebaseAuth
 
 /// Read-only detail page for a friend's feed post (a `FeedJournalEntryDto`).
@@ -8,7 +9,9 @@ import FirebaseAuth
 /// the current user has already rated (i.e. appears in the shared tasting's ratings).
 struct SocialTastingDetailView: View {
     @Environment(SocialService.self) private var socialService
+    @Environment(JournalService.self) private var journalService
     @Environment(AppState.self) private var appState
+    @Environment(\.dismiss) private var dismiss
 
     let post: Components.Schemas.FeedJournalEntryDto
 
@@ -17,6 +20,11 @@ struct SocialTastingDetailView: View {
     @State private var showComments = false
     @State private var reportTarget: ReportTarget?
     @State private var toastMessage: String?
+
+    // Edit/delete state — shown only for the current user's own post.
+    @State private var editingTasting: Components.Schemas.JournalEntryDto?
+    @State private var showDeleteConfirmation = false
+    @State private var isPreparingEdit = false
 
     /// True once the current user has their own rating in this shared tasting.
     private var hasMyRating: Bool {
@@ -52,6 +60,7 @@ struct SocialTastingDetailView: View {
                     )
                     sharedTastingSection
                     notesSection
+                    metadataPills
                 }
                 .padding(.horizontal, Theme.spacing)
                 .padding(.top, Theme.spacing)
@@ -60,7 +69,27 @@ struct SocialTastingDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if !isOwnPost {
+            if isOwnPost {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        Task { await prepareEdit() }
+                    } label: {
+                        if isPreparingEdit {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "pencil")
+                        }
+                    }
+                    .disabled(isPreparingEdit)
+
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red)
+                    }
+                }
+            } else {
                 ToolbarItem(placement: .primaryAction) {
                     Button(role: .destructive) {
                         reportTarget = ReportTarget(
@@ -75,6 +104,21 @@ struct SocialTastingDetailView: View {
                     .tint(.red)
                     .accessibilityLabel("Report Post")
                 }
+            }
+        }
+        .alert("Delete Wine", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task { await deleteEntry() }
+            }
+        } message: {
+            Text("Are you sure you want to delete this entry? This action cannot be undone.")
+        }
+        .sheet(item: $editingTasting, onDismiss: {
+            NotificationCenter.default.post(name: .tastingDidChange, object: nil)
+        }) { tasting in
+            NavigationStack {
+                EditTastingView(tasting: tasting)
             }
         }
         .sheet(item: $reportTarget) { target in
@@ -280,6 +324,111 @@ struct SocialTastingDetailView: View {
         }
     }
 
+    // MARK: - Metadata Pills
+
+    @ViewBuilder
+    private var metadataPills: some View {
+        let pills = buildPills()
+
+        if !pills.isEmpty {
+            let columns = [
+                GridItem(.flexible()),
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ]
+
+            LazyVGrid(columns: columns, spacing: Theme.smallSpacing) {
+                ForEach(pills, id: \.label) { pill in
+                    if let coordinate = pill.coordinate {
+                        NavigationLink {
+                            MapView(focusCoordinate: coordinate, focusName: pill.label)
+                                .navigationTitle(pill.label)
+                                .navigationBarTitleDisplayMode(.inline)
+                        } label: {
+                            pillCell(pill)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        pillCell(pill)
+                    }
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// A single metadata pill cell (icon, value, title).
+    @ViewBuilder
+    private func pillCell(_ pill: MetadataPill) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: pill.icon)
+                .font(.title3)
+                .foregroundStyle(.wineAccent)
+                .frame(height: 24)
+            Text(pill.label)
+                .font(.caption)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(height: 16)
+            Text(pill.title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(height: 14)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(Theme.smallSpacing)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.smallCornerRadius))
+    }
+
+    private struct MetadataPill {
+        let icon: String
+        let title: String
+        let label: String
+        /// Set only for the Location pill: tapping it opens the map centered here.
+        var coordinate: CLLocationCoordinate2D? = nil
+    }
+
+    private func buildPills() -> [MetadataPill] {
+        var pills: [MetadataPill] = []
+
+        pills.append(MetadataPill(icon: "calendar", title: "Date", label: formattedTastingDate))
+
+        if let location = post.location {
+            let coordinate = location.latitude.flatMap { lat in
+                location.longitude.map { lng in CLLocationCoordinate2D(latitude: lat, longitude: lng) }
+            }
+            let storedName = location.locationName.flatMap { $0.isEmpty ? nil : $0 }
+            if storedName != nil || coordinate != nil {
+                let label = storedName ?? "View on Map"
+                pills.append(MetadataPill(icon: "mappin", title: "Location", label: label, coordinate: coordinate))
+            }
+        }
+
+        if let food = post.foodPairing, !food.isEmpty {
+            pills.append(MetadataPill(icon: "fork.knife", title: "Pairing", label: food))
+        }
+
+        if let occasion = post.occasion, !occasion.isEmpty {
+            pills.append(MetadataPill(icon: "party.popper", title: "Occasion", label: occasion))
+        }
+
+        return pills
+    }
+
+    private var formattedTastingDate: String {
+        let inputFormatter = DateFormatter()
+        inputFormatter.dateFormat = "yyyy-MM-dd"
+        inputFormatter.locale = Locale(identifier: "en_US_POSIX")
+        if let date = inputFormatter.date(from: post.tastingDate) {
+            let outputFormatter = DateFormatter()
+            outputFormatter.dateFormat = "dd MMM yyyy"
+            outputFormatter.locale = Locale.current
+            return outputFormatter.string(from: date)
+        }
+        return post.tastingDate
+    }
+
     // MARK: - Notes
 
     @ViewBuilder
@@ -293,6 +442,31 @@ struct SocialTastingDetailView: View {
     }
 
     // MARK: - Data
+
+    /// Fetch the full journal entry so the edit sheet has the complete tasting (the feed DTO
+    /// lacks fields EditTastingView needs), then present the editor.
+    private func prepareEdit() async {
+        isPreparingEdit = true
+        defer { isPreparingEdit = false }
+        do {
+            editingTasting = try await journalService.getTasting(id: post.id)
+        } catch {
+            Log.error("Failed to load entry for editing", error: error)
+            toastMessage = "Couldn't open the editor. Please try again."
+        }
+    }
+
+    /// Delete the current user's own entry, then pop back to the profile.
+    private func deleteEntry() async {
+        do {
+            try await journalService.deleteTasting(id: post.id)
+            NotificationCenter.default.post(name: .tastingDidChange, object: nil)
+            dismiss()
+        } catch {
+            Log.error("Failed to delete entry", error: error)
+            toastMessage = "Couldn't delete this entry. Please try again."
+        }
+    }
 
     private func loadSharedRatings() async {
         guard let sharedTastingId = post.sharedTastingId else {
