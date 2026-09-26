@@ -127,12 +127,17 @@ struct SettingsView: View {
         }
     }
 
-    /// A tappable settings row (icon + title in primary text, trailing chevron) matching the look
+    /// A tappable settings row (accent icon + primary title, trailing chevron) matching the look
     /// of the navigation rows, for the legal buttons that present a sheet rather than push.
     private func legalRowLabel(_ title: String, systemImage: String) -> some View {
         HStack {
-            Label(title, systemImage: systemImage)
-                .foregroundStyle(.primary)
+            Label {
+                Text(title)
+                    .foregroundStyle(.primary)
+            } icon: {
+                Image(systemName: systemImage)
+                    .foregroundStyle(.wineAccent)
+            }
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.semibold))
