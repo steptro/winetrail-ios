@@ -5,6 +5,10 @@ All notable changes to WineTrail. Versions follow the app's marketing version
 
 ## [Unreleased]
 
+- Pinch to zoom photos on the tasting, wine, and social detail screens and in the social feed
+- Your Profile now shows your wines as full cards (photo, rating, notes) with likes and comments, matching the social feed
+- Privacy Policy and Terms of Service rows in Settings use standard text with a chevron
+
 ## [1.2.0] - 2026-09-26
 
 - Rate wines by dragging across the stars, not just tapping — linked to the bottle-fill slider

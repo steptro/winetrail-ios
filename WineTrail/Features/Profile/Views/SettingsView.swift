@@ -36,13 +36,13 @@ struct SettingsView: View {
                 Button {
                     showPrivacyPolicy = true
                 } label: {
-                    Label("Privacy Policy", systemImage: "hand.raised.fill")
+                    legalRowLabel("Privacy Policy", systemImage: "hand.raised.fill")
                 }
 
                 Button {
                     showTermsOfService = true
                 } label: {
-                    Label("Terms of Service", systemImage: "doc.text.fill")
+                    legalRowLabel("Terms of Service", systemImage: "doc.text.fill")
                 }
             } header: {
                 Text("Legal")
@@ -123,6 +123,20 @@ struct SettingsView: View {
         } message: {
             Text("This will permanently delete your account, all your wines, tastings, photos, and social data. This cannot be undone.")
         }
+    }
+
+    /// A tappable settings row (icon + title in primary text, trailing chevron) matching the look
+    /// of the navigation rows, for the legal buttons that present a sheet rather than push.
+    private func legalRowLabel(_ title: String, systemImage: String) -> some View {
+        HStack {
+            Label(title, systemImage: systemImage)
+                .foregroundStyle(.primary)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .contentShape(Rectangle())
     }
 
     private var appVersionFooter: some View {
