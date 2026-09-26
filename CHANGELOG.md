@@ -5,6 +5,17 @@ All notable changes to WineTrail. Versions follow the app's marketing version
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-26
+
+- Rate wines by dragging across the stars, not just tapping — linked to the bottle-fill slider
+- Top Wines on the Stats screen are now tappable and open the wine's detail page
+- Tasting date: set it when adding or editing a tasting, shown on the tasting detail
+- Location on a tasting is now saved with a place name (reverse-geocoded when you use GPS without typing one), shows for tastings that only have coordinates, and tapping it opens the map at that spot
+- Privacy Policy and Terms of Service now open in a sheet from Settings
+- Pull-to-refresh no longer fires a second haptic on completion (the system already buzzes on the pull)
+- Clearer message when subscriptions can't be loaded, instead of a raw error
+- Removed the redundant local StoreKit configuration
+
 ## [1.1.0] - 2026-09-24
 
 - AI Sommelier: chat with a wine assistant for pairings, grape and region questions, and tasting or storage advice, with replies streamed in and rendered as Markdown
