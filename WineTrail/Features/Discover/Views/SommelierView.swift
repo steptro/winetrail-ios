@@ -79,14 +79,61 @@ struct SommelierView: View {
         } else {
             proLockedState
                 // Non-Pro and entitlement has RESOLVED (this branch never renders while loading),
-                // so opening the tab surfaces the paywall directly. The locked state stays behind
-                // it as the backdrop and its Unlock button re-opens the paywall if dismissed.
-                .onAppear { showPaywall = true }
+                // so opening the tab surfaces the paywall directly — UNLESS offerings failed to
+                // load, in which case the locked state shows a generic error instead of a paywall
+                // with no products.
+                .onAppear {
+                    if !subscriptions.offeringsFailed {
+                        showPaywall = true
+                    }
+                }
         }
     }
 
     private var proLockedState: some View {
         VStack(spacing: 16) {
+            if subscriptions.offeringsFailed {
+                subscriptionsUnavailable
+            } else {
+                proUpsell
+            }
+        }
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Generic, user-facing message when subscriptions could not be loaded. The real RevenueCat
+    /// error is only logged (to Datadog), never shown here.
+    @ViewBuilder
+    private var subscriptionsUnavailable: some View {
+        Image(systemName: "exclamationmark.triangle")
+            .font(.system(size: 44))
+            .foregroundStyle(.secondary)
+
+        Text("Subscriptions Unavailable")
+            .font(.title3.weight(.semibold))
+            .multilineTextAlignment(.center)
+
+        Text("We couldn't load subscriptions right now. Please try again in a little while.")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+
+        Button {
+            Task { await subscriptions.loadOfferings() }
+        } label: {
+            Text("Try Again")
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(.wineAccent, in: RoundedRectangle(cornerRadius: 14))
+                .foregroundStyle(.white)
+        }
+        .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    private var proUpsell: some View {
             Image(systemName: "sparkles")
                 .font(.system(size: 44))
                 .foregroundStyle(.wineAccent)
@@ -111,9 +158,6 @@ struct SommelierView: View {
                     .foregroundStyle(.white)
             }
             .padding(.top, 8)
-        }
-        .padding(.horizontal, 32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Chat

@@ -16,6 +16,7 @@ struct ProfileView: View {
     @State private var friendCount: Int = 0
     @State private var stats: Stats?
     @State private var showPaywall = false
+    @State private var showSubscriptionsUnavailable = false
 
     @State private var timelineViewModel: TimelineViewModel?
     @State private var editingTasting: Tasting?
@@ -74,6 +75,12 @@ struct ProfileView: View {
             PaywallView(displayCloseButton: true)
                 .onPurchaseCompleted { _ in Task { await subscriptions.refresh() } }
                 .onRestoreCompleted { _ in Task { await subscriptions.refresh() } }
+        }
+        .alert("Subscriptions Unavailable", isPresented: $showSubscriptionsUnavailable) {
+            Button("Try Again") { Task { await subscriptions.loadOfferings() } }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("We couldn't load subscriptions right now. Please try again in a little while.")
         }
         .alert("Delete Wine", isPresented: Binding(
             get: { tastingToDelete != nil },
@@ -194,7 +201,11 @@ struct ProfileView: View {
                 }
 
                 Button {
-                    showPaywall = true
+                    if subscriptions.offeringsFailed {
+                        showSubscriptionsUnavailable = true
+                    } else {
+                        showPaywall = true
+                    }
                 } label: {
                     Text("Subscribe")
                         .font(.headline)

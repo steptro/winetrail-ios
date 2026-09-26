@@ -24,6 +24,15 @@ final class SubscriptionManager {
     /// show a neutral loading state instead of flashing the paywall.
     private(set) var isLoading: Bool = true
 
+    /// True while offerings are being fetched from RevenueCat/App Store, so a paywall surface can
+    /// show a neutral loader before deciding between the paywall and the generic error.
+    private(set) var offeringsLoading: Bool = true
+
+    /// True when the offerings fetch failed or returned no purchasable products (RevenueCat error
+    /// 23 and its kin). Drives a GENERIC "couldn't load subscriptions" message in the UI — the
+    /// underlying RevenueCat error is only ever logged (to Datadog), never shown to the user.
+    private(set) var offeringsFailed: Bool = false
+
     /// The app user id RevenueCat is currently logged in as, if any. This is the
     /// backend's internal user id, not the Firebase uid.
     private(set) var appUserID: String?
@@ -60,9 +69,7 @@ final class SubscriptionManager {
 
         Task {
             await refresh()
-            #if DEBUG
-            await logOfferingsDiagnostics()
-            #endif
+            await loadOfferings()
         }
 
         observeCustomerInfo()
@@ -168,31 +175,58 @@ final class SubscriptionManager {
         isLoading = false
     }
 
-    #if DEBUG
-    /// Logs what RevenueCat actually returns for offerings so a configuration
-    /// error (code 23) can be diagnosed: whether the current offering exists,
-    /// how many packages/products it resolved from the App Store, and the
-    /// underlying reason when the fetch fails.
-    private func logOfferingsDiagnostics() async {
-        Log.debug("RevenueCat: fetching offerings…")
+    /// Fetches offerings up front and records whether they loaded, so the paywall surfaces can
+    /// show a GENERIC error instead of RevenueCat's own when the fetch fails (notably error 23:
+    /// the App Store returned no products for the current offering).
+    ///
+    /// The underlying RevenueCat error — domain, code, and full `userInfo` (which carries
+    /// `rc_root_error` / the readable code) — is logged via `Log.error`, so it ships to Datadog on
+    /// TestFlight and production. This is the diagnostic path that does NOT need the Xcode console
+    /// or another deploy: the real reason lands in Datadog. It is never shown to the user.
+    func loadOfferings() async {
+        guard isConfigured else { return }
+
+        offeringsLoading = true
+
         do {
             let offerings = try await Purchases.shared.offerings()
 
-            Log.debug("RevenueCat: \(offerings.all.count) offering(s) total: \(Array(offerings.all.keys)); current = \(offerings.current?.identifier ?? "nil")")
-
-            if let current = offerings.current {
-                let productIDs = current.availablePackages.map { $0.storeProduct.productIdentifier }
-                Log.debug("RevenueCat current offering '\(current.identifier)': \(current.availablePackages.count) package(s), products: \(productIDs)")
-                if current.availablePackages.isEmpty {
-                    Log.error("RevenueCat offering has NO products — App Store returned none. Check the Paid Apps Agreement is Active, the product IDs match, and allow time for propagation.")
-                }
-            } else {
-                Log.error("RevenueCat has no CURRENT offering. In the RevenueCat dashboard, create an Offering, add your products as packages, and mark it Current.")
+            guard let current = offerings.current else {
+                offeringsFailed = true
+                offeringsLoading = false
+                Log.error("RevenueCat has no CURRENT offering. Offerings present: \(Array(offerings.all.keys))")
+                return
             }
+
+            let productIDs = current.availablePackages.map { $0.storeProduct.productIdentifier }
+
+            if current.availablePackages.isEmpty {
+                offeringsFailed = true
+                offeringsLoading = false
+                Log.error("RevenueCat current offering '\(current.identifier)' has NO products — the App Store returned none (error 23 territory). Check product IDs, availability per storefront, and allow time for propagation.")
+                return
+            }
+
+            offeringsFailed = false
+            offeringsLoading = false
+            Log.info("RevenueCat offerings loaded: current='\(current.identifier)', \(current.availablePackages.count) package(s), products=\(productIDs)")
         } catch {
+            offeringsFailed = true
+            offeringsLoading = false
+
+            // Ship the underlying RevenueCat error to Datadog: domain, code, and the full userInfo
+            // (rc_root_error / readable_error_code live here). This is what tells 'no products for
+            // offering' apart from an auth/key/network failure — without another deploy.
             let ns = error as NSError
-            Log.error("RevenueCat offerings fetch FAILED (this is the error 23 cause): domain=\(ns.domain) code=\(ns.code) userInfo=\(ns.userInfo)", error: error)
+            Log.error(
+                "RevenueCat offerings fetch failed (likely the subscription-load error users hit)",
+                error: error,
+                attributes: [
+                    "rc_domain": ns.domain,
+                    "rc_code": ns.code,
+                    "rc_userInfo": String(describing: ns.userInfo)
+                ]
+            )
         }
     }
-    #endif
 }

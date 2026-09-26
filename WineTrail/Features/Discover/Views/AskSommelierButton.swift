@@ -21,11 +21,14 @@ struct AskSommelierButton: View {
 
     @State private var showSommelier = false
     @State private var showPaywall = false
+    @State private var showSubscriptionsUnavailable = false
 
     var body: some View {
         Button {
             if subscriptions.isPro {
                 showSommelier = true
+            } else if subscriptions.offeringsFailed {
+                showSubscriptionsUnavailable = true
             } else {
                 showPaywall = true
             }
@@ -55,6 +58,12 @@ struct AskSommelierButton: View {
             PaywallView(displayCloseButton: true)
                 .onPurchaseCompleted { _ in Task { await subscriptions.refresh() } }
                 .onRestoreCompleted { _ in Task { await subscriptions.refresh() } }
+        }
+        .alert("Subscriptions Unavailable", isPresented: $showSubscriptionsUnavailable) {
+            Button("Try Again") { Task { await subscriptions.loadOfferings() } }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("We couldn't load subscriptions right now. Please try again in a little while.")
         }
     }
 
