@@ -272,13 +272,14 @@ struct SocialFeedPostView: View {
             if !post.photos.isEmpty {
                 TabView {
                     ForEach(post.photos, id: \.id) { photo in
-                        CachedAsyncImage(url: URL(string: photo.url)) { image in
-                            image.resizable().aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Rectangle().fill(.quaternary)
+                        ZoomableScrollView(doubleTapToZoom: false) {
+                            CachedAsyncImage(url: URL(string: photo.url)) { image in
+                                image.resizable().aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Rectangle().fill(.quaternary)
+                            }
                         }
                         .frame(maxWidth: .infinity)
-                        .clipped()
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: post.photos.count > 1 ? .automatic : .never))

@@ -168,13 +168,14 @@ struct SocialTastingDetailView: View {
         if !post.photos.isEmpty {
             TabView {
                 ForEach(post.photos, id: \.id) { photo in
-                    CachedAsyncImage(url: URL(string: photo.url)) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Rectangle().fill(.quaternary).overlay { ProgressView() }
+                    ZoomableScrollView {
+                        CachedAsyncImage(url: URL(string: photo.url)) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Rectangle().fill(.quaternary).overlay { ProgressView() }
+                        }
                     }
                     .frame(maxWidth: .infinity)
-                    .clipped()
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: post.photos.count > 1 ? .automatic : .never))

@@ -201,17 +201,18 @@ struct TastingDetailView: View {
         if !tasting.photos.isEmpty {
             TabView {
                 ForEach(tasting.photos, id: \.id) { photo in
-                    CachedAsyncImage(url: URL(string: photo.url)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Rectangle()
-                            .fill(.quaternary)
-                            .overlay { ProgressView() }
+                    ZoomableScrollView {
+                        CachedAsyncImage(url: URL(string: photo.url)) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Rectangle()
+                                .fill(.quaternary)
+                                .overlay { ProgressView() }
+                        }
                     }
                     .frame(maxWidth: .infinity)
-                    .clipped()
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: tasting.photos.count > 1 ? .automatic : .never))
