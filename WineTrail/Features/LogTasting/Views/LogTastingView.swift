@@ -526,6 +526,15 @@ struct LogTastingView: View {
                     .keyboardType(.numberPad)
             }
 
+            Section("Date") {
+                DatePicker(
+                    "Tasting date",
+                    selection: $vm.tastingDate,
+                    in: ...Date(),
+                    displayedComponents: .date
+                )
+            }
+
             // Tagging only applies when creating a new post, not when adding your rating
             // to an existing shared tasting.
             if vm.sharedTastingId == nil {

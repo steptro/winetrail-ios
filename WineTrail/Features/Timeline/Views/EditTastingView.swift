@@ -325,14 +325,13 @@ struct EditTastingView: View {
                     }
             }
 
-            Section("Notes") {
-                TextField("Notes", text: $notes, axis: .vertical)
-                    .lineLimit(3...6)
-            }
-
-            Section("Pairing & Occasion") {
-                TextField("Food pairing", text: $foodPairing)
-                TextField("Occasion", text: $occasion)
+            Section("Date") {
+                DatePicker(
+                    "Tasting date",
+                    selection: $tastingDate,
+                    in: ...Date(),
+                    displayedComponents: .date
+                )
             }
 
             Section {
@@ -357,6 +356,16 @@ struct EditTastingView: View {
                 }
             } footer: {
                 Text("Tagged friends are notified and can add their own rating to this wine.")
+            }
+
+            Section("Notes") {
+                TextField("Notes", text: $notes, axis: .vertical)
+                    .lineLimit(3...6)
+            }
+
+            Section("Pairing & Occasion") {
+                TextField("Food pairing", text: $foodPairing)
+                TextField("Occasion", text: $occasion)
             }
 
             Section("Purchase") {
@@ -473,7 +482,7 @@ struct EditTastingView: View {
             latitude: latitude,
             longitude: longitude,
             locationName: resolvedLocationName,
-            tastingDate: nil,
+            tastingDate: dateFormatter.string(from: tastingDate),
             vintage: vintageYear.map { Int32($0) },
             taggedUserIds: taggedFriendIds
         )

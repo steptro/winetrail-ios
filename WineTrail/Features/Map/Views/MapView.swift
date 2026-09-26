@@ -13,9 +13,18 @@ struct MapView: View {
     @Environment(MapService.self) private var mapService
     @State private var viewModel: MapViewModel?
 
+    /// When set, the map opens centered on this coordinate with a single pin, instead of fitting
+    /// all of the user's location pins. Used when opening the map from a specific tasting's
+    /// location card.
+    var focusCoordinate: CLLocationCoordinate2D?
+    /// Display name for the focused pin (e.g. the tasting's location name), when known.
+    var focusName: String?
+
     var body: some View {
         Group {
-            if let viewModel {
+            if let focusCoordinate {
+                focusedMap(coordinate: focusCoordinate)
+            } else if let viewModel {
                 if viewModel.isLoading && viewModel.mapData == nil {
                     ProgressView()
                 } else if viewModel.error != nil, viewModel.mapData == nil {
@@ -48,11 +57,29 @@ struct MapView: View {
             }
         }
         .task {
+            guard focusCoordinate == nil else { return }
             if viewModel == nil {
                 viewModel = MapViewModel(mapService: mapService)
             }
             await viewModel?.loadMapData()
         }
+    }
+
+    // MARK: - Focused Map (single tasting location)
+
+    /// A map centered on one coordinate with a single pin — used when opened from a tasting's
+    /// location card. Independent of the aggregate map data so it works even before that loads.
+    @ViewBuilder
+    private func focusedMap(coordinate: CLLocationCoordinate2D) -> some View {
+        Map(initialPosition: .region(MKCoordinateRegion(
+            center: coordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+        ))) {
+            Annotation(focusName ?? "Tasting location", coordinate: coordinate) {
+                singlePinView(tastingCount: 1)
+            }
+        }
+        .mapStyle(.standard)
     }
 
     // MARK: - Map Content

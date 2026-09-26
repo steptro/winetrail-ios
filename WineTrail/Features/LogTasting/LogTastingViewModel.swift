@@ -336,6 +336,15 @@ final class LogTastingViewModel {
                 longitude = copiedLongitude
             }
 
+            // If the user captured a location by GPS/pin but never typed a name, reverse-geocode the
+            // coordinates once here so the tasting is saved with a human-readable place name. Best
+            // effort: a failure (offline, throttled, no placemark) simply leaves the name empty and
+            // the coordinates are still stored.
+            var resolvedLocationName = locationName
+            if resolvedLocationName.isEmpty, let latitude, let longitude {
+                resolvedLocationName = await LocationNameResolver.name(latitude: latitude, longitude: longitude) ?? ""
+            }
+
             // Parse vintage from text
             let parsedVintage: Int32? = {
                 let trimmed = vintageText.trimmingCharacters(in: .whitespaces)
@@ -371,8 +380,8 @@ final class LogTastingViewModel {
                 currency: price.isEmpty ? nil : currency,
                 latitude: latitude,
                 longitude: longitude,
-                locationName: locationName.isEmpty ? nil : locationName,
-                tastingDate: nil,
+                locationName: resolvedLocationName.isEmpty ? nil : resolvedLocationName,
+                tastingDate: dateFormatter.string(from: tastingDate),
                 vintage: parsedVintage,
                 taggedUserIds: taggedFriendIds.isEmpty ? nil : taggedFriendIds,
                 sharedTastingId: sharedTastingId

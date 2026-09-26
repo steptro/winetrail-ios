@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 import OpenAPIRuntime
 
 /// Full detail view for a single wine entry, designed as a journal page.
@@ -23,6 +24,10 @@ struct TastingDetailView: View {
     @State private var showComments = false
     @State private var showLikes = false
     @State private var sharedRatings: [Components.Schemas.SharedRatingDto] = []
+
+    /// Place name resolved on open for a tasting that has coordinates but no stored `locationName`,
+    /// so the location pill can show a real place instead of a generic label.
+    @State private var geocodedLocationName: String?
 
     init(tasting: Tasting, viewModel: TimelineViewModel, showActions: Bool = true) {
         _tasting = State(initialValue: tasting)
@@ -107,6 +112,7 @@ struct TastingDetailView: View {
         }
         .task {
             await loadSocialData()
+            await resolveLocationNameIfNeeded()
         }
         .sheet(isPresented: $showComments) {
             CommentsView(tastingId: tasting.id)
@@ -119,6 +125,18 @@ struct TastingDetailView: View {
     }
 
     // MARK: - Reload
+
+    /// For a tasting saved with coordinates but no stored name, resolve a place name once on open so
+    /// the location pill shows a real place. Best effort; leaves the generic label on failure.
+    private func resolveLocationNameIfNeeded() async {
+        guard geocodedLocationName == nil,
+              let location = tasting.location,
+              (location.locationName?.isEmpty ?? true),
+              let lat = location.latitude,
+              let lng = location.longitude else { return }
+
+        geocodedLocationName = await LocationNameResolver.name(latitude: lat, longitude: lng)
+    }
 
     private func reloadTasting() async {
         do {
@@ -429,35 +447,54 @@ struct TastingDetailView: View {
 
             LazyVGrid(columns: columns, spacing: Theme.smallSpacing) {
                 ForEach(pills, id: \.label) { pill in
-                    VStack(spacing: 4) {
-                        Image(systemName: pill.icon)
-                            .font(.title3)
-                            .foregroundStyle(.wineAccent)
-                            .frame(height: 24)
-                        Text(pill.label)
-                            .font(.caption)
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                            .frame(height: 16)
-                        Text(pill.title)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .frame(height: 14)
+                    if let coordinate = pill.coordinate {
+                        NavigationLink {
+                            MapView(focusCoordinate: coordinate, focusName: pill.label)
+                                .navigationTitle(pill.label)
+                                .navigationBarTitleDisplayMode(.inline)
+                        } label: {
+                            pillCell(pill)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        pillCell(pill)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(Theme.smallSpacing)
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.smallCornerRadius))
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
         }
     }
 
+    /// A single metadata pill cell (icon, value, title).
+    @ViewBuilder
+    private func pillCell(_ pill: MetadataPill) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: pill.icon)
+                .font(.title3)
+                .foregroundStyle(.wineAccent)
+                .frame(height: 24)
+            Text(pill.label)
+                .font(.caption)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(height: 16)
+            Text(pill.title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(height: 14)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(Theme.smallSpacing)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.smallCornerRadius))
+    }
+
     private struct MetadataPill {
         let icon: String
         let title: String
         let label: String
+        /// Set only for the Location pill: tapping it opens the map centered here.
+        var coordinate: CLLocationCoordinate2D? = nil
     }
 
     private func buildPills() -> [MetadataPill] {
@@ -465,8 +502,18 @@ struct TastingDetailView: View {
 
         pills.append(MetadataPill(icon: "calendar", title: "Date", label: formattedDate))
 
-        if let location = tasting.location, let name = location.locationName, !name.isEmpty {
-            pills.append(MetadataPill(icon: "mappin", title: "Location", label: name))
+        if let location = tasting.location {
+            let coordinate = location.latitude.flatMap { lat in
+                location.longitude.map { lng in CLLocationCoordinate2D(latitude: lat, longitude: lng) }
+            }
+            let storedName = location.locationName.flatMap { $0.isEmpty ? nil : $0 }
+
+            // Show the pill when there is a name OR coordinates. Label prefers the stored name, then
+            // an on-open geocoded name (for coordinate-only tastings), then a generic tap hint.
+            if storedName != nil || coordinate != nil {
+                let label = storedName ?? geocodedLocationName ?? "View on Map"
+                pills.append(MetadataPill(icon: "mappin", title: "Location", label: label, coordinate: coordinate))
+            }
         }
 
         if let food = tasting.foodPairing, !food.isEmpty {
