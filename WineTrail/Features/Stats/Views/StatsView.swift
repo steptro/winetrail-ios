@@ -126,7 +126,12 @@ struct StatsView: View {
 
             VStack(spacing: 0) {
                 ForEach(Array(wines.enumerated()), id: \.element.wine.id) { index, entry in
-                    topWineRow(rank: index + 1, entry: entry)
+                    NavigationLink {
+                        WineDetailView(wine: wineStats(from: entry))
+                    } label: {
+                        topWineRow(rank: index + 1, entry: entry)
+                    }
+                    .buttonStyle(.plain)
                     if index < wines.count - 1 {
                         Divider()
                     }
@@ -134,6 +139,17 @@ struct StatsView: View {
             }
             .background(.wineSecondaryBackground, in: .rect(cornerRadius: Theme.cornerRadius))
         }
+    }
+
+    /// Builds the `WineStats` (`UserWineStats`) value `WineDetailView` expects from a `TopWine`.
+    /// Both schemas share `wine`, `averageRating`, and `timesDrunk`; the detail view reloads full
+    /// stats and tastings from the wine id on appear, so the optional date fields are left nil.
+    private func wineStats(from entry: Components.Schemas.TopWine) -> WineStats {
+        WineStats(
+            wine: entry.wine,
+            timesDrunk: entry.timesDrunk,
+            averageRating: entry.averageRating
+        )
     }
 
     /// A single ranked top-wine row: rank, name/producer, rating and tasting count.
@@ -181,6 +197,10 @@ struct StatsView: View {
                     .font(Theme.bodyFont.weight(.semibold))
                     .foregroundStyle(.wineText)
             }
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
         }
         .padding(Theme.spacing)
     }
