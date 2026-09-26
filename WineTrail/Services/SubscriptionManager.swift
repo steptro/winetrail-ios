@@ -229,4 +229,21 @@ final class SubscriptionManager {
             )
         }
     }
+
+    /// Logs a purchase or restore failure from the paywall with the structured RevenueCat error
+    /// (domain, code, full userInfo incl. rc_root_error) so it ships to Datadog — this covers the
+    /// purchase path, where an error 23 or its kin most often surfaces. User-facing errors are
+    /// handled by RevenueCat's own paywall UI; this only records the diagnostic.
+    nonisolated func logPaywallFailure(_ context: String, error: Error) {
+        let ns = error as NSError
+        Log.error(
+            "RevenueCat paywall \(context) failed",
+            error: error,
+            attributes: [
+                "rc_domain": ns.domain,
+                "rc_code": ns.code,
+                "rc_userInfo": String(describing: ns.userInfo)
+            ]
+        )
+    }
 }

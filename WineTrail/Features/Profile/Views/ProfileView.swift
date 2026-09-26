@@ -65,6 +65,8 @@ struct ProfileView: View {
             PaywallView(displayCloseButton: true)
                 .onPurchaseCompleted { _ in Task { await subscriptions.refresh() } }
                 .onRestoreCompleted { _ in Task { await subscriptions.refresh() } }
+                .onPurchaseFailure { error in subscriptions.logPaywallFailure("purchase", error: error) }
+                .onRestoreFailure { error in subscriptions.logPaywallFailure("restore", error: error) }
         }
         .alert("Subscriptions Unavailable", isPresented: $showSubscriptionsUnavailable) {
             Button("Try Again") { Task { await subscriptions.loadOfferings() } }
