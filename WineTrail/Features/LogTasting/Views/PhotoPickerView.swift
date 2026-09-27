@@ -1,20 +1,5 @@
 import SwiftUI
 import PhotosUI
-import UniformTypeIdentifiers
-
-/// A lightweight drag payload carrying the source index of a selected photo,
-/// used to reorder the local selection via drag-and-drop.
-struct PhotoDragItem: Codable, Transferable {
-    let index: Int
-
-    static var transferRepresentation: some TransferRepresentation {
-        CodableRepresentation(contentType: .wineTrailPhotoOrder)
-    }
-}
-
-extension UTType {
-    static let wineTrailPhotoOrder = UTType(exportedAs: "com.winetrail.photo-order")
-}
 
 /// Photo selection component for the Log Tasting flow.
 ///
@@ -129,59 +114,22 @@ struct PhotoPickerView: View {
                     .foregroundStyle(.secondary)
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.smallSpacing) {
-                    ForEach(Array(selectedImages.enumerated()), id: \.offset) { index, image in
-                        photoThumbnail(image: image, index: index)
-                            .draggable(PhotoDragItem(index: index)) {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 80, height: 80)
-                                    .clipShape(RoundedRectangle(cornerRadius: Theme.smallCornerRadius))
-                            }
-                            .dropDestination(for: PhotoDragItem.self) { items, _ in
-                                guard let from = items.first?.index else { return false }
-                                moveImage(from: from, to: index)
-                                return true
-                            }
-                    }
-                }
-                .padding(.vertical, 4)
-            }
+            ReorderablePhotoStrip(
+                images: selectedImages,
+                onMove: { from, to in moveImage(from: from, to: to) },
+                onRemove: { index in removeImage(at: index) }
+            )
+            .frame(height: 84)
         }
     }
 
-    /// Moves a selected image from one position to another (drag-to-reorder).
+    /// Moves a selected image from one position to another.
     private func moveImage(from: Int, to: Int) {
-        guard selectedImages.indices.contains(from), from != to else { return }
-        let clampedTo = min(max(to, 0), selectedImages.count - 1)
+        guard selectedImages.indices.contains(from),
+              selectedImages.indices.contains(to),
+              from != to else { return }
         let image = selectedImages.remove(at: from)
-        selectedImages.insert(image, at: clampedTo)
-    }
-
-    @ViewBuilder
-    private func photoThumbnail(image: UIImage, index: Int) -> some View {
-        ZStack(alignment: .topTrailing) {
-            Image(uiImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 80, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.smallCornerRadius))
-
-            Button {
-                removeImage(at: index)
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(.white)
-                    .background(Circle().fill(.black.opacity(0.5)))
-            }
-            .offset(x: 4, y: -4)
-            .accessibilityLabel("Remove photo \(index + 1)")
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Photo \(index + 1) of \(selectedImages.count)")
+        selectedImages.insert(image, at: to)
     }
 
     // MARK: - Photo Loading

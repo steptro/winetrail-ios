@@ -2,21 +2,6 @@ import SwiftUI
 import PhotosUI
 import OpenAPIRuntime
 import CoreLocation
-import UniformTypeIdentifiers
-
-/// A drag payload carrying an existing (server) photo's ID, used to reorder the
-/// current photos via drag-and-drop before saving.
-struct ExistingPhotoDragItem: Codable, Transferable {
-    let id: String
-
-    static var transferRepresentation: some TransferRepresentation {
-        CodableRepresentation(contentType: .wineTrailExistingPhotoOrder)
-    }
-}
-
-extension UTType {
-    static let wineTrailExistingPhotoOrder = UTType(exportedAs: "com.winetrail.existing-photo-order")
-}
 
 /// Edit an existing tasting entry using a 3-step wizard layout matching LogTastingView.
 ///
@@ -303,50 +288,15 @@ struct EditTastingView: View {
                             .font(Theme.captionFont)
                             .foregroundStyle(.secondary)
 
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: Theme.smallSpacing) {
-                                ForEach(existingPhotos, id: \.id) { photo in
-                                    ZStack(alignment: .topTrailing) {
-                                        CachedAsyncImage(url: URL(string: photo.url)) { image in
-                                            image
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fill)
-                                        } placeholder: {
-                                            Rectangle()
-                                                .fill(.quaternary)
-                                        }
-                                        .frame(width: 80, height: 80)
-                                        .clipShape(RoundedRectangle(cornerRadius: Theme.smallCornerRadius))
-
-                                        Button {
-                                            _ = withAnimation {
-                                                photosToDelete.insert(photo.id)
-                                            }
-                                        } label: {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .font(.system(size: 18))
-                                                .foregroundStyle(.white)
-                                                .background(Circle().fill(.black.opacity(0.5)))
-                                        }
-                                        .offset(x: 4, y: -4)
-                                    }
-                                    .draggable(ExistingPhotoDragItem(id: photo.id)) {
-                                        CachedAsyncImage(url: URL(string: photo.url)) { image in
-                                            image.resizable().aspectRatio(contentMode: .fill)
-                                        } placeholder: {
-                                            Rectangle().fill(.quaternary)
-                                        }
-                                        .frame(width: 80, height: 80)
-                                        .clipShape(RoundedRectangle(cornerRadius: Theme.smallCornerRadius))
-                                    }
-                                    .dropDestination(for: ExistingPhotoDragItem.self) { items, _ in
-                                        guard let fromId = items.first?.id else { return false }
-                                        moveExistingPhoto(fromId: fromId, toId: photo.id)
-                                        return true
-                                    }
-                                }
+                        ReorderablePhotoStrip(
+                            items: existingPhotos.map { .remote($0.url) },
+                            onMove: { from, to in moveExistingPhoto(fromIndex: from, toIndex: to) },
+                            onRemove: { index in
+                                guard existingPhotos.indices.contains(index) else { return }
+                                _ = withAnimation { photosToDelete.insert(existingPhotos[index].id) }
                             }
-                        }
+                        )
+                        .frame(height: 84)
                     }
                 }
 
@@ -477,13 +427,22 @@ struct EditTastingView: View {
 
     // MARK: - Save
 
-    /// Reorders an existing photo (by ID) to another photo's position (drag-to-reorder).
-    private func moveExistingPhoto(fromId: String, toId: String) {
-        guard fromId != toId,
-              let from = orderedExistingPhotoIds.firstIndex(of: fromId),
-              let to = orderedExistingPhotoIds.firstIndex(of: toId) else { return }
-        let id = orderedExistingPhotoIds.remove(at: from)
-        orderedExistingPhotoIds.insert(id, at: to)
+    /// Reorders the visible (not-deleted) existing photos by moving the item at
+    /// `fromIndex` to `toIndex` within the visible list, then rewrites the stored order.
+    /// Deleted IDs are preserved (appended) so an undo keeps them.
+    private func moveExistingPhoto(fromIndex: Int, toIndex: Int) {
+        var visible = orderedExistingPhotoIds.filter { !photosToDelete.contains($0) }
+        guard visible.indices.contains(fromIndex),
+              visible.indices.contains(toIndex),
+              fromIndex != toIndex else { return }
+
+        let id = visible.remove(at: fromIndex)
+        visible.insert(id, at: toIndex)
+
+        let deleted = orderedExistingPhotoIds.filter { photosToDelete.contains($0) }
+        withAnimation {
+            orderedExistingPhotoIds = visible + deleted
+        }
     }
 
     private func save() async {
