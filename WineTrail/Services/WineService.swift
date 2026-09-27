@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OpenAPIRuntime
 
 /// Wine search and user-created wine management.
 ///
@@ -22,6 +23,31 @@ final class WineService {
     func search(query: String, locale: String = "en") async throws -> [WineSearch] {
         let response = try await apiClient.client.searchWinesV2(
             query: .init(q: query, locale: locale)
+        )
+        return try response.ok.body.json
+    }
+
+    /// Identifies wines from a bottle/label photo via the backend's Gemini-backed
+    /// photo search, deduped against the user's and the local catalog's wines.
+    ///
+    /// The image is JPEG-compressed before upload, mirroring the tasting-photo path.
+    /// Results share the same `WineSearch` shape as text search, so callers reuse the
+    /// existing result handling and the log-a-tasting flow.
+    /// - Parameters:
+    ///   - imageData: JPEG image data (pre-compressed by the caller).
+    ///   - locale: BCP 47 locale for result localization (defaults to "en").
+    /// - Returns: An array of matching wines (may be empty).
+    func identifyFromPhoto(imageData: Data, locale: String = "en") async throws -> [WineSearch] {
+        let body: Operations.searchWinesByPhoto.Input.Body = .multipartForm([
+            .file(.init(
+                payload: .init(body: .init(imageData)),
+                filename: "label.jpg"
+            ))
+        ])
+
+        let response = try await apiClient.client.searchWinesByPhoto(
+            query: .init(locale: locale),
+            body: body
         )
         return try response.ok.body.json
     }

@@ -259,6 +259,37 @@ final class LogTastingViewModel {
         }
     }
 
+    /// Identifies wines from a label/bottle photo via the backend photo search
+    /// (Gemini reads the label server-side), then populates the same `searchResults`
+    /// the text search feeds, so the Results UI is identical.
+    ///
+    /// Keeps the photo pending so it is attached to the tasting once the user picks
+    /// the matched wine (same as the scan flow). Returns `true` on a successful call
+    /// (even with zero results), `false` on failure — the caller can then fall back
+    /// to on-device OCR, since the photo endpoint needs network.
+    func identifyFromPhoto(_ image: UIImage) async -> Bool {
+        searchTask?.cancel()
+
+        isSearching = true
+        searchResults = []
+        pendingScanImage = image
+
+        do {
+            let compressed = photoService.compressImage(image)
+            let locale = Locale.current.language.languageCode?.identifier ?? "en"
+            let results = try await wineService.identifyFromPhoto(imageData: compressed, locale: locale)
+
+            searchResults = results
+            hasSearched = true
+            isSearching = false
+            return true
+        } catch {
+            Log.error("Wine photo identification failed", error: error)
+            isSearching = false
+            return false
+        }
+    }
+
     /// Selects a wine from search results and clears the search state.
     func selectWine(_ wine: WineSearch) {
         selectedWine = wine

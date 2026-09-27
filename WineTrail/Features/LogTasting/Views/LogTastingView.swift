@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreLocation
+import PhotosUI
 
 /// New Wine wizard — a step-by-step flow for recording a wine tasting.
 ///
@@ -42,6 +43,7 @@ struct LogTastingView: View {
     @State private var showScanCamera = false
     @State private var isScanning = false
     @State private var scanWarning: String?
+    @State private var scanPhotoItem: PhotosPickerItem?
     @State private var showTagFriends = false
     @State private var isLocationLocked = false
 
@@ -363,6 +365,17 @@ struct LogTastingView: View {
                             .tint(.wineAccent)
                             .disabled(isScanning)
 
+                            // Pick an existing photo from the library and identify the wine from it.
+                            PhotosPicker(selection: $scanPhotoItem, matching: .images) {
+                                Label("Choose Photo", systemImage: "photo.on.rectangle")
+                                    .font(Theme.bodyFont.weight(.semibold))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 6)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.wineAccent)
+                            .disabled(isScanning)
+
                             // Always-available manual entry, directly below Scan Label.
                             NavigationLink {
                                 CreateWineView(selectedWine: $vm.selectedWine, selectedWineId: $vm.selectedWineId)
@@ -453,6 +466,21 @@ struct LogTastingView: View {
                 scanLabel(image, viewModel: viewModel)
             }
             .ignoresSafeArea()
+        }
+        .onChange(of: scanPhotoItem) { _, newItem in
+            guard let newItem else { return }
+            scanWarning = nil
+            Task {
+                defer { scanPhotoItem = nil }
+                guard
+                    let data = try? await newItem.loadTransferable(type: Data.self),
+                    let image = UIImage(data: data)
+                else {
+                    scanWarning = "Couldn't load that photo. Try another one."
+                    return
+                }
+                scanLabel(image, viewModel: viewModel)
+            }
         }
         .offset(x: shakeWineSection ? -8 : 0)
         .animation(
@@ -809,29 +837,50 @@ struct LogTastingView: View {
         viewModel.pendingScanImage = nil
         Task {
             defer { isScanning = false }
-            do {
-                let result = try await WineLabelScanner.scan(image)
-                Log.info("Wine label scan result — producer: \(result.producer ?? "nil"), name: \(result.name ?? "nil"), vintage: \(result.vintage.map(String.init) ?? "nil"), confident: \(result.isConfident), query: \"\(result.searchQuery)\", rawLines: \(result.rawLines)")
-                let query = result.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !result.isConfident || query.isEmpty {
-                    scanWarning = "Couldn't confidently identify the wine from the label. Check or edit the search text below."
+
+            // Primary path: send the photo to the backend (Gemini reads the label and
+            // returns matching wines directly, deduped against local/user wines).
+            let identified = await viewModel.identifyFromPhoto(image)
+            if identified {
+                if viewModel.searchResults.isEmpty {
+                    scanWarning = "Couldn't identify a wine from that photo. Try a clearer, well-lit shot of the label, or search by name."
                 }
-                // Prefill the parsed vintage if the field is still empty.
-                if let vintage = result.vintage, viewModel.vintageText.trimmingCharacters(in: .whitespaces).isEmpty {
-                    viewModel.vintageText = String(vintage)
-                }
-                // Keep the scanned photo pending; it's attached once the user picks the matched wine.
-                if !query.isEmpty {
-                    viewModel.pendingScanImage = image
-                    viewModel.searchQuery = query
-                    viewModel.search()
-                }
-            } catch WineLabelScanner.ScanError.noTextFound {
-                scanWarning = "No readable text found on the label. Try again with a clearer, well-lit photo."
-            } catch {
-                Log.error("Wine label scan failed", error: error)
-                scanWarning = "Couldn't read the label. Try again or search by name."
+                return
             }
+
+            // Fallback: the photo endpoint failed (e.g. offline). Read the label
+            // on-device via OCR and run a text search off the extracted text.
+            await scanLabelOnDevice(image, viewModel: viewModel)
+        }
+    }
+
+    /// On-device OCR fallback (Vision + Foundation Models), used when the backend
+    /// photo search is unreachable. Fully offline.
+    private func scanLabelOnDevice(_ image: UIImage, viewModel: LogTastingViewModel) async {
+        do {
+            let result = try await WineLabelScanner.scan(image)
+            Log.info("Wine label scan result — producer: \(result.producer ?? "nil"), name: \(result.name ?? "nil"), vintage: \(result.vintage.map(String.init) ?? "nil"), confident: \(result.isConfident), query: \"\(result.searchQuery)\", rawLines: \(result.rawLines)")
+            let query = result.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !result.isConfident || query.isEmpty {
+                scanWarning = "Couldn't confidently identify the wine from the label. Check or edit the search text below."
+            }
+
+            // Prefill the parsed vintage if the field is still empty.
+            if let vintage = result.vintage, viewModel.vintageText.trimmingCharacters(in: .whitespaces).isEmpty {
+                viewModel.vintageText = String(vintage)
+            }
+
+            // Keep the scanned photo pending; it's attached once the user picks the matched wine.
+            if !query.isEmpty {
+                viewModel.pendingScanImage = image
+                viewModel.searchQuery = query
+                viewModel.search()
+            }
+        } catch WineLabelScanner.ScanError.noTextFound {
+            scanWarning = "No readable text found on the label. Try again with a clearer, well-lit photo."
+        } catch {
+            Log.error("Wine label scan failed", error: error)
+            scanWarning = "Couldn't read the label. Try again or search by name."
         }
     }
 }
