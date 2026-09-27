@@ -2,6 +2,21 @@ import SwiftUI
 import PhotosUI
 import OpenAPIRuntime
 import CoreLocation
+import UniformTypeIdentifiers
+
+/// A drag payload carrying an existing (server) photo's ID, used to reorder the
+/// current photos via drag-and-drop before saving.
+struct ExistingPhotoDragItem: Codable, Transferable {
+    let id: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .wineTrailExistingPhotoOrder)
+    }
+}
+
+extension UTType {
+    static let wineTrailExistingPhotoOrder = UTType(exportedAs: "com.winetrail.existing-photo-order")
+}
 
 /// Edit an existing tasting entry using a 3-step wizard layout matching LogTastingView.
 ///
@@ -29,6 +44,11 @@ struct EditTastingView: View {
     @State private var useGPS: Bool
     @State private var selectedImages: [UIImage] = []
     @State private var photosToDelete: Set<String> = []
+
+    /// The user's ordering of the existing (server) photos, by ID. Initialized from the
+    /// entry's current photo order and mutated by drag-to-reorder; sent to the reorder
+    /// endpoint on save (deleted IDs are filtered out first).
+    @State private var orderedExistingPhotoIds: [String]
 
     /// Location changes are deliberate: an existing location is shown read-only behind
     /// an explicit Edit affordance, so saving never silently overwrites it.
@@ -85,6 +105,7 @@ struct EditTastingView: View {
             || tasting.location?.latitude != nil
         _isLocationLocked = State(initialValue: hasLocation)
         _taggedFriendIds = State(initialValue: tasting.taggedUsers.map { $0.id })
+        _orderedExistingPhotoIds = State(initialValue: tasting.photos.map { $0.id })
     }
 
     var body: some View {
@@ -266,7 +287,11 @@ struct EditTastingView: View {
 
     @ViewBuilder
     private var detailsStep: some View {
-        let existingPhotos = tasting.photos.filter { !photosToDelete.contains($0.id) }
+        // Existing photos in the user's current order, excluding those marked for deletion.
+        let photosById = Dictionary(uniqueKeysWithValues: tasting.photos.map { ($0.id, $0) })
+        let existingPhotos = orderedExistingPhotoIds
+            .filter { !photosToDelete.contains($0) }
+            .compactMap { photosById[$0] }
 
         Form {
             // Photos section
@@ -274,7 +299,7 @@ struct EditTastingView: View {
                 // Existing photos
                 if !existingPhotos.isEmpty {
                     VStack(alignment: .leading, spacing: Theme.smallSpacing) {
-                        Text("Current photos")
+                        Text(existingPhotos.count > 1 ? "Current photos · drag to reorder" : "Current photos")
                             .font(Theme.captionFont)
                             .foregroundStyle(.secondary)
 
@@ -304,6 +329,20 @@ struct EditTastingView: View {
                                                 .background(Circle().fill(.black.opacity(0.5)))
                                         }
                                         .offset(x: 4, y: -4)
+                                    }
+                                    .draggable(ExistingPhotoDragItem(id: photo.id)) {
+                                        CachedAsyncImage(url: URL(string: photo.url)) { image in
+                                            image.resizable().aspectRatio(contentMode: .fill)
+                                        } placeholder: {
+                                            Rectangle().fill(.quaternary)
+                                        }
+                                        .frame(width: 80, height: 80)
+                                        .clipShape(RoundedRectangle(cornerRadius: Theme.smallCornerRadius))
+                                    }
+                                    .dropDestination(for: ExistingPhotoDragItem.self) { items, _ in
+                                        guard let fromId = items.first?.id else { return false }
+                                        moveExistingPhoto(fromId: fromId, toId: photo.id)
+                                        return true
                                     }
                                 }
                             }
@@ -438,6 +477,15 @@ struct EditTastingView: View {
 
     // MARK: - Save
 
+    /// Reorders an existing photo (by ID) to another photo's position (drag-to-reorder).
+    private func moveExistingPhoto(fromId: String, toId: String) {
+        guard fromId != toId,
+              let from = orderedExistingPhotoIds.firstIndex(of: fromId),
+              let to = orderedExistingPhotoIds.firstIndex(of: toId) else { return }
+        let id = orderedExistingPhotoIds.remove(at: from)
+        orderedExistingPhotoIds.insert(id, at: to)
+    }
+
     private func save() async {
         isSaving = true
         error = nil
@@ -493,6 +541,15 @@ struct EditTastingView: View {
             // Delete photos marked for removal
             for photoId in photosToDelete {
                 try await photoService.deletePhoto(id: photoId)
+            }
+
+            // Reorder the surviving existing photos to the user's order. Done after deletes
+            // (so the list is exactly the entry's current photos) and before uploads (new
+            // photos append after in selection order).
+            let survivingOrder = orderedExistingPhotoIds.filter { !photosToDelete.contains($0) }
+            let originalOrder = tasting.photos.map { $0.id }.filter { !photosToDelete.contains($0) }
+            if survivingOrder.count > 1, survivingOrder != originalOrder {
+                try await photoService.reorderPhotos(tastingId: tasting.id, photoIds: survivingOrder)
             }
 
             // Upload new photos if any were added

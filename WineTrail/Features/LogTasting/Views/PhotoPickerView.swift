@@ -1,5 +1,20 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
+
+/// A lightweight drag payload carrying the source index of a selected photo,
+/// used to reorder the local selection via drag-and-drop.
+struct PhotoDragItem: Codable, Transferable {
+    let index: Int
+
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .wineTrailPhotoOrder)
+    }
+}
+
+extension UTType {
+    static let wineTrailPhotoOrder = UTType(exportedAs: "com.winetrail.photo-order")
+}
 
 /// Photo selection component for the Log Tasting flow.
 ///
@@ -107,14 +122,42 @@ struct PhotoPickerView: View {
 
     @ViewBuilder
     private var selectedPhotosScroll: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Theme.smallSpacing) {
-                ForEach(Array(selectedImages.enumerated()), id: \.offset) { index, image in
-                    photoThumbnail(image: image, index: index)
-                }
+        VStack(alignment: .leading, spacing: 2) {
+            if selectedImages.count > 1 {
+                Text("Drag to reorder")
+                    .font(Theme.captionFont)
+                    .foregroundStyle(.secondary)
             }
-            .padding(.vertical, 4)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.smallSpacing) {
+                    ForEach(Array(selectedImages.enumerated()), id: \.offset) { index, image in
+                        photoThumbnail(image: image, index: index)
+                            .draggable(PhotoDragItem(index: index)) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 80, height: 80)
+                                    .clipShape(RoundedRectangle(cornerRadius: Theme.smallCornerRadius))
+                            }
+                            .dropDestination(for: PhotoDragItem.self) { items, _ in
+                                guard let from = items.first?.index else { return false }
+                                moveImage(from: from, to: index)
+                                return true
+                            }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
         }
+    }
+
+    /// Moves a selected image from one position to another (drag-to-reorder).
+    private func moveImage(from: Int, to: Int) {
+        guard selectedImages.indices.contains(from), from != to else { return }
+        let clampedTo = min(max(to, 0), selectedImages.count - 1)
+        let image = selectedImages.remove(at: from)
+        selectedImages.insert(image, at: clampedTo)
     }
 
     @ViewBuilder

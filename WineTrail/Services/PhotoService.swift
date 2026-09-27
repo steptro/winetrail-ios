@@ -61,6 +61,22 @@ final class PhotoService {
         return try response.ok.body.json
     }
 
+    /// Reorders an entry's photos to the given full, ordered list of photo IDs.
+    ///
+    /// The list must be exactly the entry's current photo IDs (the server rejects a
+    /// missing, extra, duplicate, or foreign ID). The server assigns `displayOrder`
+    /// by list position.
+    /// - Parameters:
+    ///   - tastingId: The tasting whose photos are being reordered.
+    ///   - photoIds: The full ordered list of the entry's photo IDs.
+    func reorderPhotos(tastingId: String, photoIds: [String]) async throws {
+        guard !photoIds.isEmpty else { return }
+        _ = try await apiClient.client.reorderPhotos(
+            path: .init(tastingId: tastingId),
+            body: .json(.init(photoIds: photoIds))
+        )
+    }
+
     /// Iteratively compresses a UIImage to JPEG until it's under the target size.
     ///
     /// Starts at 0.8 quality and decreases by 0.1 each iteration until the data
