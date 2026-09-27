@@ -47,6 +47,12 @@ final class SocialService {
         return try response.ok.body.json
     }
 
+    /// Lists a specific user's accepted friends (public — any user's friends are viewable).
+    func getUserFriends(userId: String) async throws -> [Components.Schemas.FriendUserDto] {
+        let response = try await apiClient.client.getUserFriends(path: .init(userId: userId))
+        return try response.ok.body.json
+    }
+
     /// Lists incoming pending friend requests.
     func getFriendRequests() async throws -> [Components.Schemas.FriendRequestDto] {
         let response = try await apiClient.client.getPendingRequests()

@@ -212,7 +212,16 @@ struct UserProfileView: View {
                 label: "Avg Rating"
             )
             Divider().frame(height: 32)
-            statCell(value: "\(profile.friendCount)", label: "Friends")
+            NavigationLink {
+                UserFriendsView(
+                    userId: profile.id,
+                    title: "\(profile.displayName ?? profile.username)'s Friends"
+                )
+            } label: {
+                statCell(value: "\(profile.friendCount)", label: "Friends")
+            }
+            .buttonStyle(.plain)
+            .disabled(profile.friendCount == 0)
         }
     }
 
