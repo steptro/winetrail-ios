@@ -235,9 +235,7 @@ struct SocialFeedPostView: View {
                     )
                 } label: {
                     HStack {
-                        Image(systemName: "person.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(.secondary)
+                        AvatarView(urlString: post.user.avatarUrl, size: 28)
                         Text(post.user.username)
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.primary)
@@ -283,7 +281,7 @@ struct SocialFeedPostView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: post.photos.count > 1 ? .automatic : .never))
-                .frame(height: 300)
+                .frame(height: 420)
                 .overlay {
                     if showHeartOverlay {
                         Image(systemName: "heart.fill")

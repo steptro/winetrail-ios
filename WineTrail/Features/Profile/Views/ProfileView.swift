@@ -1,6 +1,7 @@
 import SwiftUI
 import FirebaseAuth
 import RevenueCatUI
+import PhotosUI
 
 /// Profile tab — the user's identity, stats, and their own wines (tastings timeline).
 /// Account and app settings live behind the gear icon in the navigation bar.
@@ -18,6 +19,12 @@ struct ProfileView: View {
     @State private var feedViewModel: ProfileFeedViewModel?
     @State private var commentsTastingId: String?
     @State private var likesTastingId: String?
+
+    @State private var avatarPickerItem: PhotosPickerItem?
+    @State private var showAvatarPicker = false
+    @State private var isUpdatingAvatar = false
+    @State private var showRemoveAvatarConfirm = false
+    @State private var avatarError: String?
 
     var body: some View {
         ScrollView {
@@ -61,6 +68,21 @@ struct ProfileView: View {
         .sheet(item: $likesTastingId) { tastingId in
             LikesListView(tastingId: tastingId)
         }
+        .photosPicker(isPresented: $showAvatarPicker, selection: $avatarPickerItem, matching: .images)
+        .onChange(of: avatarPickerItem) { _, newItem in
+            guard let newItem else { return }
+            Task {
+                defer { avatarPickerItem = nil }
+                await uploadAvatar(newItem)
+            }
+        }
+        .confirmationDialog("Remove profile photo?", isPresented: $showRemoveAvatarConfirm, titleVisibility: .visible) {
+            Button("Remove Photo", role: .destructive) {
+                Task { await removeAvatar() }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .errorAlert($avatarError)
         .sheet(isPresented: $showPaywall) {
             PaywallView(displayCloseButton: true)
                 .onPurchaseCompleted { _ in Task { await subscriptions.refresh() } }
@@ -218,27 +240,65 @@ struct ProfileView: View {
 
     @ViewBuilder
     private var avatar: some View {
-        if let photoURL = authService.currentUser?.photoURL {
-            AsyncImage(url: photoURL) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-            } placeholder: {
-                avatarPlaceholder
+        // Prefer the backend avatar (uploaded in-app); fall back to the Firebase photo
+        // URL, then the placeholder.
+        let backendUrl = appState.currentUserAvatarUrl
+        let firebaseUrl = authService.currentUser?.photoURL?.absoluteString
+        let effectiveUrl = backendUrl ?? firebaseUrl
+
+        // With a removable (backend) avatar, offer a Change/Remove menu; otherwise tapping
+        // goes straight to the picker, since there is nothing to remove yet.
+        if backendUrl != nil {
+            Menu {
+                Button {
+                    showAvatarPicker = true
+                } label: {
+                    Label("Change Photo", systemImage: "photo")
+                }
+                Button(role: .destructive) {
+                    showRemoveAvatarConfirm = true
+                } label: {
+                    Label("Remove Photo", systemImage: "trash")
+                }
+            } label: {
+                avatarLabel(effectiveUrl)
             }
-            .frame(width: 88, height: 88)
-            .clipShape(Circle())
+            .disabled(isUpdatingAvatar)
+            .accessibilityLabel("Profile photo")
+            .accessibilityHint("Change or remove your profile photo")
         } else {
-            avatarPlaceholder
+            Button {
+                showAvatarPicker = true
+            } label: {
+                avatarLabel(effectiveUrl)
+            }
+            .buttonStyle(.plain)
+            .disabled(isUpdatingAvatar)
+            .accessibilityLabel("Add profile photo")
+            .accessibilityHint("Tap to choose a profile photo")
         }
     }
 
-    private var avatarPlaceholder: some View {
-        Image(systemName: "person.circle.fill")
-            .resizable()
-            .scaledToFit()
-            .frame(width: 88, height: 88)
-            .foregroundStyle(.wineAccent)
+    /// The circular avatar image with its camera badge / updating spinner overlay.
+    @ViewBuilder
+    private func avatarLabel(_ effectiveUrl: String?) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            AvatarView(urlString: effectiveUrl, size: 88)
+
+            if isUpdatingAvatar {
+                Circle()
+                    .fill(.black.opacity(0.4))
+                    .frame(width: 88, height: 88)
+                ProgressView()
+                    .tint(.white)
+                    .offset(x: -33, y: -33)
+            } else {
+                Image(systemName: "camera.circle.fill")
+                    .font(.system(size: 26))
+                    .foregroundStyle(.wineAccent)
+                    .background(Circle().fill(Color(.systemBackground)))
+            }
+        }
     }
 
     // MARK: - Data Loading
@@ -251,8 +311,56 @@ struct ProfileView: View {
         do {
             let profile = try await profileService.getProfile()
             username = profile.username
+            appState.setCurrentUserAvatarUrl(profile.avatarUrl)
         } catch {
             // Non-critical
+        }
+    }
+
+    /// Uploads a newly picked avatar image and refreshes the cached URL.
+    private func uploadAvatar(_ item: PhotosPickerItem) async {
+        isUpdatingAvatar = true
+        defer { isUpdatingAvatar = false }
+
+        guard
+            let data = try? await item.loadTransferable(type: Data.self),
+            let image = UIImage(data: data)
+        else {
+            avatarError = "Couldn't load that photo. Try another one."
+            return
+        }
+
+        do {
+            let previousUrl = appState.currentUserAvatarUrl
+            let profile = try await profileService.uploadAvatar(image)
+            // Replacing the avatar produces a new object key, but evict the old cached
+            // image so it can't linger in memory/disk.
+            if let previousUrl, let url = URL(string: previousUrl) {
+                ImageCache.shared.remove(for: url)
+            }
+            appState.setCurrentUserAvatarUrl(profile.avatarUrl)
+        } catch {
+            Log.error("Avatar upload failed", error: error)
+            avatarError = "Couldn't update your photo. Please try again."
+        }
+    }
+
+    /// Removes the current avatar and clears the cached URL.
+    private func removeAvatar() async {
+        isUpdatingAvatar = true
+        defer { isUpdatingAvatar = false }
+
+        do {
+            let previousUrl = appState.currentUserAvatarUrl
+            try await profileService.deleteAvatar()
+            // Evict the deleted avatar from the image cache so it isn't served stale.
+            if let previousUrl, let url = URL(string: previousUrl) {
+                ImageCache.shared.remove(for: url)
+            }
+            appState.setCurrentUserAvatarUrl(nil)
+        } catch {
+            Log.error("Avatar removal failed", error: error)
+            avatarError = "Couldn't remove your photo. Please try again."
         }
     }
 }

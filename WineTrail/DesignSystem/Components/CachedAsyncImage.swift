@@ -118,6 +118,16 @@ final class ImageCache: @unchecked Sendable {
         try? data.write(to: fileURL, options: .atomic)
     }
 
+    /// Evicts a single image from both memory and disk. Use when the underlying object
+    /// changed or was deleted (e.g. an avatar removed/replaced) so a stale image isn't
+    /// served. Keyed by `url.path`, matching get/set, so it evicts regardless of the
+    /// presigned query string.
+    func remove(for url: URL) {
+        memoryCache.removeObject(forKey: url.path as NSString)
+        let fileURL = diskFileURL(for: url)
+        try? FileManager.default.removeItem(at: fileURL)
+    }
+
     private func clearDiskCache() {
         try? FileManager.default.removeItem(at: diskCacheURL)
         try? FileManager.default.createDirectory(at: diskCacheURL, withIntermediateDirectories: true)

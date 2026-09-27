@@ -51,9 +51,7 @@ struct LikesListView: View {
                             )
                         } label: {
                             HStack(spacing: 12) {
-                                Image(systemName: "person.circle.fill")
-                                    .font(.title2)
-                                    .foregroundStyle(.wineAccent)
+                                AvatarView(urlString: user.avatarUrl, size: 40)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(user.displayName ?? user.username)
                                         .font(.body.weight(.medium))

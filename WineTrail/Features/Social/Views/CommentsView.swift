@@ -159,9 +159,7 @@ struct CommentsView: View {
                     displayName: comment.author.displayName
                 )
             } label: {
-                Image(systemName: "person.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+                AvatarView(urlString: comment.author.avatarUrl, size: 28)
             }
             .buttonStyle(.plain)
 

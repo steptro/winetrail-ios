@@ -82,9 +82,7 @@ struct TagFriendsView: View {
             toggle(friend.id)
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: "person.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.wineAccent)
+                AvatarView(urlString: friend.avatarUrl, size: 40)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(friend.displayName ?? friend.username)

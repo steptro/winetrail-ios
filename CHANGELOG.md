@@ -4,11 +4,15 @@ All notable changes to WineTrail. Versions follow the app's marketing version
 (`MARKETING_VERSION`), and dates are when that version was set in the project.
 
 
-## [1.3.0] - 2026-09-26
+## [1.3.0] - 2026-09-27
 
 - Edit and delete your own post from its detail page opened via your Profile
 - The tasting, location, and pairing cards are back on the post detail page (Social and Profile)
 - Wine detail history now shows the wine name and each entry is tappable to open the tasting
+- Identify a wine from a photo: scan a label with the camera or pick an existing photo when adding a wine, and matching wines come back to choose from (falls back to on-device reading when offline)
+- Reorder photos on a tasting by dragging them, when adding or editing
+- Profile photos: set, change, or remove your own from your Profile, and see other people's photos on their profile, in the feed, on comments, likes, friends, and search
+- Photos are shown larger on the feed, post detail, and wine detail screens
 
 ## [1.2.0] - 2026-09-26
 

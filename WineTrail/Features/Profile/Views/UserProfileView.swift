@@ -172,11 +172,7 @@ struct UserProfileView: View {
     @ViewBuilder
     private func profileHeader(_ profile: Components.Schemas.PublicUserProfileDto) -> some View {
         VStack(spacing: Theme.smallSpacing) {
-            Image(systemName: "person.circle.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 80, height: 80)
-                .foregroundStyle(.wineAccent)
+            AvatarView(urlString: profile.avatarUrl, size: 80)
 
             Text(profile.displayName ?? profile.username)
                 .font(.title2.weight(.bold))

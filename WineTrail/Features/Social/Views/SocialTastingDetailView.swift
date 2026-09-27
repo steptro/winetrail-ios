@@ -181,9 +181,7 @@ struct SocialTastingDetailView: View {
                 )
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "person.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
+                    AvatarView(urlString: post.user.avatarUrl, size: 28)
                     Text(post.user.username)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.primary)
@@ -223,7 +221,7 @@ struct SocialTastingDetailView: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: post.photos.count > 1 ? .automatic : .never))
-            .frame(height: 320)
+            .frame(height: 480)
         } else {
             WinePlaceholderView(color: post.wine.color)
         }

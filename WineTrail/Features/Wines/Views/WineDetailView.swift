@@ -185,7 +185,7 @@ struct WineDetailView: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: allPhotos.count > 1 ? .automatic : .never))
-            .frame(height: 320)
+            .frame(height: 480)
         } else {
             WinePlaceholderView(color: wine.wine.color)
         }

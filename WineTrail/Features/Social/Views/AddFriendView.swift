@@ -102,9 +102,7 @@ struct AddFriendView: View {
             )
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: "person.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
+                AvatarView(urlString: user.avatarUrl, size: 40)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(user.displayName ?? user.username)

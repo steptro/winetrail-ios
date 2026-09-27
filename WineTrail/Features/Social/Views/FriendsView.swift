@@ -172,9 +172,7 @@ struct FriendsView: View {
             )
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: "person.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.wineAccent)
+                AvatarView(urlString: friendship.friend.avatarUrl, size: 40)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(friendship.friend.displayName ?? friendship.friend.username)
@@ -206,9 +204,7 @@ struct FriendsView: View {
             )
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: "person.circle")
-                    .font(.title2)
-                    .foregroundStyle(.wineAccent)
+                AvatarView(urlString: request.sender.avatarUrl, size: 40)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(request.sender.displayName ?? request.sender.username)
@@ -233,9 +229,7 @@ struct FriendsView: View {
             )
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: "person.circle")
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
+                AvatarView(urlString: request.friend.avatarUrl, size: 40)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(request.friend.displayName ?? request.friend.username)

@@ -22,6 +22,11 @@ final class AppState {
     /// ownership by id rather than the mutable email. Nil until the profile resolves.
     private(set) var currentUserId: String?
 
+    /// The signed-in user's backend avatar URL (presigned), cached from `/me`. Nil when
+    /// the user has no avatar. Updated after an avatar upload/delete so the profile
+    /// reflects the change without a full route re-resolve.
+    private(set) var currentUserAvatarUrl: String?
+
     private let authService: AuthService
     private let journalService: JournalService
     private let profileService: ProfileService
@@ -32,6 +37,12 @@ final class AppState {
         self.journalService = journalService
         self.profileService = profileService
         self.agreementStore = agreementStore
+    }
+
+    /// Updates the cached backend avatar URL after an upload (new presigned URL) or
+    /// delete (nil), so the profile header reflects the change immediately.
+    func setCurrentUserAvatarUrl(_ url: String?) {
+        currentUserAvatarUrl = url
     }
 
     /// Determines the initial route based on terms acceptance, authentication state, and user data.
@@ -50,6 +61,7 @@ final class AppState {
 
         guard authService.isAuthenticated else {
             currentUserId = nil
+            currentUserAvatarUrl = nil
             currentRoute = .auth
             return
         }
@@ -57,6 +69,7 @@ final class AppState {
         do {
             let profile = try await profileService.getProfile()
             currentUserId = profile.id
+            currentUserAvatarUrl = profile.avatarUrl
             // Show onboarding only for brand new accounts (auto-generated username from email)
             // Once a user has gone through onboarding, they'll have a custom username
             let timeline = try await journalService.getTimeline(page: 0, size: 1)
