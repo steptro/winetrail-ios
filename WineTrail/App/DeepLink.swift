@@ -8,6 +8,8 @@ enum DeepLink: Equatable {
     case friends
     /// A wine shared via a `winetrail-app.com/wines/{id}` universal link.
     case wine(id: String)
+    /// The weekly stats nudge — opens the personal stats screen.
+    case stats
 
     /// Parses a push notification `userInfo` dictionary into a `DeepLink`.
     static func from(userInfo: [AnyHashable: Any]) -> DeepLink? {
@@ -22,6 +24,8 @@ enum DeepLink: Equatable {
             return .taggedPost(entryId: entryId)
         case "friend_request", "friend_accepted":
             return .friends
+        case "weekly_stats":
+            return .stats
         default:
             return nil
         }

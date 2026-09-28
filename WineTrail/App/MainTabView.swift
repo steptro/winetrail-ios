@@ -17,6 +17,7 @@ struct MainTabView: View {
     @State private var deepLinkTasting: Tasting?
     @State private var deepLinkTaggedPost: Components.Schemas.FeedJournalEntryDto?
     @State private var deepLinkWine: SharedWine?
+    @State private var showDeepLinkStats = false
 
     /// Wraps a resolved shared wine so it can drive a `.sheet(item:)`.
     private struct SharedWine: Identifiable {
@@ -118,6 +119,19 @@ struct MainTabView: View {
                     }
             }
         }
+        .sheet(isPresented: $showDeepLinkStats) {
+            NavigationStack {
+                StatsView()
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button { showDeepLinkStats = false } label: {
+                                Image(systemName: "xmark")
+                            }
+                        }
+                    }
+            }
+        }
         .onChange(of: appState.pendingDeepLink) { _, deepLink in
             guard let deepLink else { return }
             handleDeepLink(deepLink)
@@ -186,6 +200,8 @@ struct MainTabView: View {
                     Log.error("Failed to load wine from deep link", error: error)
                 }
             }
+        case .stats:
+            showDeepLinkStats = true
         }
     }
 }

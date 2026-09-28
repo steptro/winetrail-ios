@@ -4,6 +4,10 @@ All notable changes to WineTrail. Versions follow the app's marketing version
 (`MARKETING_VERSION`), and dates are when that version was set in the project.
 
 
+## [1.3.1] - 2026-09-28
+
+- Tapping the weekly stats notification now opens your stats screen instead of doing nothing
+
 ## [1.3.0] - 2026-09-27
 
 - Edit and delete your own post from its detail page opened via your Profile
