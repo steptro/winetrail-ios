@@ -13,5 +13,9 @@
 		<string>applinks:winetrail-app.com</string>
 		<string>applinks:winetrail.stephantromer.dev</string>
 	</array>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.dev.stephantromer.winetrail</string>
+	</array>
 </dict>
 </plist>

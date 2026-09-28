@@ -21,10 +21,34 @@
 		D4AB059C3065646C003BEE0F /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = D4AB059B3065646C003BEE0F /* MarkdownUI */; };
 		D4ABFF1530642B64003BEE0F /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = D4ABFF1430642B64003BEE0F /* RevenueCat */; };
 		D4ABFF1730642B64003BEE0F /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = D4ABFF1630642B64003BEE0F /* RevenueCatUI */; };
+		D4C74053306A877A00475C2A /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D4C7404C306A877A00475C2A /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D4C74051306A877A00475C2A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D4C7404B306A877A00475C2A;
+			remoteInfo = ShareExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D4C74054306A877A00475C2A /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				D4C74053306A877A00475C2A /* ShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* WineTrail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WineTrail.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D4C7404C306A877A00475C2A /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -35,6 +59,13 @@
 			);
 			target = 000000000000000100000000 /* WineTrail */;
 		};
+		D4C74058306A877A00475C2A /* Exceptions for "ShareExtension" folder in "ShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = D4C7404B306A877A00475C2A /* ShareExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -44,6 +75,14 @@
 				A10000000000000000000E01 /* Exceptions for "WineTrail" folder in "WineTrail" target */,
 			);
 			path = WineTrail;
+			sourceTree = "<group>";
+		};
+		D4C7404D306A877A00475C2A /* ShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D4C74058306A877A00475C2A /* Exceptions for "ShareExtension" folder in "ShareExtension" target */,
+			);
+			path = ShareExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -68,6 +107,11 @@
 				D4A35A0A303C2B3D005F634A /* FirebaseAnalytics in Frameworks */,
 			);
 		};
+		D4C74049306A877A00475C2A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -75,6 +119,7 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000010 /* WineTrail */,
+				D4C7404D306A877A00475C2A /* ShareExtension */,
 				D4C60BEE302A48A9000A2F6E /* Frameworks */,
 				000000000000000000000020 /* Products */,
 			);
@@ -84,6 +129,7 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000120 /* WineTrail.app */,
+				D4C7404C306A877A00475C2A /* ShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -105,11 +151,13 @@
 				000000000000000120000000 /* Sources */,
 				000000000000000130000000 /* Frameworks */,
 				000000000000000140000000 /* Resources */,
+				D4C74054306A877A00475C2A /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				D4C60EA6302A4A3B000A2F6E /* PBXTargetDependency */,
+				D4C74052306A877A00475C2A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				000000000000000000000010 /* WineTrail */,
@@ -135,6 +183,24 @@
 			productReference = 000000000000000000000120 /* WineTrail.app */;
 			productType = "com.apple.product-type.application";
 		};
+		D4C7404B306A877A00475C2A /* ShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D4C74057306A877A00475C2A /* Build configuration list for PBXNativeTarget "ShareExtension" */;
+			buildPhases = (
+				D4C74048306A877A00475C2A /* Sources */,
+				D4C74049306A877A00475C2A /* Frameworks */,
+				D4C7404A306A877A00475C2A /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				D4C7404D306A877A00475C2A /* ShareExtension */,
+			);
+			name = ShareExtension;
+			productName = ShareExtension;
+			productReference = D4C7404C306A877A00475C2A /* ShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -142,11 +208,14 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2630;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					000000000000000100000000 = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					D4C7404B306A877A00475C2A = {
+						CreatedOnToolsVersion = 27.0;
 					};
 				};
 			};
@@ -176,12 +245,18 @@
 			projectRoot = "";
 			targets = (
 				000000000000000100000000 /* WineTrail */,
+				D4C7404B306A877A00475C2A /* ShareExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		000000000000000140000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		D4C7404A306A877A00475C2A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -194,12 +269,22 @@
 			files = (
 			);
 		};
+		D4C74048306A877A00475C2A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
 		D4C60EA6302A4A3B000A2F6E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			productRef = D4C60EA5302A4A3B000A2F6E /* OpenAPIGenerator */;
+		};
+		D4C74052306A877A00475C2A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D4C7404B306A877A00475C2A /* ShareExtension */;
+			targetProxy = D4C74051306A877A00475C2A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -442,6 +527,88 @@
 			};
 			name = Release;
 		};
+		D4C74055306A877A00475C2A /* Debug configuration for PBXNativeTarget "ShareExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = US3A9LQX4B;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WineTrail;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.stephantromer.winetrail.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		D4C74056306A877A00475C2A /* Release configuration for PBXNativeTarget "ShareExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = US3A9LQX4B;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WineTrail;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.stephantromer.winetrail.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -458,6 +625,14 @@
 			buildConfigurations = (
 				000000000000000111000000 /* Debug configuration for PBXNativeTarget "WineTrail" */,
 				000000000000000112000000 /* Release configuration for PBXNativeTarget "WineTrail" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		D4C74057306A877A00475C2A /* Build configuration list for PBXNativeTarget "ShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D4C74055306A877A00475C2A /* Debug configuration for PBXNativeTarget "ShareExtension" */,
+				D4C74056306A877A00475C2A /* Release configuration for PBXNativeTarget "ShareExtension" */,
 			);
 			defaultConfigurationName = Release;
 		};

@@ -18,6 +18,10 @@ struct LogTastingView: View {
     /// Optional pre-selected wine (e.g. from "Log Again" on wine detail page).
     var preselectedWine: WineSearch?
 
+    /// A photo shared into the app (via the Share Extension) to identify a wine from
+    /// immediately — runs the photo search on appear so the user lands on the matches.
+    var preselectedScanImage: UIImage?
+
     /// When set, this new entry joins an existing shared tasting (the "Add my rating" flow).
     var sharedTastingId: String?
 
@@ -44,6 +48,11 @@ struct LogTastingView: View {
     @State private var isScanning = false
     @State private var scanWarning: String?
     @State private var scanPhotoItem: PhotosPickerItem?
+
+    /// Drives the camera-vs-library choice when tapping the inline scan icon.
+    @State private var showScanSourceDialog = false
+    /// Presents the photo library picker programmatically from the scan-source dialog.
+    @State private var showScanPhotoPicker = false
     @State private var showTagFriends = false
     @State private var isLocationLocked = false
 
@@ -119,6 +128,13 @@ struct LogTastingView: View {
                     vm.selectWine(preselectedWine)
                 }
                 vm.sharedTastingId = sharedTastingId
+
+                // A photo shared into the app: run the same photo identification the in-app
+                // scan uses, so the user lands directly on the matching wines with the photo
+                // kept pending for the chosen wine.
+                if let preselectedScanImage {
+                    Task { _ = await vm.identifyFromPhoto(preselectedScanImage) }
+                }
                 if let preselectedVintage {
                     vm.vintageText = String(preselectedVintage)
                 }
@@ -232,6 +248,9 @@ struct LogTastingView: View {
         VStack(spacing: 10) {
             // Next / Save button (primary, filled)
             if let next = currentStep.next {
+                // On the wine step the user must pick a wine before continuing.
+                let nextDisabled = currentStep == .wineAndRating && viewModel.selectedWine == nil
+
                 Button {
                     attemptNext(viewModel: viewModel, next: next)
                 } label: {
@@ -241,7 +260,9 @@ struct LogTastingView: View {
                         .padding(.vertical, 16)
                         .foregroundStyle(.white)
                         .background(.wineAccent, in: Capsule())
+                        .opacity(nextDisabled ? 0.5 : 1)
                 }
+                .disabled(nextDisabled)
             } else {
                 Button {
                     Task { await viewModel.saveTasting() }
@@ -335,58 +356,28 @@ struct LogTastingView: View {
                         selectedWineRow(wine: wine, viewModel: viewModel)
                     } else {
                         VStack(spacing: 12) {
-                            HStack {
+                            // Single primary control: type to search, or tap the camera to
+                            // identify the wine from a label photo (camera or library).
+                            HStack(spacing: 12) {
                                 TextField("Search wines...", text: $vm.searchQuery)
                                     .autocorrectionDisabled()
                                     .onSubmit { viewModel.search() }
                                     .onChange(of: vm.searchQuery) {
                                         viewModel.searchDebounced()
                                     }
+
                                 Button {
-                                    viewModel.search()
+                                    scanWarning = nil
+                                    showScanSourceDialog = true
                                 } label: {
-                                    Image(systemName: "magnifyingglass")
+                                    Image(systemName: "camera.viewfinder")
+                                        .font(.title)
+                                        .foregroundStyle(.wineGold)
                                 }
-                                .disabled(viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty)
+                                .disabled(isScanning)
+                                .accessibilityLabel("Scan a wine label")
                             }
-                            .padding(.bottom, 8)
-
-                            // Prominent primary action: scan a label.
-                            Button {
-                                scanWarning = nil
-                                showScanCamera = true
-                            } label: {
-                                Label("Scan Label", systemImage: "camera.viewfinder")
-                                    .font(Theme.bodyFont.weight(.semibold))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 6)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.wineAccent)
-                            .disabled(isScanning)
-
-                            // Pick an existing photo from the library and identify the wine from it.
-                            PhotosPicker(selection: $scanPhotoItem, matching: .images) {
-                                Label("Choose Photo", systemImage: "photo.on.rectangle")
-                                    .font(Theme.bodyFont.weight(.semibold))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 6)
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.wineAccent)
-                            .disabled(isScanning)
-
-                            // Always-available manual entry, directly below Scan Label.
-                            NavigationLink {
-                                CreateWineView(selectedWine: $vm.selectedWine, selectedWineId: $vm.selectedWineId)
-                            } label: {
-                                Label("Add Manually", systemImage: "plus.circle")
-                                    .font(Theme.bodyFont.weight(.semibold))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 6)
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.wineSecondary)
+                            .padding(.bottom, 4)
 
                             if isScanning {
                                 HStack {
@@ -430,6 +421,16 @@ struct LogTastingView: View {
                                 }
                             }
 
+                            // Fallback: manual entry when the wine can't be found.
+                            NavigationLink {
+                                CreateWineView(selectedWine: $vm.selectedWine, selectedWineId: $vm.selectedWineId)
+                            } label: {
+                                Text("Can't find it? Add it manually")
+                                    .font(Theme.captionFont.weight(.medium))
+                                    .foregroundStyle(.wineAccent)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.top, 4)
+                            }
                         }
                     }
                 }
@@ -467,6 +468,12 @@ struct LogTastingView: View {
             }
             .ignoresSafeArea()
         }
+        .confirmationDialog("Scan a Wine Label", isPresented: $showScanSourceDialog, titleVisibility: .visible) {
+            Button("Take Photo") { showScanCamera = true }
+            Button("Choose from Library") { showScanPhotoPicker = true }
+            Button("Cancel", role: .cancel) {}
+        }
+        .photosPicker(isPresented: $showScanPhotoPicker, selection: $scanPhotoItem, matching: .images)
         .onChange(of: scanPhotoItem) { _, newItem in
             guard let newItem else { return }
             scanWarning = nil

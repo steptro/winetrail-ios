@@ -9,11 +9,11 @@
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>dev.stephantromer.winetrail</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.974384424350-i4qip060h3hvs2u4nl2kj8lnvipt7l9k</string>
+				<string>winetrail</string>
 			</array>
 		</dict>
 	</array>

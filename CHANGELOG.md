@@ -14,6 +14,8 @@ All notable changes to WineTrail. Versions follow the app's marketing version
 - The tasting, location, and pairing cards are back on the post detail page (Social and Profile)
 - Wine detail history now shows the wine name and each entry is tappable to open the tasting
 - Identify a wine from a photo: scan a label with the camera or pick an existing photo when adding a wine, and matching wines come back to choose from (falls back to on-device reading when offline)
+- Share a photo into WineTrail from any app to jump straight into adding a wine, with a photo search already running on it
+- Streamlined the add-wine screen to a single search field with a camera to scan a label, and the Next button now stays disabled until you've picked a wine
 - Reorder photos on a tasting by dragging them, when adding or editing
 - Profile photos: set, change, or remove your own from your Profile, and see other people's photos on their profile, in the feed, on comments, likes, friends, and search
 - Tap the Friends count on someone's profile to see their friends, and open any of them to browse friends of friends

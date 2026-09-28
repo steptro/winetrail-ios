@@ -18,6 +18,13 @@ struct MainTabView: View {
     @State private var deepLinkTaggedPost: Components.Schemas.FeedJournalEntryDto?
     @State private var deepLinkWine: SharedWine?
     @State private var showDeepLinkStats = false
+    @State private var sharedSearchImage: SharedSearchImage?
+
+    /// Wraps a shared image so it can drive a `.sheet(item:)`.
+    private struct SharedSearchImage: Identifiable {
+        let id = UUID()
+        let image: UIImage
+    }
 
     /// Wraps a resolved shared wine so it can drive a `.sheet(item:)`.
     private struct SharedWine: Identifiable {
@@ -132,6 +139,9 @@ struct MainTabView: View {
                     }
             }
         }
+        .sheet(item: $sharedSearchImage) { shared in
+            LogTastingView(preselectedScanImage: shared.image, didSave: $didSaveTasting)
+        }
         .onChange(of: appState.pendingDeepLink) { _, deepLink in
             guard let deepLink else { return }
             handleDeepLink(deepLink)
@@ -202,7 +212,28 @@ struct MainTabView: View {
             }
         case .stats:
             showDeepLinkStats = true
+        case .searchPhoto:
+            if let image = Self.readSharedPhoto() {
+                sharedSearchImage = SharedSearchImage(image: image)
+            }
         }
+    }
+
+    /// App Group shared with the Share Extension. Must match both targets' entitlement.
+    private static let appGroupId = "group.dev.stephantromer.winetrail"
+    private static let sharedImageFileName = "shared-wine-photo.jpg"
+
+    /// Reads (and clears) the image the Share Extension stashed in the shared container.
+    private static func readSharedPhoto() -> UIImage? {
+        guard let container = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroupId) else { return nil }
+
+        let fileURL = container.appendingPathComponent(sharedImageFileName)
+        guard let data = try? Data(contentsOf: fileURL), let image = UIImage(data: data) else { return nil }
+
+        // Consume it so a later launch doesn't re-open the same photo.
+        try? FileManager.default.removeItem(at: fileURL)
+        return image
     }
 }
 

@@ -10,6 +10,9 @@ enum DeepLink: Equatable {
     case wine(id: String)
     /// The weekly stats nudge — opens the personal stats screen.
     case stats
+    /// A photo shared into the app via the Share Extension — opens New Wine and runs
+    /// a photo-based wine search on the shared image.
+    case searchPhoto
 
     /// Parses a push notification `userInfo` dictionary into a `DeepLink`.
     static func from(userInfo: [AnyHashable: Any]) -> DeepLink? {
@@ -36,6 +39,11 @@ enum DeepLink: Equatable {
     /// Only recognises paths we host an Apple App Site Association entry for; unknown
     /// paths return `nil` so the system falls back to opening the link in the browser.
     static func from(url: URL) -> DeepLink? {
+        // Custom-scheme hand-off from the Share Extension: winetrail://search-photo
+        if url.scheme == "winetrail", url.host == "search-photo" {
+            return .searchPhoto
+        }
+
         let segments = url.pathComponents.filter { $0 != "/" }
 
         switch segments.first {
