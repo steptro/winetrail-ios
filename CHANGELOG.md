@@ -4,12 +4,9 @@ All notable changes to WineTrail. Versions follow the app's marketing version
 (`MARKETING_VERSION`), and dates are when that version was set in the project.
 
 
-## [1.3.1] - 2026-09-28
-
-- Tapping the weekly stats notification now opens your stats screen instead of doing nothing
-
 ## [1.3.0] - 2026-09-27
 
+- Tapping the weekly stats notification now opens your stats screen instead of doing nothing
 - Edit and delete your own post from its detail page opened via your Profile
 - The tasting, location, and pairing cards are back on the post detail page (Social and Profile)
 - Wine detail history now shows the wine name and each entry is tappable to open the tasting
