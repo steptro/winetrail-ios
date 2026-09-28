@@ -12,6 +12,7 @@ All notable changes to WineTrail. Versions follow the app's marketing version
 - Identify a wine from a photo: scan a label with the camera or pick an existing photo when adding a wine, and matching wines come back to choose from (falls back to on-device reading when offline)
 - Reorder photos on a tasting by dragging them, when adding or editing
 - Profile photos: set, change, or remove your own from your Profile, and see other people's photos on their profile, in the feed, on comments, likes, friends, and search
+- Tap the Friends count on someone's profile to see their friends, and open any of them to browse friends of friends
 - Photos are shown larger on the feed, post detail, and wine detail screens
 
 ## [1.2.0] - 2026-09-26
