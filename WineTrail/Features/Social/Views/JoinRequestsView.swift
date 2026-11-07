@@ -74,8 +74,11 @@ struct JoinRequestsView: View {
                 Button {
                     Task { await decide(request, approve: true) }
                 } label: {
-                    Label("Approve", systemImage: "checkmark")
-                        .frame(maxWidth: .infinity)
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark")
+                        Text("Approve")
+                    }
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.wineAccent)
@@ -83,8 +86,11 @@ struct JoinRequestsView: View {
                 Button(role: .destructive) {
                     Task { await decide(request, approve: false) }
                 } label: {
-                    Label("Reject", systemImage: "xmark")
-                        .frame(maxWidth: .infinity)
+                    HStack(spacing: 6) {
+                        Image(systemName: "xmark")
+                        Text("Reject")
+                    }
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
             }

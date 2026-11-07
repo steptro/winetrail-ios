@@ -21,6 +21,11 @@ struct SocialTastingDetailView: View {
     @State private var reportTarget: ReportTarget?
     @State private var toastMessage: String?
 
+    // Join request state — only relevant on a friend's post the user is not part of yet.
+    @State private var joinRequestPending = false
+    @State private var joinRequestClosed = false
+    @State private var isSendingJoinRequest = false
+
     // Edit/delete state — shown only for the current user's own post.
     @State private var editingTasting: Components.Schemas.JournalEntryDto?
     @State private var showDeleteConfirmation = false
@@ -36,6 +41,14 @@ struct SocialTastingDetailView: View {
     private var isOwnPost: Bool {
         guard let myId = appState.currentUserId else { return false }
         return post.user.id == myId
+    }
+
+    /// True when the user may ask to join: a friend's post they are not tagged on, with no
+    /// earlier request (a rejection is final, an approval means they are already tagged).
+    private var canRequestToJoin: Bool {
+        guard let myId = appState.currentUserId else { return false }
+        guard !isOwnPost, !joinRequestClosed else { return false }
+        return !post.taggedUsers.contains { $0.id == myId }
     }
 
     var body: some View {
@@ -58,6 +71,7 @@ struct SocialTastingDetailView: View {
                         producer: post.wine.producer,
                         region: post.wine.regionName
                     )
+                    joinRequestSection
                     sharedTastingSection
                     notesSection
                     metadataPills
@@ -143,6 +157,9 @@ struct SocialTastingDetailView: View {
         }
         .animation(.snappy, value: toastMessage)
         .task {
+            // The feed passes the current user's request status along with the post.
+            joinRequestPending = post.joinRequestStatus == .PENDING
+            joinRequestClosed = post.joinRequestStatus == .APPROVED || post.joinRequestStatus == .REJECTED
             await loadSharedRatings()
         }
         .sheet(isPresented: $showAddRating, onDismiss: {
@@ -258,6 +275,78 @@ struct SocialTastingDetailView: View {
                 }
             }
             Spacer()
+        }
+    }
+
+    // MARK: - Join Request
+
+    @ViewBuilder
+    private var joinRequestSection: some View {
+        if canRequestToJoin {
+            if joinRequestPending {
+                Menu {
+                    Button(role: .destructive) {
+                        Task { await cancelJoinRequest() }
+                    } label: {
+                        Label("Withdraw Request", systemImage: "xmark")
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock")
+                        Text("Requested")
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.bordered)
+                .tint(.secondary)
+            } else {
+                Button {
+                    Task { await requestToJoin() }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.badge.plus")
+                        Text("Request to Join")
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.bordered)
+                .tint(.wineAccent)
+                .disabled(isSendingJoinRequest)
+            }
+        }
+    }
+
+    private func requestToJoin() async {
+        isSendingJoinRequest = true
+        defer { isSendingJoinRequest = false }
+
+        do {
+            try await socialService.requestToJoin(entryId: post.id)
+            joinRequestPending = true
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } catch {
+            Log.error("Failed to request to join post", error: error)
+            if case WineTrailError.validationFailed(let message) = error {
+                // Already requested or already part of the post: nothing left to ask for.
+                joinRequestClosed = true
+                toastMessage = message
+            } else {
+                toastMessage = "Couldn't send your request. Try again."
+            }
+        }
+    }
+
+    private func cancelJoinRequest() async {
+        do {
+            try await socialService.cancelJoinRequest(entryId: post.id)
+            joinRequestPending = false
+        } catch {
+            Log.error("Failed to cancel join request", error: error)
+            toastMessage = "Couldn't withdraw your request. Try again."
         }
     }
 
