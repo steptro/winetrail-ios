@@ -4,7 +4,7 @@ All notable changes to WineTrail. Versions follow the app's marketing version
 (`MARKETING_VERSION`), and dates are when that version was set in the project.
 
 
-## [Unreleased]
+## [1.4.0] - 2026-11-07
 
 - Ask to join a friend's post with Request to Join in the post's more options menu. Once they approve, the post becomes a shared tasting and shows up in your tagged wines so you can add your own rating
 - Withdraw a pending request from the same menu once you have asked
