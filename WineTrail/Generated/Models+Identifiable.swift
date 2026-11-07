@@ -11,6 +11,8 @@ extension Components.Schemas.UserWineStats: Identifiable {
     public var id: String { wine.id }
 }
 
+extension Components.Schemas.JoinRequestDto: Identifiable {}
+
 extension Components.Schemas.PhotoDto: Identifiable {}
 
 extension Components.Schemas.LocationPin: Identifiable {

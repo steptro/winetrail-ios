@@ -70,6 +70,45 @@ final class SocialFeedViewModel {
         }
     }
 
+    // MARK: - Join requests
+
+    /// Whether the current user can ask to join this post: it is a friend's post the user is
+    /// not already part of and has not asked about before (a rejection is final).
+    func canRequestToJoin(_ post: Components.Schemas.FeedJournalEntryDto, currentUserId: String?) -> Bool {
+        guard post.joinRequestStatus == nil else { return false }
+        guard let currentUserId, post.user.id != currentUserId else { return false }
+        return !post.taggedUsers.contains { $0.id == currentUserId }
+    }
+
+    /// Asks the post owner to share the post (optimistic, rolled back on failure).
+    /// Returns an error message to show, or nil on success.
+    func requestToJoin(_ post: Components.Schemas.FeedJournalEntryDto) async -> String? {
+        paginator.mutate(id: post.id) { $0.joinRequestStatus = .PENDING }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
+        do {
+            try await socialService.requestToJoin(entryId: post.id)
+            return nil
+        } catch {
+            paginator.mutate(id: post.id) { $0.joinRequestStatus = nil }
+            Log.error("Failed to request to join post", error: error)
+            if case WineTrailError.validationFailed(let message) = error { return message }
+            return "Couldn't send your request. Try again."
+        }
+    }
+
+    /// Withdraws a pending request (optimistic, rolled back on failure).
+    func cancelJoinRequest(_ post: Components.Schemas.FeedJournalEntryDto) async {
+        paginator.mutate(id: post.id) { $0.joinRequestStatus = nil }
+
+        do {
+            try await socialService.cancelJoinRequest(entryId: post.id)
+        } catch {
+            paginator.mutate(id: post.id) { $0.joinRequestStatus = .PENDING }
+            Log.error("Failed to cancel join request", error: error)
+        }
+    }
+
     // MARK: - Moderation
 
     /// Reports a feed post for objectionable content.

@@ -6,6 +6,7 @@ struct SocialFeedView: View {
     @Environment(SocialState.self) private var socialState
     @Environment(ModerationService.self) private var moderationService
     @Environment(BlockStore.self) private var blockStore
+    @Environment(AppState.self) private var appState
     @State private var viewModel: SocialFeedViewModel?
     @State private var commentsTastingId: String?
     @State private var likesTastingId: String?
@@ -58,6 +59,10 @@ struct SocialFeedView: View {
                                             commentsTastingId = post.id
                                         },
                                         onLikesCount: { likesTastingId = post.id },
+                                        onRequestToJoin: viewModel.canRequestToJoin(post, currentUserId: appState.currentUserId)
+                                            ? { Task { toastMessage = await viewModel.requestToJoin(post) } }
+                                            : nil,
+                                        onCancelJoinRequest: { Task { await viewModel.cancelJoinRequest(post) } },
                                         onReport: {
                                             reportTarget = ReportTarget(
                                                 contentType: .journalEntry,
@@ -128,6 +133,11 @@ struct SocialFeedView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
+                    NavigationLink {
+                        JoinRequestsView()
+                    } label: {
+                        Label("Join Requests", systemImage: "person.badge.plus")
+                    }
                     NavigationLink {
                         BlockedUsersView()
                     } label: {
@@ -214,6 +224,9 @@ struct SocialFeedPostView: View {
     let onLike: () async -> Void
     let onComment: () -> Void
     let onLikesCount: () -> Void
+    /// Non-nil when the current user may ask to join this post (nil hides the button).
+    var onRequestToJoin: (() -> Void)? = nil
+    var onCancelJoinRequest: (() -> Void)? = nil
     var onReport: (() -> Void)? = nil
     @State private var showHeartOverlay = false
 
@@ -404,6 +417,31 @@ struct SocialFeedPostView: View {
                     .buttonStyle(.plain)
 
                     Spacer()
+                }
+
+                // Ask the owner to share this post with you, or show the pending state
+                if let onRequestToJoin {
+                    Button {
+                        onRequestToJoin()
+                    } label: {
+                        Label("Request to Join", systemImage: "person.badge.plus")
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.wineAccent)
+                } else if post.joinRequestStatus == .PENDING {
+                    Menu {
+                        Button(role: .destructive) {
+                            onCancelJoinRequest?()
+                        } label: {
+                            Label("Withdraw Request", systemImage: "xmark")
+                        }
+                    } label: {
+                        Label("Requested", systemImage: "clock")
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.secondary)
                 }
 
                 // Shared tasting: who's tagged (tap the post to add your own rating)
