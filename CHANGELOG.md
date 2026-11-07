@@ -11,6 +11,7 @@ All notable changes to WineTrail. Versions follow the app's marketing version
 - Add My Rating on a shared post is now only shown to people tagged in it
 - Approve or reject friends' requests to join your posts from Join Requests in the social menu
 - Notifications when a friend asks to join your post and when your request is approved
+- The social screen buttons (tagged wines, friends, join requests, blocked users) are now in one menu, with a badge that adds up everything waiting for you
 
 ## [1.3.0] - 2026-09-27
 

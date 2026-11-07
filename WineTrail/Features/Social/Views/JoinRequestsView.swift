@@ -4,6 +4,7 @@ import SwiftUI
 /// shared tasting that includes the requester; rejecting is final for that person.
 struct JoinRequestsView: View {
     @Environment(SocialService.self) private var socialService
+    @Environment(SocialState.self) private var socialState
 
     @State private var requests: [Components.Schemas.JoinRequestDto] = []
     @State private var isLoading = false
@@ -110,6 +111,7 @@ struct JoinRequestsView: View {
                 try await socialService.rejectJoinRequest(id: request.id)
             }
             requests.removeAll { $0.id == request.id }
+            await socialState.refreshJoinRequestCount()
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } catch {
             Log.error("Failed to decide join request", error: error)
@@ -124,6 +126,7 @@ struct JoinRequestsView: View {
         error = nil
         do {
             requests = try await socialService.getPendingJoinRequests().content
+            await socialState.refreshJoinRequestCount()
         } catch {
             Log.error("Failed to load join requests", error: error)
             self.error = error
@@ -133,11 +136,14 @@ struct JoinRequestsView: View {
 }
 
 #Preview {
+    let service = SocialService(apiClient: APIClient(
+        serverURL: AppConfig.serverURL,
+        authService: AuthService()
+    ))
+
     NavigationStack {
         JoinRequestsView()
-            .environment(SocialService(apiClient: APIClient(
-                serverURL: AppConfig.serverURL,
-                authService: AuthService()
-            )))
+            .environment(service)
+            .environment(SocialState(socialService: service))
     }
 }

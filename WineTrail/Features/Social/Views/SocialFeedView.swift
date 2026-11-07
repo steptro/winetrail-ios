@@ -10,7 +10,6 @@ struct SocialFeedView: View {
     @State private var commentsTastingId: String?
     @State private var likesTastingId: String?
     @State private var showAddFriend = false
-    @State private var taggedCount = 0
     @State private var reportTarget: ReportTarget?
     @State private var toastMessage: String?
 
@@ -93,45 +92,21 @@ struct SocialFeedView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                NavigationLink {
-                    TaggedWinesView()
-                } label: {
-                    Image(systemName: "tag")
-                        .overlay(alignment: .topTrailing) {
-                            if taggedCount > 0 {
-                                Text("\(taggedCount)")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(3)
-                                    .background(.red, in: Circle())
-                                    .offset(x: 6, y: -6)
-                            }
-                        }
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                NavigationLink {
-                    FriendsView()
-                } label: {
-                    Image(systemName: "person.2")
-                        .overlay(alignment: .topTrailing) {
-                            if socialState.pendingRequestCount > 0 {
-                                Text("\(socialState.pendingRequestCount)")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(3)
-                                    .background(.red, in: Circle())
-                                    .offset(x: 6, y: -6)
-                            }
-                        }
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
                 Menu {
+                    NavigationLink {
+                        TaggedWinesView()
+                    } label: {
+                        Label(menuTitle("Tagged Wines", count: socialState.taggedCount), systemImage: "tag")
+                    }
+                    NavigationLink {
+                        FriendsView()
+                    } label: {
+                        Label(menuTitle("Friends", count: socialState.pendingRequestCount), systemImage: "person.2")
+                    }
                     NavigationLink {
                         JoinRequestsView()
                     } label: {
-                        Label("Join Requests", systemImage: "person.badge.plus")
+                        Label(menuTitle("Join Requests", count: socialState.joinRequestCount), systemImage: "person.badge.plus")
                     }
                     NavigationLink {
                         BlockedUsersView()
@@ -139,9 +114,20 @@ struct SocialFeedView: View {
                         Label("Blocked Users", systemImage: "nosign")
                     }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "ellipsis")
+                        .overlay(alignment: .topTrailing) {
+                            if socialState.socialBadgeCount > 0 {
+                                Text("\(socialState.socialBadgeCount)")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(3)
+                                    .background(.red, in: Circle())
+                                    .offset(x: 8, y: -8)
+                            }
+                        }
                 }
-                .accessibilityLabel("More social options")
+                .accessibilityLabel("Social options")
+                .accessibilityValue(socialState.socialBadgeCount > 0 ? "\(socialState.socialBadgeCount) pending" : "")
             }
         }
         .task {
@@ -153,8 +139,7 @@ struct SocialFeedView: View {
                 )
             }
             await viewModel?.loadInitial()
-            await socialState.refreshPendingCount()
-            await refreshTaggedCount()
+            await socialState.refresh()
         }
         .sheet(item: $commentsTastingId) { tastingId in
             CommentsView(tastingId: tastingId)
@@ -166,13 +151,13 @@ struct SocialFeedView: View {
             Task { await socialState.refreshPendingCount() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .tastingDidChange)) { _ in
-            Task { await refreshTaggedCount() }
+            Task { await socialState.refreshTaggedCount() }
         }
         .sheet(isPresented: $showAddFriend) {
             AddFriendView()
         }
         .onReceive(NotificationCenter.default.publisher(for: .taggedWinesDidChange)) { _ in
-            Task { await refreshTaggedCount() }
+            Task { await socialState.refreshTaggedCount() }
         }
         .sheet(item: $reportTarget) { target in
             ReportContentSheet(target: target, onReported: {
@@ -197,12 +182,9 @@ struct SocialFeedView: View {
         .animation(.snappy, value: toastMessage)
     }
 
-    private func refreshTaggedCount() async {
-        do {
-            taggedCount = try await socialService.getUnratedTaggedCount()
-        } catch {
-            Log.error("Failed to refresh tagged count", error: error)
-        }
+    /// Menu row title with the pending count appended, e.g. "Friends (2)".
+    private func menuTitle(_ title: String, count: Int) -> String {
+        count > 0 ? "\(title) (\(count))" : title
     }
 }
 
