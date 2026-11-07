@@ -6,8 +6,8 @@ All notable changes to WineTrail. Versions follow the app's marketing version
 
 ## [Unreleased]
 
-- Ask to join a friend's post with the Request to Join button in the post's navigation bar. Once they approve, the post becomes a shared tasting and shows up in your tagged wines so you can add your own rating
-- Withdraw a pending request from the Requested button in the post's navigation bar
+- Ask to join a friend's post with Request to Join in the post's more options menu. Once they approve, the post becomes a shared tasting and shows up in your tagged wines so you can add your own rating
+- Withdraw a pending request from the same menu once you have asked
 - Add My Rating on a shared post is now only shown to people tagged in it
 - Approve or reject friends' requests to join your posts from Join Requests in the social menu
 - Notifications when a friend asks to join your post and when your request is approved

@@ -111,21 +111,23 @@ struct SocialTastingDetailView: View {
                 }
             } else {
                 ToolbarItem(placement: .primaryAction) {
-                    joinRequestToolbarButton
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Button(role: .destructive) {
-                        reportTarget = ReportTarget(
-                            contentType: .journalEntry,
-                            contentId: post.id,
-                            authorUserId: post.user.id,
-                            authorName: post.user.username
-                        )
+                    Menu {
+                        joinRequestMenuItems
+
+                        Button(role: .destructive) {
+                            reportTarget = ReportTarget(
+                                contentType: .journalEntry,
+                                contentId: post.id,
+                                authorUserId: post.user.id,
+                                authorName: post.user.username
+                            )
+                        } label: {
+                            Label("Report Post", systemImage: "flag")
+                        }
                     } label: {
-                        Image(systemName: "flag")
+                        Image(systemName: "ellipsis")
                     }
-                    .tint(.red)
-                    .accessibilityLabel("Report Post")
+                    .accessibilityLabel("More options")
                 }
             }
         }
@@ -289,30 +291,32 @@ struct SocialTastingDetailView: View {
 
     // MARK: - Join Request
 
-    /// Navbar control: ask to join, or (once asked) a Requested state with Withdraw Request.
+    /// Menu entries for the join request: ask to join, or (once asked) show the pending
+    /// state with a way to withdraw.
     @ViewBuilder
-    private var joinRequestToolbarButton: some View {
+    private var joinRequestMenuItems: some View {
         if canRequestToJoin {
             if joinRequestPending {
-                Menu {
-                    Button(role: .destructive) {
-                        Task { await cancelJoinRequest() }
-                    } label: {
-                        Label("Withdraw Request", systemImage: "xmark")
-                    }
-                } label: {
-                    Image(systemName: "clock")
+                Button {} label: {
+                    Label("Request Sent", systemImage: "clock")
                 }
-                .accessibilityLabel("Join request sent")
+                .disabled(true)
+
+                Button(role: .destructive) {
+                    Task { await cancelJoinRequest() }
+                } label: {
+                    Label("Withdraw Request", systemImage: "xmark")
+                }
             } else {
                 Button {
                     Task { await requestToJoin() }
                 } label: {
-                    Image(systemName: "person.badge.plus")
+                    Label("Request to Join", systemImage: "person.badge.plus")
                 }
                 .disabled(isSendingJoinRequest)
-                .accessibilityLabel("Request to Join")
             }
+
+            Divider()
         }
     }
 
