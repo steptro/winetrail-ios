@@ -10,9 +10,14 @@ struct SocialFeedView: View {
     @State private var commentsTastingId: String?
     @State private var likesTastingId: String?
     @State private var showAddFriend = false
-    @State private var taggedCount = 0
     @State private var reportTarget: ReportTarget?
     @State private var toastMessage: String?
+    @State private var menuDestination: SocialMenuDestination?
+
+    /// Screens reachable from the social options menu.
+    private enum SocialMenuDestination: Hashable {
+        case taggedWines, friends, joinRequests, blockedUsers
+    }
 
     var body: some View {
         Group {
@@ -93,50 +98,53 @@ struct SocialFeedView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                NavigationLink {
-                    TaggedWinesView()
-                } label: {
-                    Image(systemName: "tag")
-                        .overlay(alignment: .topTrailing) {
-                            if taggedCount > 0 {
-                                Text("\(taggedCount)")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(3)
-                                    .background(.red, in: Circle())
-                                    .offset(x: 6, y: -6)
-                            }
-                        }
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                NavigationLink {
-                    FriendsView()
-                } label: {
-                    Image(systemName: "person.2")
-                        .overlay(alignment: .topTrailing) {
-                            if socialState.pendingRequestCount > 0 {
-                                Text("\(socialState.pendingRequestCount)")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(3)
-                                    .background(.red, in: Circle())
-                                    .offset(x: 6, y: -6)
-                            }
-                        }
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    NavigationLink {
-                        BlockedUsersView()
+                    Button {
+                        menuDestination = .taggedWines
+                    } label: {
+                        menuLabel("Tagged Wines", systemImage: "tag", count: socialState.taggedCount)
+                    }
+                    Button {
+                        menuDestination = .friends
+                    } label: {
+                        menuLabel("Friends", systemImage: "person.2", count: socialState.pendingRequestCount)
+                    }
+                    Button {
+                        menuDestination = .joinRequests
+                    } label: {
+                        menuLabel("Join Requests", systemImage: "person.badge.plus", count: socialState.joinRequestCount)
+                    }
+                    Button {
+                        menuDestination = .blockedUsers
                     } label: {
                         Label("Blocked Users", systemImage: "nosign")
                     }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    // Fixed frame so the badge anchors to the button's corner, not the glyph.
+                    Image(systemName: "ellipsis")
+                        .frame(width: 32, height: 32)
+                        .overlay(alignment: .topTrailing) {
+                            if socialState.socialBadgeCount > 0 {
+                                Text("\(socialState.socialBadgeCount)")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 5)
+                                    .frame(minWidth: 18, minHeight: 18)
+                                    .background(.red, in: Capsule())
+                                    .offset(x: 10, y: -10)
+                            }
+                        }
                 }
-                .accessibilityLabel("More social options")
+                .accessibilityLabel("Social options")
+                .accessibilityValue(socialState.socialBadgeCount > 0 ? "\(socialState.socialBadgeCount) pending" : "")
+            }
+        }
+        .navigationDestination(item: $menuDestination) { destination in
+            switch destination {
+            case .taggedWines: TaggedWinesView()
+            case .friends: FriendsView()
+            case .joinRequests: JoinRequestsView()
+            case .blockedUsers: BlockedUsersView()
             }
         }
         .task {
@@ -148,8 +156,7 @@ struct SocialFeedView: View {
                 )
             }
             await viewModel?.loadInitial()
-            await socialState.refreshPendingCount()
-            await refreshTaggedCount()
+            await socialState.refresh()
         }
         .sheet(item: $commentsTastingId) { tastingId in
             CommentsView(tastingId: tastingId)
@@ -161,13 +168,13 @@ struct SocialFeedView: View {
             Task { await socialState.refreshPendingCount() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .tastingDidChange)) { _ in
-            Task { await refreshTaggedCount() }
+            Task { await socialState.refreshTaggedCount() }
         }
         .sheet(isPresented: $showAddFriend) {
             AddFriendView()
         }
         .onReceive(NotificationCenter.default.publisher(for: .taggedWinesDidChange)) { _ in
-            Task { await refreshTaggedCount() }
+            Task { await socialState.refreshTaggedCount() }
         }
         .sheet(item: $reportTarget) { target in
             ReportContentSheet(target: target, onReported: {
@@ -192,12 +199,54 @@ struct SocialFeedView: View {
         .animation(.snappy, value: toastMessage)
     }
 
-    private func refreshTaggedCount() async {
-        do {
-            taggedCount = try await socialService.getUnratedTaggedCount()
-        } catch {
-            Log.error("Failed to refresh tagged count", error: error)
+    /// Menu row whose icon carries a red count badge at the top right when something is
+    /// waiting. Menus only draw plain images, so the badge is baked into the icon.
+    @ViewBuilder
+    private func menuLabel(_ title: String, systemImage: String, count: Int) -> some View {
+        if count > 0 {
+            Label {
+                Text(title)
+            } icon: {
+                Image(uiImage: Self.badgedIcon(systemName: systemImage, count: count))
+                    .renderingMode(.original)
+            }
+        } else {
+            Label(title, systemImage: systemImage)
         }
+    }
+
+    /// Draws an SF Symbol with a red count badge in its top-right corner.
+    private static func badgedIcon(systemName: String, count: Int) -> UIImage {
+        let canvas = CGSize(width: 30, height: 26)
+        let symbolConfig = UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)
+        let symbol = UIImage(systemName: systemName, withConfiguration: symbolConfig)?
+            .withTintColor(.label, renderingMode: .alwaysOriginal)
+
+        let image = UIGraphicsImageRenderer(size: canvas).image { _ in
+            if let symbol {
+                let origin = CGPoint(x: 0, y: (canvas.height - symbol.size.height) / 2 + 2)
+                symbol.draw(at: origin)
+            }
+
+            let text = count > 99 ? "99+" : "\(count)"
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 10, weight: .bold),
+                .foregroundColor: UIColor.white
+            ]
+            let textSize = (text as NSString).size(withAttributes: attributes)
+            let badgeHeight: CGFloat = 15
+            let badgeWidth = max(badgeHeight, textSize.width + 8)
+            let badgeRect = CGRect(x: canvas.width - badgeWidth, y: 0, width: badgeWidth, height: badgeHeight)
+
+            UIColor.systemRed.setFill()
+            UIBezierPath(roundedRect: badgeRect, cornerRadius: badgeHeight / 2).fill()
+            (text as NSString).draw(
+                at: CGPoint(x: badgeRect.midX - textSize.width / 2, y: badgeRect.midY - textSize.height / 2),
+                withAttributes: attributes
+            )
+        }
+
+        return image.withRenderingMode(.alwaysOriginal)
     }
 }
 

@@ -283,6 +283,57 @@ final class SocialService {
         return Int(try response.ok.body.json.count)
     }
 
+    // MARK: - Join Requests
+
+    /// Asks a friend to make their post a shared tasting that includes the current user.
+    ///
+    /// Throws `WineTrailError.validationFailed` on a 409 (already tagged or already requested)
+    /// and `WineTrailError.forbidden` on a 403 (not friends, or a block exists).
+    @discardableResult
+    func requestToJoin(entryId: String) async throws -> Components.Schemas.JoinRequestDto {
+        let response = try await apiClient.client.requestToJoinPost(path: .init(entryId: entryId))
+        switch response {
+        case .created(let created):
+            return try created.body.json
+        case .undocumented(let statusCode, let payload):
+            let message = await Self.errorMessage(from: payload)
+            if statusCode == 409 {
+                throw WineTrailError.validationFailed(message: message ?? "You already asked to join this post.")
+            }
+            throw WineTrailError.from(httpStatus: .init(code: statusCode), message: message)
+        }
+    }
+
+    /// Withdraws the current user's pending request to join a post.
+    func cancelJoinRequest(entryId: String) async throws {
+        _ = try await apiClient.client.cancelJoinRequest(path: .init(entryId: entryId))
+    }
+
+    /// Pending requests from friends to join the current user's posts (newest first).
+    func getPendingJoinRequests(page: Int = 0, size: Int = 50) async throws -> PagedResult<Components.Schemas.JoinRequestDto> {
+        let response = try await apiClient.client.getPendingJoinRequests(
+            query: .init(page: Int32(page), size: Int32(size))
+        )
+        let dto = try response.ok.body.json
+        return PagedResult(
+            content: dto.content ?? [],
+            totalPages: Int(dto.page?.totalPages ?? 0),
+            totalElements: Int(dto.page?.totalElements ?? 0),
+            currentPage: Int(dto.page?.number ?? 0),
+            isLast: Int(dto.page?.number ?? 0) >= Int(dto.page?.totalPages ?? 1) - 1
+        )
+    }
+
+    /// Approves a join request: the post becomes a shared tasting and the requester is tagged.
+    func approveJoinRequest(id: String) async throws {
+        _ = try await apiClient.client.approveJoinRequest(path: .init(joinRequestId: id))
+    }
+
+    /// Rejects a join request. The requester cannot ask again.
+    func rejectJoinRequest(id: String) async throws {
+        _ = try await apiClient.client.rejectJoinRequest(path: .init(joinRequestId: id))
+    }
+
     /// Photos belonging to a shared tasting (across all participant entries), for reuse
     /// when adding your own rating.
     func getSharedTastingPhotos(sharedTastingId: String) async throws -> [Components.Schemas.PhotoUploadDto] {

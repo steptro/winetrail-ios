@@ -18,6 +18,7 @@ struct MainTabView: View {
     @State private var deepLinkTaggedPost: Components.Schemas.FeedJournalEntryDto?
     @State private var deepLinkWine: SharedWine?
     @State private var showDeepLinkStats = false
+    @State private var showDeepLinkJoinRequests = false
     @State private var sharedSearchImage: SharedSearchImage?
 
     /// Wraps a shared image so it can drive a `.sheet(item:)`.
@@ -139,6 +140,19 @@ struct MainTabView: View {
                     }
             }
         }
+        .sheet(isPresented: $showDeepLinkJoinRequests) {
+            NavigationStack {
+                JoinRequestsView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button { showDeepLinkJoinRequests = false } label: {
+                                Image(systemName: "xmark")
+                            }
+                            .accessibilityLabel("Close")
+                        }
+                    }
+            }
+        }
         .sheet(item: $sharedSearchImage) { shared in
             LogTastingView(preselectedScanImage: shared.image, didSave: $didSaveTasting)
         }
@@ -210,6 +224,9 @@ struct MainTabView: View {
                     Log.error("Failed to load wine from deep link", error: error)
                 }
             }
+        case .joinRequests:
+            selectedTab = 3 // Social tab
+            showDeepLinkJoinRequests = true
         case .stats:
             showDeepLinkStats = true
         case .searchPhoto:

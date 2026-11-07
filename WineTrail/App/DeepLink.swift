@@ -6,6 +6,8 @@ enum DeepLink: Equatable {
     /// A friend's post the current user was tagged in — opens the social detail page.
     case taggedPost(entryId: String)
     case friends
+    /// A friend asked to join the user's post — opens the join requests inbox.
+    case joinRequests
     /// A wine shared via a `winetrail-app.com/wines/{id}` universal link.
     case wine(id: String)
     /// The weekly stats nudge — opens the personal stats screen.
@@ -22,11 +24,13 @@ enum DeepLink: Equatable {
         case "like", "comment", "comment_like", "friend_wine":
             guard let entryId = userInfo["entryId"] as? String else { return nil }
             return .tasting(id: entryId)
-        case "tagged_in_post":
+        case "tagged_in_post", "join_request_approved":
             guard let entryId = userInfo["entryId"] as? String else { return nil }
             return .taggedPost(entryId: entryId)
         case "friend_request", "friend_accepted":
             return .friends
+        case "join_request":
+            return .joinRequests
         case "weekly_stats":
             return .stats
         default:
