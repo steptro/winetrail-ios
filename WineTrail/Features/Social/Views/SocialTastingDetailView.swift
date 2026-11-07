@@ -5,8 +5,8 @@ import FirebaseAuth
 /// Read-only detail page for a friend's feed post (a `FeedJournalEntryDto`).
 ///
 /// Shows the post's photos, wine, the poster's rating, notes, and — for a shared tasting —
-/// the list of friends' ratings plus an "Add My Rating" button. The button is hidden once
-/// the current user has already rated (i.e. appears in the shared tasting's ratings).
+/// the list of friends' ratings plus an "Add My Rating" button. The button is only shown to
+/// people tagged on the post, and is hidden once the current user has already rated.
 struct SocialTastingDetailView: View {
     @Environment(SocialService.self) private var socialService
     @Environment(JournalService.self) private var journalService
@@ -35,6 +35,13 @@ struct SocialTastingDetailView: View {
     private var hasMyRating: Bool {
         guard let myId = appState.currentUserId else { return false }
         return sharedRatings.contains { $0.user.id == myId }
+    }
+
+    /// True when the current user is tagged on this post. Rating a shared tasting is an
+    /// invitation: only tagged people (or the owner) can add a rating.
+    private var isTagged: Bool {
+        guard let myId = appState.currentUserId else { return false }
+        return post.taggedUsers.contains { $0.id == myId }
     }
 
     /// True when this post belongs to the current user (hide report for own content).
@@ -390,8 +397,8 @@ struct SocialTastingDetailView: View {
                     }
                 }
 
-                // Add My Rating — only when this is a shared tasting the user hasn't rated yet.
-                if !hasMyRating {
+                // Add My Rating — only when this is a shared tasting the user is tagged in and hasn't rated yet.
+                if isTagged, !hasMyRating {
                     Button {
                         showAddRating = true
                     } label: {
