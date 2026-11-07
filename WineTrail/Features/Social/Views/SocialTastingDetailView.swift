@@ -78,7 +78,6 @@ struct SocialTastingDetailView: View {
                         producer: post.wine.producer,
                         region: post.wine.regionName
                     )
-                    joinRequestSection
                     sharedTastingSection
                     notesSection
                     metadataPills
@@ -111,6 +110,9 @@ struct SocialTastingDetailView: View {
                     }
                 }
             } else {
+                ToolbarItem(placement: .primaryAction) {
+                    joinRequestToolbarButton
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button(role: .destructive) {
                         reportTarget = ReportTarget(
@@ -287,8 +289,9 @@ struct SocialTastingDetailView: View {
 
     // MARK: - Join Request
 
+    /// Navbar control: ask to join, or (once asked) a Requested state with Withdraw Request.
     @ViewBuilder
-    private var joinRequestSection: some View {
+    private var joinRequestToolbarButton: some View {
         if canRequestToJoin {
             if joinRequestPending {
                 Menu {
@@ -298,31 +301,17 @@ struct SocialTastingDetailView: View {
                         Label("Withdraw Request", systemImage: "xmark")
                     }
                 } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "clock")
-                        Text("Requested")
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    Image(systemName: "clock")
                 }
-                .buttonStyle(.bordered)
-                .tint(.secondary)
+                .accessibilityLabel("Join request sent")
             } else {
                 Button {
                     Task { await requestToJoin() }
                 } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "person.badge.plus")
-                        Text("Request to Join")
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    Image(systemName: "person.badge.plus")
                 }
-                .buttonStyle(.bordered)
-                .tint(.wineAccent)
                 .disabled(isSendingJoinRequest)
+                .accessibilityLabel("Request to Join")
             }
         }
     }
